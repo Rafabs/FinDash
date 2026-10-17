@@ -1,43 +1,113 @@
-const fmt = (k, v) => {
-  if (v === '' || v == null) return ''
-  if (k === 'VAR_PP') return (v * 100).toFixed(2) + '%'
-  return typeof v === 'number' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : v
+import { useMemo } from 'react'
+import { round2 } from './data.js'
+
+const f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+const brl = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', f2)
+
+function show(k, t, v) {
+  if (v === '' || v == null) return '—'
+  if (k === 'VAR_PP') return (v > 0 ? '▲ ' : v < 0 ? '▼ ' : '') + Math.abs(v * 100).toLocaleString('pt-BR', f2) + '%'
+  if (k === 'REND_BRUTO') return (v > 0 ? '+ ' : v < 0 ? '− ' : '') + brl(Math.abs(v))
+  if (k === 'PERIODO') return v + (v === 1 ? ' dia' : ' dias')
+  if (t === 'money' || t === 'calcm') return brl(v)
+  if (t === 'date') return String(v).split('-').reverse().join('/')
+  return typeof v === 'number' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) : v
 }
 
-export default function Table({ cols, rows, onEdit, onAdd, onDelete }) {
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects }) {
+  // Agrupa lotes do mesmo papel lado a lado (na posição da 1ª ocorrência)
+  const list = useMemo(() => {
+    if (!groupFn) return rows.map((r, i) => ({ r, i, first: true, span: 1, shared: false }))
+    const groups = new Map()
+    rows.forEach((r, i) => { if (groupFn(r)) groups.set(r.PAPEL, [...(groups.get(r.PAPEL) || []), i]) })
+    const out = [], done = new Set()
+    rows.forEach((r, i) => {
+      if (!groupFn(r)) return out.push({ r, i, first: true, span: 1, shared: false })
+      if (done.has(r.PAPEL)) return
+      done.add(r.PAPEL)
+      const ids = groups.get(r.PAPEL)
+      ids.forEach((gi, n) => out.push({ r: rows[gi], i: gi, first: n === 0, span: ids.length, shared: true }))
+    })
+    return out
+  }, [rows, groupFn])
+
   return (
-    <>
-      <button onClick={onAdd} style={{ marginBottom: 8 }}>+ Nova linha</button>
+    <section className="panel">
+      <div className="panel-head">
+        <span className="muted">
+          {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`} · campos com borda são editáveis
+          {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
+        </span>
+        <div className="ph-actions">{extra}<button onClick={onAdd}>{addLabel}</button></div>
+      </div>
       <div className="wrap">
         <table>
           <thead>
-            <tr><th>#</th>{cols.map(([k]) => <th key={k}>{k}</th>)}<th></th></tr>
+            <tr><th>#</th>{cols.map(([k, , l]) => <th key={k}>{l ?? k}</th>)}<th></th></tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                {cols.map(([k, t]) =>
-                  t === 'calc' ? (
-                    <td key={k} className="calc">{fmt(k, r[k])}</td>
-                  ) : (
-                    <td key={k}>
-                      <input
-                        type={t === 'date' ? 'date' : t === 'num' ? 'number' : 'text'}
-                        step="any"
-                        value={r[k] ?? ''}
-                        onChange={(e) => onEdit(i, k, t === 'num' && e.target.value !== '' ? Number(e.target.value) : e.target.value)}
-                      />
-                    </td>
-                  )
-                )}
-                <td><button className="sec" onClick={() => onDelete(i)}>✕</button></td>
-              </tr>
-            ))}
+            {list.map((e, n) => {
+              const { r, i } = e
+              return (
+                <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
+                  <td className="idx">{offset + n + 1}</td>
+                  {cols.map(([k, t, , w]) => {
+                    const shared = e.shared && sharedKeys.includes(k)
+                    if (shared && !e.first) return null
+                    const rs = shared ? e.span : undefined
+                    const g = shared ? ' grp' : ''
+                    const locked = t === 'calc' || t === 'calcm' || isLocked?.(r, k)
+                    const right = t === 'money' || t === 'calcm' || t === 'num'
+                    if (locked) {
+                      if (k === 'IOF')
+                        return <td key={k} className="ro"><span className={'chip ' + (r[k] === 'SIM' ? 'warn' : r[k] === 'NÃO' ? 'ok' : 'na')}>{r[k] || '—'}</span></td>
+                      if (k === 'PAPEL' && shared)
+                        return <td key={k} rowSpan={rs} className="ro grp"><span className="papel">{r[k]}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
+                      let cls = 'ro' + (right ? ' r' : '') + g
+                      if (k === 'VAR_PP' || k === 'REND_BRUTO') cls += r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : ''
+                      return <td key={k} rowSpan={rs} className={cls}>{show(k, t, r[k])}</td>
+                    }
+                    const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
+                    if (t === 'money')
+                      return (
+                        <td key={k} rowSpan={rs} className={g.trim()}>
+                          <div className="money" title={title}>
+                            <span>R$</span>
+                            <input
+                              type="number" step="0.01" value={r[k] ?? ''}
+                              onChange={(ev) => onEdit(i, k, ev.target.value === '' ? '' : Number(ev.target.value))}
+                              onBlur={(ev) => { const v = Number(ev.target.value); if (ev.target.value !== '' && round2(v) !== v) onEdit(i, k, round2(v)) }}
+                            />
+                          </div>
+                        </td>
+                      )
+                    if (t === 'select')
+                      return (
+                        <td key={k} rowSpan={rs}>
+                          <select className="cell" value={r[k] ?? ''} onChange={(ev) => onEdit(i, k, ev.target.value)}>
+                            {!(selects?.[k] || []).includes(r[k]) && <option value={r[k] ?? ''}>{r[k] || '—'}</option>}
+                            {(selects?.[k] || []).map((o) => <option key={o}>{o}</option>)}
+                          </select>
+                        </td>
+                      )
+                    return (
+                      <td key={k} rowSpan={rs} className={g.trim()}>
+                        <input
+                          className="cell" title={title} style={w ? { minWidth: w } : undefined} type={t === 'date' ? 'date' : t === 'num' ? 'number' : 'text'}
+                          step="any" value={r[k] ?? ''}
+                          onChange={(ev) => onEdit(i, k, t === 'num' && ev.target.value !== '' ? Number(ev.target.value) : ev.target.value)}
+                        />
+                      </td>
+                    )
+                  })}
+                  <td><button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button></td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
-        {!rows.length && <div className="empty">Sem dados. Importe um arquivo ou adicione uma linha.</div>}
+        {!rows.length && <div className="empty">Sem dados. Importe um arquivo ou adicione um item.</div>}
       </div>
-    </>
+    </section>
   )
 }
