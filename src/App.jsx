@@ -6,7 +6,8 @@ import ExtratoView from './ExtratoView.jsx'
 import PasteModal from './PasteModal.jsx'
 import { defaultPeriod, rangeOf, inRange, labelOf } from './period.js'
 import CartHero from './CartHero.jsx'
-import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today } from './data.js'
+import Landing from './Landing.jsx'
+import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData } from './data.js'
 import { exportPdf } from './pdf.js'
 
 const KEY = 'fynn-control-v1'
@@ -53,17 +54,19 @@ export default function App() {
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} }, [data])
 
-  const onFile = async (e) => {
-    const f = e.target.files[0]
+  const empty = !data.carteira.length && !data.extrato.length
+  const handleFile = async (f) => {
     if (!f) return
     try {
       const r = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
+      if (!r.carteira?.length && !r.extrato?.length) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
       setData((d) => ({ ...d, ...r }))
-    }
-    catch { alert('Não foi possível ler o arquivo.') }
-    e.target.value = ''
+      setTab('dash')
+    } catch { alert('Não foi possível ler o arquivo.') }
   }
+  const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
+  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [] }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -77,16 +80,20 @@ export default function App() {
   return (
     <>
       <header>
-        <div className="brand"><span className="logo">F</span><div><h1>Fynn Control</h1><small>Carteira de investimentos</small></div></div>
+        <div className="brand"><span className="logo"><svg viewBox="0 0 64 64" width="22" height="22"><rect x="14" y="36" width="9" height="14" rx="3" fill="#fff" opacity=".65" /><rect x="27.5" y="26" width="9" height="24" rx="3" fill="#fff" opacity=".85" /><rect x="41" y="14" width="9" height="36" rx="3" fill="#fff" /></svg></span><div><h1>Fynn Control</h1><small>Carteira de investimentos</small></div></div>
         <div className="actions">
           <input ref={input} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
           <button onClick={() => input.current.click()}>⬆ Importar</button>
+          {!empty && <>
           <button className="sec" onClick={() => exportCsv(tab === 'extrato' ? 'extrato' : 'carteira', data[tab === 'extrato' ? 'extrato' : 'carteira'])}>CSV</button>
           <button className="sec" onClick={() => exportXlsx(data)}>XLSX</button>
           <button className="sec" onClick={doPdf}>PDF</button>
+          <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
+          </>}
           <button className="icon" title="Alternar tema" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
         </div>
       </header>
+      {empty ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} /> : (<>
       <nav className="tabs">
         {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length]].map(([k, l, c]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{c != null && <em>{c}</em>}</button>
@@ -107,7 +114,7 @@ export default function App() {
         {tab === 'extrato' && (
           <ExtratoView rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
-      </main>
+      </main></>)}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
           onSave={(rows) => { setData((d) => ({ ...d, extrato: [...d.extrato, ...rows] })); setPaste(null) }} />
