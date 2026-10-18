@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { SHEETS } from './data.js'
+import { SHEETS, totalOf } from './data.js'
 
 export function exportPdf(data, resumo, periodo) {
   const doc = new jsPDF({ orientation: 'landscape' })
@@ -19,6 +19,17 @@ export function exportPdf(data, resumo, periodo) {
       startY: 18,
       head: [labels],
       body: data[k].map((r) => cols.map((c) => (c === 'VAR_PP' ? (r[c] * 100).toFixed(2) + '%' : typeof r[c] === 'number' ? +r[c].toFixed(4) : r[c] ?? ''))),
+      styles: { fontSize: 6 },
+    })
+  }
+  if (data.despesas?.length) {
+    doc.addPage()
+    doc.setFontSize(13)
+    doc.text('Despesas', 14, 14)
+    autoTable(doc, {
+      startY: 18,
+      head: [['Mês', 'Conta', 'Itens', 'Total']],
+      body: data.despesas.map((r) => [r.DATA.slice(0, 7).split('-').reverse().join('/'), r.TIPO_CONTA, r.ITENS.map((i) => `${i.NOME || '-'}: ${i.VALOR.toFixed(2)}`).join(' · '), totalOf(r).toFixed(2)]),
       styles: { fontSize: 6 },
     })
   }

@@ -7,11 +7,12 @@ const FEATURES = [
   ['🏷️', 'Categorias automáticas', 'Dividendos, rendimentos, aluguel e salário são classificados por você ou pelo app.'],
   ['📋', 'Cole do Excel', 'Copie linhas de qualquer planilha e cole: o app reconhece as colunas e evita duplicatas.'],
   ['📤', 'Exporte em 3 formatos', 'CSV, XLSX e PDF prontos para anexar, guardar ou enviar.'],
+  ['🧾', 'Despesas mês a mês', 'Lance as contas do mês em poucos cliques, copie o mês anterior e veja a matriz conta × mês.'],
   ['🔒', '100% no seu navegador', 'Nenhum dado vai para servidor. Tudo fica salvo só no seu computador.'],
 ]
 const STEPS = [
-  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 2 abas: Control_Fynn (carteira) e Extrato (entradas).'],
-  ['2', 'Importe', 'Arraste o .xlsx (as 2 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
+  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 3 abas: Control_Fynn (carteira), Extrato (entradas) e Despesas (contas do mês).'],
+  ['2', 'Importe', 'Arraste o .xlsx (as 3 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
   ['3', 'Analise e edite', 'Veja o dashboard, ajuste valores, cole novos lançamentos e filtre por período.'],
   ['4', 'Exporte', 'Baixe CSV, XLSX ou PDF quando quiser e continue de onde parou.'],
 ]
@@ -24,6 +25,10 @@ const CART_COLS = [
 const EXT_COLS = [
   ['DATA DE RECEBIMENTO', 'Data da entrada'], ['VALOR DA APLICAÇÃO', 'Valor recebido'], ['ORIGEM · INSTITUIÇÃO · CNPJ / CPF', 'Texto livre'],
   ['TIPO', 'Ex.: DIVIDENDOS 100 MXRF11, SALÁRIO, ALUGUEL'], ['CATEGORIA', 'Opcional: Proventos, Rendimentos, Aluguel, Salário, Outros'],
+]
+const DESP_COLS = [
+  ['DATA', 'Mês da conta (use o dia 1)'], ['VALOR', 'Total do mês (soma dos itens; o app calcula)'], ['TIPO_CONTA', 'Ex.: CONDOMÍNIO, INTERNET, CARTÃO DE CRÉDITO'],
+  ['COTA_1 · VALOR · COTA_2 · VALOR …', 'Itens da conta: nome + valor, quantos precisar (a mesma conta pode ter várias linhas no mês)'],
 ]
 const FAQ = [
   ['Meus dados vão para algum servidor?', 'Não. O app roda inteiro no navegador e salva no armazenamento local. Como limpar o cache apaga esses dados, exporte um XLSX de vez em quando.'],
@@ -91,7 +96,12 @@ export default function Landing({ onPick, onFile, onDemo }) {
             <table><tbody>{EXT_COLS.map(([c, d]) => <tr key={c}><td><code>{c}</code></td><td>{d}</td></tr>)}</tbody></table>
             <button className="sec" onClick={() => downloadTemplate('extrato')}>⬇ Modelo CSV do extrato</button></div>
         </div>
-        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 2 abas + instruções)</button></div>
+        <div className="lp-models" style={{ marginTop: 14 }}>
+          <div className="card"><h4>🧾 Despesas <small>contas do mês</small></h4>
+            <table><tbody>{DESP_COLS.map(([c, d]) => <tr key={c}><td><code>{c}</code></td><td>{d}</td></tr>)}</tbody></table>
+            <button className="sec" onClick={() => downloadTemplate('despesas')}>⬇ Modelo CSV das despesas</button></div>
+        </div>
+        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 3 abas)</button></div>
       </section>
 
       <section>

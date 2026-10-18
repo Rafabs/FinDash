@@ -31,6 +31,7 @@ export const EXT = [
 export const SHEETS = {
   carteira: { name: 'Control_Fynn', cols: CART },
   extrato: { name: 'Extrato', cols: EXT },
+  despesas: { name: 'Despesas', cols: [] },
 }
 
 const n = (v) => Number(v) || 0
@@ -102,6 +103,42 @@ const iso = (v) => {
   return v == null ? '' : String(v).trim().slice(0, 10)
 }
 
+// ---- Despesas: aba "larga" (DATA, VALOR, TIPO_CONTA, COTA_1, VALOR, COTA_2, VALOR, ...) ----
+// No app: { DATA: 'AAAA-MM-01', TIPO_CONTA, ITENS: [{ NOME, VALOR }] } (o total é sempre a soma dos itens)
+export const monthOf = (s) => String(s || '').slice(0, 7)
+export const totalOf = (r) => round2((r.ITENS || []).reduce((t, i) => t + (Number(i.VALOR) || 0), 0))
+
+function toDespesas(ws) {
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })
+  if (!aoa.length || !aoa[0].includes('TIPO_CONTA')) return null
+  const out = []
+  aoa.slice(1).forEach((row) => {
+    const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
+    if (!data || !tipo) return
+    const itens = []
+    for (let k = 3; k < row.length; k += 2) {
+      const v = row[k + 1]
+      if (v === null || v === undefined || v === '' || isNaN(Number(v))) continue // linhas "vazias" do mês futuro são ignoradas
+      itens.push({ NOME: String(row[k] ?? '').trim(), VALOR: round2(v) })
+    }
+    if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ITENS: itens })
+  })
+  return out
+}
+
+function despSheet(rows) {
+  const maxN = Math.max(12, ...rows.map((r) => r.ITENS.length))
+  const head = ['DATA', 'VALOR', 'TIPO_CONTA']
+  for (let k = 1; k <= maxN; k++) head.push(`COTA_${k}`, 'VALOR')
+  const aoa = [head, ...rows.map((r) => [r.DATA, totalOf(r), r.TIPO_CONTA, ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat()])]
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  rows.forEach((r, i) => { // mantém a fórmula de soma da sua planilha
+    const cells = Array.from({ length: maxN }, (_, k) => XLSX.utils.encode_col(4 + 2 * k) + (i + 2)).join('+')
+    ws['B' + (i + 2)] = { t: 'n', v: totalOf(r), f: `SUM(${cells})` }
+  })
+  return ws
+}
+
 function toRows(ws, cols) {
   const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true })
   return raw
@@ -116,15 +153,19 @@ export async function importFile(file) {
   const first = wb.Sheets[wb.SheetNames[0]]
   const isCsv = /\.csv$/i.test(file.name)
   const find = (def, idx) => wb.Sheets[def.name] || wb.Sheets[wb.SheetNames[idx]]
-  const hasCart = (ws) => ws && Object.keys(ws).some((k) => ws[k]?.v === 'DATA_APLICACAO')
+  const hasHdr = (ws, h) => ws && Object.keys(ws).some((k) => ws[k]?.v === h)
   if (isCsv) {
-    if (hasCart(first)) out.carteira = toRows(first, CART).map(recalcCart)
+    if (hasHdr(first, 'DATA_APLICACAO')) out.carteira = toRows(first, CART).map(recalcCart)
+    else if (hasHdr(first, 'TIPO_CONTA')) out.despesas = toDespesas(first) || []
     else out.extrato = toRows(first, EXT).map(withCat)
     return out
   }
   const c = find(SHEETS.carteira, 0), e = find(SHEETS.extrato, 1)
   if (c) out.carteira = toRows(c, CART).map(recalcCart)
   if (e) out.extrato = toRows(e, EXT).map(withCat)
+  const dsp = wb.Sheets[SHEETS.despesas.name] || (wb.SheetNames[2] ? wb.Sheets[wb.SheetNames[2]] : null)
+  const dd = dsp && toDespesas(dsp)
+  if (dd) out.despesas = dd
   return out
 }
 
@@ -132,7 +173,7 @@ const sheetOf = (rows, cols) => XLSX.utils.json_to_sheet(rows, { header: cols.ma
 
 export function exportCsv(key, rows) {
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, sheetOf(rows, SHEETS[key].cols), SHEETS[key].name)
+  XLSX.utils.book_append_sheet(wb, key === 'despesas' ? despSheet(rows) : sheetOf(rows, SHEETS[key].cols), SHEETS[key].name)
   XLSX.writeFile(wb, `${SHEETS[key].name}.csv`, { bookType: 'csv' })
 }
 
@@ -140,6 +181,7 @@ export function exportXlsx(data) {
   const wb = XLSX.utils.book_new()
   for (const k of ['carteira', 'extrato'])
     XLSX.utils.book_append_sheet(wb, sheetOf(data[k], SHEETS[k].cols), SHEETS[k].name)
+  if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas), SHEETS.despesas.name)
   XLSX.writeFile(wb, 'fynn-control.xlsx')
 }
 
@@ -152,13 +194,23 @@ const TPL_EXT = [
   { 'DATA DE RECEBIMENTO': '2026-10-16', 'VALOR DA APLICAÇÃO': 108.2, ORIGEM: 'VR. RED. RENDIMENTO SOBRE 100 PAPEL MXRF11', 'INSTITUIÇÃO': 'CORRETORA EXEMPLO', 'CNPJ / CPF': '97.521.225/0001-25', TIPO: 'DIVIDENDOS 100 MXRF11' },
   { 'DATA DE RECEBIMENTO': '2026-10-15', 'VALOR DA APLICAÇÃO': 7.45, ORIGEM: 'REND AUT ITAU', 'INSTITUIÇÃO': 'BANCO EXEMPLO', 'CNPJ / CPF': '', TIPO: 'REND AUT ITAU' },
 ]
-// kind: 'xlsx' (2 abas) | 'carteira' (csv) | 'extrato' (csv)
+const TPL_DESP = [
+  { DATA: '2026-09-01', TIPO_CONTA: 'CONDOMÍNIO', ITENS: [{ NOME: 'COND.', VALOR: 420 }, { NOME: 'ÁGUA', VALOR: 52.3 }, { NOME: 'GÁS', VALOR: 27.9 }] },
+  { DATA: '2026-09-01', TIPO_CONTA: 'INTERNET', ITENS: [{ NOME: 'VIVO', VALOR: 119.9 }] },
+  { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'ITAÚ', VALOR: 1180.4 }] },
+  { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'NUBANK', VALOR: 640.15 }] },
+]
+// kind: 'xlsx' (3 abas) | 'carteira' | 'extrato' | 'despesas' (csv)
 export function downloadTemplate(kind) {
   const ck = CART.filter(([, t]) => t !== 'calc' && t !== 'calcm').map(([k]) => k)
   const ek = EXT.filter(([k]) => k !== 'CATEGORIA').map(([k]) => k)
+  const make = {
+    carteira: () => XLSX.utils.json_to_sheet(TPL_CART, { header: ck }),
+    extrato: () => XLSX.utils.json_to_sheet(TPL_EXT, { header: ek }),
+    despesas: () => despSheet(TPL_DESP),
+  }
   const wb = XLSX.utils.book_new()
-  if (kind !== 'extrato') XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(TPL_CART, { header: ck }), SHEETS.carteira.name)
-  if (kind !== 'carteira') XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(TPL_EXT, { header: ek }), SHEETS.extrato.name)
+  ;(kind === 'xlsx' ? ['carteira', 'extrato', 'despesas'] : [kind]).forEach((k) => XLSX.utils.book_append_sheet(wb, make[k](), SHEETS[k].name))
   if (kind === 'xlsx') XLSX.writeFile(wb, 'modelo-fynn-control.xlsx')
   else XLSX.writeFile(wb, `modelo-${kind}.csv`, { bookType: 'csv' })
 }
@@ -191,6 +243,20 @@ export function demoData() {
     extrato.push({ [D]: at(m, 28), [V]: +(7.45 * f).toFixed(2), ORIGEM: 'REND AUT ITAU', 'INSTITUIÇÃO': 'BANCO EXEMPLO', 'CNPJ / CPF': '', TIPO: 'REND AUT ITAU' })
     extrato.push({ [D]: at(m, 5), [V]: 5200, ORIGEM: 'EMPRESA EXEMPLO LTDA', 'INSTITUIÇÃO': 'REMUNERACAO/SALARIO', 'CNPJ / CPF': '', TIPO: 'SALÁRIO' })
   }
-  return { carteira, extrato: extrato.map(withCat) }
+  const despesas = []
+  for (let m = 0; m < 12; m++) {
+    const f = 1 + ((m * 7) % 5) / 20
+    const mes = at(m, 1).slice(0, 7) + '-01'
+    const add = (tipo, itens) => despesas.push({ DATA: mes, TIPO_CONTA: tipo, ITENS: itens.map(([NOME, v]) => ({ NOME, VALOR: +v.toFixed(2) })) })
+    add('ALUGUEL', [['ALUGUEL', 1800]])
+    add('CONDOMÍNIO', [['COND.', 420], ['ÁGUA', 55 * f], ['GÁS', 28 * f]])
+    add('ENERGIA ELÉTRICA', [['TUSD', 38 * f], ['TE', 31 * f], ['COSIP', 9.66]])
+    add('INTERNET', [['VIVO', 119.9]])
+    add('MERCADO', [['MERCAD', 820 * f]])
+    add('CARTÃO DE CRÉDITO', [['ITAÚ', 1100 * f]])
+    add('CARTÃO DE CRÉDITO', [['NUBANK', 640 * f]])
+    add('TRANSPORTE', [['TRANSP.', 260]])
+  }
+  return { carteira, extrato: extrato.map(withCat), despesas }
 }
 

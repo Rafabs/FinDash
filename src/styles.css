@@ -160,3 +160,33 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background
 .lp-faq summary{cursor:pointer;font-weight:700;font-size:14px}
 .lp-faq p{color:var(--mut);font-size:13px;line-height:1.55;margin:10px 0 0}
 .lp-foot{text-align:center;color:var(--mut);font-size:12px}
+
+/* ---- Despesas ---- */
+.bar .c4,.dot.c4{background:#c084fc}.bar .c5,.dot.c5{background:#94a3b8}
+.items-btn{display:flex;flex-wrap:wrap;gap:4px;background:transparent;border:1px dashed var(--bd);color:var(--tx);padding:4px 6px;max-width:460px;text-align:left}
+.items-btn:hover{border-color:var(--ac);background:var(--hover);filter:none}
+.items-btn .chip{font-weight:600;white-space:nowrap}
+button.sm{padding:4px 10px;font-size:12px}
+.lm-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lm-head h3{margin:0 0 3px}
+.lm-head input[type=month]{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx)}
+.lm-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;background:var(--hover);margin-bottom:12px;font-size:13px}
+.lm-list{display:grid;gap:10px;max-height:52vh;overflow:auto;padding:2px;margin-bottom:14px}
+.slot{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--card)}
+.slot.done{border-color:color-mix(in srgb,var(--pos) 55%,var(--bd));background:color-mix(in srgb,var(--pos) 6%,var(--card))}
+.slot-h{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.slot-name{font-weight:700;flex:1;min-width:160px;max-width:320px}
+.slot-h b{margin-left:auto}
+.slot-items{display:grid;gap:6px}
+.it{display:flex;gap:8px;align-items:center}
+.it .cell{flex:1;min-width:120px}
+.it .money{width:170px;flex:none}
+.slot-items>button.sm{justify-self:start}
+table.mx td,table.mx th{padding:5px 8px}
+th.r,td.r{text-align:right}
+.mx-name{position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;min-width:150px}
+table.mx th:first-child{position:sticky;left:0;z-index:2}
+.mx-c{cursor:pointer;font-variant-numeric:tabular-nums}
+.mx-c:hover{outline:2px solid var(--ac);outline-offset:-2px}
+.mx-tot td{border-top:2px solid var(--bd);position:sticky;bottom:0;background:var(--card)}
+@media(max-width:700px){.it{flex-wrap:wrap}.it .money{width:100%}}
