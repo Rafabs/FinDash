@@ -190,3 +190,19 @@ table.mx th:first-child{position:sticky;left:0;z-index:2}
 .mx-c:hover{outline:2px solid var(--ac);outline-offset:-2px}
 .mx-tot td{border-top:2px solid var(--bd);position:sticky;bottom:0;background:var(--card)}
 @media(max-width:700px){.it{flex-wrap:wrap}.it .money{width:100%}}
+
+.bar .c6,.dot.c6{background:#38bdf8}
+
+/* ---- destaque suave (Carteira, estilo formatação condicional) e botões de linha ---- */
+td.ro.fill{min-width:130px}
+td.fill .tone{display:flex;align-items:center;justify-content:space-between;gap:14px;font-weight:700;font-variant-numeric:tabular-nums}
+td.ro.fill.pos{background:#c6efce!important;color:#006100}
+td.ro.fill.neg{background:#ffc7ce!important;color:#9c0006}
+td.fill .ar{font-style:normal;font-size:11px}
+td.fill .ar.up{color:#3f9b8c}td.fill .ar.down{color:#e4572e}
+[data-theme=dark] td.ro.fill.pos{background:rgba(34,197,94,.20)!important;color:#86efac}
+[data-theme=dark] td.ro.fill.neg{background:rgba(239,68,68,.22)!important;color:#fca5a5}
+[data-theme=dark] td.fill .ar.up{color:#4ade80}[data-theme=dark] td.fill .ar.down{color:#fb923c}
+td.acts{white-space:nowrap}
+td.acts .icon+.icon{margin-left:6px}
+button.icon.ok{background:var(--ac2);color:#fff;border-color:transparent}

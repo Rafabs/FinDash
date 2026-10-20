@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { round2 } from './data.js'
+import MoneyInput from './MoneyInput.jsx'
 
 const f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
 const brl = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', f2)
@@ -11,10 +11,12 @@ function show(k, t, v) {
   if (k === 'PERIODO') return v + (v === 1 ? ' dia' : ' dias')
   if (t === 'money' || t === 'calcm') return brl(v)
   if (t === 'date') return String(v).split('-').reverse().join('/')
-  return typeof v === 'number' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) : v
+  return typeof v === 'number' ? v.toLocaleString('pt-BR', f2) : v
 }
 
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects }) {
+// fillTone: destaca rendimento/variação com fundo verde ou vermelho escuro
+// onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, rowEditing, onToggleEdit }) {
   // Agrupa lotes do mesmo papel lado a lado (na posição da 1ª ocorrência)
   const list = useMemo(() => {
     if (!groupFn) return rows.map((r, i) => ({ r, i, first: true, span: 1, shared: false }))
@@ -35,7 +37,8 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
     <section className="panel">
       <div className="panel-head">
         <span className="muted">
-          {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`} · campos com borda são editáveis
+          {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
+          {onToggleEdit ? ' · use o lápis para editar uma linha' : ' · campos com borda são editáveis'}
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
         </span>
         <div className="ph-actions">{extra}<button onClick={onAdd}>{addLabel}</button></div>
@@ -48,6 +51,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
           <tbody>
             {list.map((e, n) => {
               const { r, i } = e
+              const editing = onToggleEdit ? !!rowEditing?.(i) : true
               return (
                 <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
                   <td className="idx">{offset + n + 1}</td>
@@ -64,21 +68,30 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                       if (k === 'PAPEL' && shared)
                         return <td key={k} rowSpan={rs} className="ro grp"><span className="papel">{r[k]}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
                       let cls = 'ro' + (right ? ' r' : '') + g
-                      if (k === 'VAR_PP' || k === 'REND_BRUTO') cls += r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : ''
-                      return <td key={k} rowSpan={rs} className={cls}>{show(k, t, r[k])}</td>
+                      if (k === 'VAR_PP' || k === 'REND_BRUTO') {
+                        const tone = r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : ''
+                        if (fillTone && r[k]) { // estilo formatação condicional: fundo suave, ícone à esquerda, valor à direita
+                          const a = Math.abs(r[k])
+                          const txt = (r[k] < 0 ? '-' : '') + (k === 'VAR_PP' ? (a * 100).toLocaleString('pt-BR', f2) + '%' : brl(a))
+                          return (
+                            <td key={k} rowSpan={rs} className={'ro fill' + tone}>
+                              <div className="tone"><i className={'ar ' + (r[k] > 0 ? 'up' : 'down')}>{r[k] > 0 ? '▲' : '▼'}</i><span>{txt}</span></div>
+                            </td>
+                          )
+                        }
+                        cls += tone
+                      }
+                      return <td key={k} rowSpan={rs} className={cls} title={t === 'num' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
+                    }
+                    if (!editing) { // linha fechada: só leitura (use o lápis)
+                      const tone = t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
+                      return <td key={k} className={'ro' + (right ? ' r' : '') + tone}>{show(k, t, r[k])}</td>
                     }
                     const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
                     if (t === 'money')
                       return (
                         <td key={k} rowSpan={rs} className={g.trim()}>
-                          <div className="money" title={title}>
-                            <span>R$</span>
-                            <input
-                              type="number" step="0.01" value={r[k] ?? ''}
-                              onChange={(ev) => onEdit(i, k, ev.target.value === '' ? '' : Number(ev.target.value))}
-                              onBlur={(ev) => { const v = Number(ev.target.value); if (ev.target.value !== '' && round2(v) !== v) onEdit(i, k, round2(v)) }}
-                            />
-                          </div>
+                          <MoneyInput title={title} value={r[k]} onChange={(v) => onEdit(i, k, v)} />
                         </td>
                       )
                     if (t === 'select')
@@ -93,14 +106,18 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                     return (
                       <td key={k} rowSpan={rs} className={g.trim()}>
                         <input
-                          className="cell" title={title} style={w ? { minWidth: w } : undefined} type={t === 'date' ? 'date' : t === 'num' ? 'number' : 'text'}
+                          className="cell" title={title} style={w ? { minWidth: w } : undefined}
+                          type={t === 'date' ? 'date' : t === 'num' ? 'number' : 'text'}
                           step="any" value={r[k] ?? ''}
                           onChange={(ev) => onEdit(i, k, t === 'num' && ev.target.value !== '' ? Number(ev.target.value) : ev.target.value)}
                         />
                       </td>
                     )
                   })}
-                  <td><button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button></td>
+                  <td className="acts">
+                    {onToggleEdit && <button className={'icon' + (editing ? ' ok' : '')} title={editing ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{editing ? '✓' : '✏️'}</button>}
+                    <button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
+                  </td>
                 </tr>
               )
             })}

@@ -11,8 +11,8 @@ const FEATURES = [
   ['🔒', '100% no seu navegador', 'Nenhum dado vai para servidor. Tudo fica salvo só no seu computador.'],
 ]
 const STEPS = [
-  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 3 abas: Control_Fynn (carteira), Extrato (entradas) e Despesas (contas do mês).'],
-  ['2', 'Importe', 'Arraste o .xlsx (as 3 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
+  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 4 abas: Control_Fynn (carteira), Extrato (entradas), Despesas (contas do mês) e Resgates.'],
+  ['2', 'Importe', 'Arraste o .xlsx (as 4 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
   ['3', 'Analise e edite', 'Veja o dashboard, ajuste valores, cole novos lançamentos e filtre por período.'],
   ['4', 'Exporte', 'Baixe CSV, XLSX ou PDF quando quiser e continue de onde parou.'],
 ]
@@ -29,6 +29,10 @@ const EXT_COLS = [
 const DESP_COLS = [
   ['DATA', 'Mês da conta (use o dia 1)'], ['VALOR', 'Total do mês (soma dos itens; o app calcula)'], ['TIPO_CONTA', 'Ex.: CONDOMÍNIO, INTERNET, CARTÃO DE CRÉDITO'],
   ['COTA_1 · VALOR · COTA_2 · VALOR …', 'Itens da conta: nome + valor, quantos precisar (a mesma conta pode ter várias linhas no mês)'],
+]
+const RES_COLS = [
+  ['DATA_RESGATE', 'Data do resgate'], ['PRODUTO', 'Produto resgatado'],
+  ['RENTABILIDADE ATÉ DATA RESGATE', 'Lucro obtido até o resgate (pode ser negativo). Soma-se às entradas'],
 ]
 const FAQ = [
   ['Meus dados vão para algum servidor?', 'Não. O app roda inteiro no navegador e salva no armazenamento local. Como limpar o cache apaga esses dados, exporte um XLSX de vez em quando.'],
@@ -100,8 +104,11 @@ export default function Landing({ onPick, onFile, onDemo }) {
           <div className="card"><h4>🧾 Despesas <small>contas do mês</small></h4>
             <table><tbody>{DESP_COLS.map(([c, d]) => <tr key={c}><td><code>{c}</code></td><td>{d}</td></tr>)}</tbody></table>
             <button className="sec" onClick={() => downloadTemplate('despesas')}>⬇ Modelo CSV das despesas</button></div>
+          <div className="card"><h4>🏁 Resgates <small>rentabilidade</small></h4>
+            <table><tbody>{RES_COLS.map(([c, d]) => <tr key={c}><td><code>{c}</code></td><td>{d}</td></tr>)}</tbody></table>
+            <button className="sec" onClick={() => downloadTemplate('resgates')}>⬇ Modelo CSV dos resgates</button></div>
         </div>
-        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 3 abas)</button></div>
+        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 4 abas)</button></div>
       </section>
 
       <section>

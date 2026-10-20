@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { monthOf, totalOf, round2 } from './data.js'
 import { brl } from './Dashboard.jsx'
 import { nowYM } from './period.js'
+import MoneyInput from './MoneyInput.jsx'
 
 const keyOf = (r) => r.TIPO_CONTA + '|' + (r.ITENS[0]?.NOME || '')
 
@@ -97,11 +98,7 @@ export default function LancarMes({ rows, initialYM, onSave, onClose }) {
                 {s.ITENS.map((it, j) => (
                   <div className="it" key={j}>
                     <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => upItem(s.id, j, { NOME: e.target.value })} />
-                    <div className="money">
-                      <span>R$</span>
-                      <input type="number" step="0.01" value={it.VALOR} placeholder={it.prev !== '' ? String(it.prev) : '0,00'}
-                        onChange={(e) => upItem(s.id, j, { VALOR: e.target.value === '' ? '' : Number(e.target.value) })} />
-                    </div>
+                    <MoneyInput value={it.VALOR} placeholder={it.prev !== '' ? Number(it.prev).toFixed(2) : '0.00'} onChange={(v) => upItem(s.id, j, { VALOR: v })} />
                     {s.ITENS.length > 1 && <button className="icon" title="Remover item" onClick={() => upSlot(s.id, { ITENS: s.ITENS.filter((_, k) => k !== j) })}>✕</button>}
                   </div>
                 ))}

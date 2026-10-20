@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import Table from './Table.jsx'
 import PeriodFilter from './PeriodFilter.jsx'
-import { EXT, CATS } from './data.js'
+import { EXT, CATS, RK } from './data.js'
 import { rangeOf, inRange, labelOf } from './period.js'
 import { brl } from './Dashboard.jsx'
 
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
 const PAGE = 50
-const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 
-export default function ExtratoView({ rows, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
+export default function ExtratoView({ resgates = [], rows, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
@@ -30,8 +30,10 @@ export default function ExtratoView({ rows, period, setPeriod, onEdit, onDelete,
     base.forEach(({ r }) => { const c = CATS.includes(r.CATEGORIA) ? r.CATEGORIA : 'Outros'; m[c] += Number(r[V]) || 0; cnt[c]++ })
     return { m, cnt }
   }, [base])
-  const total = CATS.reduce((s, c) => s + byCat.m[c], 0)
-  const pos = CATS.reduce((s, c) => s + Math.max(byCat.m[c], 0), 0)
+  const resTotal = useMemo(() => resgates.filter((r) => inRange(r.DATA_RESGATE, range)).reduce((s, r) => s + (Number(r[RK]) || 0), 0), [resgates, range])
+  const segs = [...CATS.map((c) => [c, byCat.m[c]]), ['Resgates', resTotal]] // resgates somam às entradas
+  const total = segs.reduce((s, [, v]) => s + v, 0)
+  const pos = segs.reduce((s, [, v]) => s + Math.max(v, 0), 0)
 
   useEffect(() => setPage(0), [period, cats, q])
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE))
@@ -50,15 +52,16 @@ export default function ExtratoView({ rows, period, setPeriod, onEdit, onDelete,
             <span className="pill">{base.length} lançamentos</span>
             <span className="pill">Proventos <b>{brl(byCat.m.Proventos)}</b></span>
             <span className="pill">Rendimentos <b>{brl(byCat.m.Rendimentos)}</b></span>
+            <span className="pill">Resgates <b>{brl(resTotal)}</b></span>
           </div>
           <div className="pills dim"><span>{labelOf(period)}</span></div>
         </div>
         <div className="hero-alloc">
           <small>Por categoria</small>
-          <div className="bar">{CATS.map((c, i) => <i key={c} className={'c' + i} style={{ width: pos ? (Math.max(byCat.m[c], 0) / pos) * 100 + '%' : 0 }} />)}</div>
+          <div className="bar">{segs.map(([c, v], i) => <i key={c} className={'c' + i} style={{ width: pos ? (Math.max(v, 0) / pos) * 100 + '%' : 0 }} />)}</div>
           <div className="legend">
-            {CATS.map((c, i) => (
-              <span key={c}><i className={'dot c' + i} />{c} <b>{pos ? pct((Math.max(byCat.m[c], 0) / pos) * 100) : '—'}</b><em>{brl(byCat.m[c])}</em></span>
+            {segs.map(([c, v], i) => (
+              <span key={c}><i className={'dot c' + i} />{c} <b>{pos ? pct((Math.max(v, 0) / pos) * 100) : '—'}</b><em>{brl(v)}</em></span>
             ))}
           </div>
         </div>

@@ -28,10 +28,18 @@ export const EXT = [
   ['CNPJ / CPF', 'text', 'CNPJ / CPF', 150],
   ['TIPO', 'text', 'Tipo', 220],
 ]
+// Resgates: rentabilidade (lucro) obtida até a data do resgate; soma-se às entradas
+export const RK = 'RENTABILIDADE ATÉ DATA RESGATE'
+export const RES = [
+  ['DATA_RESGATE', 'date', 'Data'],
+  ['PRODUTO', 'text', 'Produto', 260],
+  [RK, 'money', 'Rentabilidade'],
+]
 export const SHEETS = {
   carteira: { name: 'Control_Fynn', cols: CART },
   extrato: { name: 'Extrato', cols: EXT },
   despesas: { name: 'Despesas', cols: [] },
+  resgates: { name: 'Resgates', cols: RES },
 }
 
 const n = (v) => Number(v) || 0
@@ -157,6 +165,7 @@ export async function importFile(file) {
   if (isCsv) {
     if (hasHdr(first, 'DATA_APLICACAO')) out.carteira = toRows(first, CART).map(recalcCart)
     else if (hasHdr(first, 'TIPO_CONTA')) out.despesas = toDespesas(first) || []
+    else if (hasHdr(first, 'DATA_RESGATE')) out.resgates = toRows(first, RES)
     else out.extrato = toRows(first, EXT).map(withCat)
     return out
   }
@@ -166,6 +175,8 @@ export async function importFile(file) {
   const dsp = wb.Sheets[SHEETS.despesas.name] || (wb.SheetNames[2] ? wb.Sheets[wb.SheetNames[2]] : null)
   const dd = dsp && toDespesas(dsp)
   if (dd) out.despesas = dd
+  const rs = wb.Sheets[SHEETS.resgates.name] || (wb.SheetNames[3] ? wb.Sheets[wb.SheetNames[3]] : null)
+  if (rs && hasHdr(rs, 'DATA_RESGATE')) out.resgates = toRows(rs, RES)
   return out
 }
 
@@ -182,6 +193,7 @@ export function exportXlsx(data) {
   for (const k of ['carteira', 'extrato'])
     XLSX.utils.book_append_sheet(wb, sheetOf(data[k], SHEETS[k].cols), SHEETS[k].name)
   if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas), SHEETS.despesas.name)
+  if (data.resgates?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.resgates, RES), SHEETS.resgates.name)
   XLSX.writeFile(wb, 'fynn-control.xlsx')
 }
 
@@ -194,13 +206,17 @@ const TPL_EXT = [
   { 'DATA DE RECEBIMENTO': '2026-10-16', 'VALOR DA APLICAÇÃO': 108.2, ORIGEM: 'VR. RED. RENDIMENTO SOBRE 100 PAPEL MXRF11', 'INSTITUIÇÃO': 'CORRETORA EXEMPLO', 'CNPJ / CPF': '97.521.225/0001-25', TIPO: 'DIVIDENDOS 100 MXRF11' },
   { 'DATA DE RECEBIMENTO': '2026-10-15', 'VALOR DA APLICAÇÃO': 7.45, ORIGEM: 'REND AUT ITAU', 'INSTITUIÇÃO': 'BANCO EXEMPLO', 'CNPJ / CPF': '', TIPO: 'REND AUT ITAU' },
 ]
+const TPL_RES = [
+  { DATA_RESGATE: '2026-09-30', PRODUTO: 'RDB APLICAÇÃO', [RK]: 74.01 },
+  { DATA_RESGATE: '2026-08-12', PRODUTO: 'TESOURO SELIC 2029', [RK]: 435.65 },
+]
 const TPL_DESP = [
   { DATA: '2026-09-01', TIPO_CONTA: 'CONDOMÍNIO', ITENS: [{ NOME: 'COND.', VALOR: 420 }, { NOME: 'ÁGUA', VALOR: 52.3 }, { NOME: 'GÁS', VALOR: 27.9 }] },
   { DATA: '2026-09-01', TIPO_CONTA: 'INTERNET', ITENS: [{ NOME: 'VIVO', VALOR: 119.9 }] },
   { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'ITAÚ', VALOR: 1180.4 }] },
   { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'NUBANK', VALOR: 640.15 }] },
 ]
-// kind: 'xlsx' (3 abas) | 'carteira' | 'extrato' | 'despesas' (csv)
+// kind: 'xlsx' (4 abas) | 'carteira' | 'extrato' | 'despesas' | 'resgates' (csv)
 export function downloadTemplate(kind) {
   const ck = CART.filter(([, t]) => t !== 'calc' && t !== 'calcm').map(([k]) => k)
   const ek = EXT.filter(([k]) => k !== 'CATEGORIA').map(([k]) => k)
@@ -208,9 +224,10 @@ export function downloadTemplate(kind) {
     carteira: () => XLSX.utils.json_to_sheet(TPL_CART, { header: ck }),
     extrato: () => XLSX.utils.json_to_sheet(TPL_EXT, { header: ek }),
     despesas: () => despSheet(TPL_DESP),
+    resgates: () => XLSX.utils.json_to_sheet(TPL_RES, { header: RES.map(([k]) => k) }),
   }
   const wb = XLSX.utils.book_new()
-  ;(kind === 'xlsx' ? ['carteira', 'extrato', 'despesas'] : [kind]).forEach((k) => XLSX.utils.book_append_sheet(wb, make[k](), SHEETS[k].name))
+  ;(kind === 'xlsx' ? ['carteira', 'extrato', 'despesas', 'resgates'] : [kind]).forEach((k) => XLSX.utils.book_append_sheet(wb, make[k](), SHEETS[k].name))
   if (kind === 'xlsx') XLSX.writeFile(wb, 'modelo-fynn-control.xlsx')
   else XLSX.writeFile(wb, `modelo-${kind}.csv`, { bookType: 'csv' })
 }
@@ -257,6 +274,14 @@ export function demoData() {
     add('CARTÃO DE CRÉDITO', [['NUBANK', 640 * f]])
     add('TRANSPORTE', [['TRANSP.', 260]])
   }
-  return { carteira, extrato: extrato.map(withCat), despesas }
+  const resgates = []
+  const prods = [['RDB APLICAÇÃO', 74], ['TESOURO SELIC 2029', 190], ['AÇÃO FRACIONÁRIA', 3.2]]
+  for (let m = 0; m < 12; m++) {
+    prods.forEach(([p, base], n) => {
+      if ((m + n) % 2) return
+      resgates.push({ DATA_RESGATE: at(m, 20 + n), PRODUTO: p, [RK]: +(base * (0.8 + ((m * 5 + n * 3) % 7) / 10)).toFixed(2) })
+    })
+  }
+  return { carteira, extrato: extrato.map(withCat), despesas, resgates }
 }
 

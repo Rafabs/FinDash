@@ -36,8 +36,8 @@ export default function CartHero({ rows }) {
         <small>Alocação</small>
         <div className="bar"><i className="rf" style={{ width: rfp + '%' }} /><i className="rv" style={{ width: atual ? 100 - rfp + '%' : 0 }} /></div>
         <div className="legend">
-          <span><i className="dot rf" />Renda Fixa <b>{pct(rfp, 1)}</b><em>{brl(rf)}</em></span>
-          <span><i className="dot rv" />Renda Variável <b>{pct(atual ? 100 - rfp : 0, 1)}</b><em>{brl(rv)}</em></span>
+          <span><i className="dot rf" />Renda Fixa <b>{pct(rfp)}</b><em>{brl(rf)}</em></span>
+          <span><i className="dot rv" />Renda Variável <b>{pct(atual ? 100 - rfp : 0)}</b><em>{brl(rv)}</em></span>
         </div>
       </div>
     </section>

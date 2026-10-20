@@ -4,9 +4,10 @@ import LancarMes from './LancarMes.jsx'
 import { totalOf, monthOf, round2 } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
+import MoneyInput from './MoneyInput.jsx'
 
 const PAGE = 50
-const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
 
 function ItemsModal({ row, onSave, onClose }) {
@@ -21,7 +22,7 @@ function ItemsModal({ row, onSave, onClose }) {
           {items.map((it, j) => (
             <div className="it" key={j}>
               <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => up(j, { NOME: e.target.value })} />
-              <div className="money"><span>R$</span><input type="number" step="0.01" value={it.VALOR} onChange={(e) => up(j, { VALOR: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+              <MoneyInput value={it.VALOR} onChange={(v) => up(j, { VALOR: v })} />
               {items.length > 1 && <button className="icon" onClick={() => setItems((x) => x.filter((_, k) => k !== j))}>✕</button>}
             </div>
           ))}
@@ -174,12 +175,12 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
                     {matrix.months.map((k) => {
                       const v = l.v[k]
                       return <td key={k} className="ro r mx-c" title={v != null ? brl(v) : ''} onClick={() => setLancar(k)}
-                        style={v ? { background: `rgba(239,68,68,${Math.min(0.5, (v / l.max) * 0.5)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : ''}</td>
+                        style={v ? { background: `rgba(239,68,68,${Math.min(0.5, (v / l.max) * 0.5)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
                     })}
-                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</b></td>
+                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
                   </tr>
                 ))}
-                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</b></td></tr>
+                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td></tr>
               </tbody>
             </table>
             {!matrix.lines.length && <div className="empty">Sem dados neste filtro.</div>}

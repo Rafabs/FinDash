@@ -10,7 +10,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 ## ✨ Funcionalidades
 
 **Geral**
-- Importação de `.xlsx` (3 abas de uma vez) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
+- Importação de `.xlsx` (4 abas de uma vez) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
 - Exportação em **CSV**, **XLSX** e **PDF**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - Landing page com explicação, modelos para download e dados de exemplo
@@ -29,6 +29,11 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Tabela paginada e editável
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
 
+**Resgates**
+- Resgates de investimentos com a **rentabilidade** obtida até a data do resgate (lucro, pode ser negativo)
+- Esse valor **soma-se às entradas** (Extrato, fluxo de caixa e saldo do dashboard)
+- Filtros por período, produto e busca, com tabela editável e paginada
+
 **Despesas**
 - Lista, **matriz mensal** (conta × mês) e filtros
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
@@ -36,7 +41,8 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 **Dashboard**
 - Patrimônio, alocação e patrimônio por banco
 - Proventos por mês e por papel, média mensal e maior pagador
-- Despesas por conta e por mês, entradas × despesas e saldo do período
+- Despesas por conta e por mês, entradas (com resgates) × despesas e saldo do período
+- Resgates do período como indicador próprio e como fatia em "Entradas por categoria"
 
 ---
 
@@ -91,7 +97,7 @@ Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (cami
 
 ## 📥 Formato da planilha
 
-O arquivo `.xlsx` tem 3 abas. Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada aba).
+O arquivo `.xlsx` tem 4 abas. Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada aba).
 
 Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
 
@@ -132,6 +138,14 @@ Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessári
 
 A mesma conta pode aparecer em mais de uma linha no mesmo mês (por exemplo, dois cartões). Linhas sem nenhum valor são ignoradas.
 
+### Aba `Resgates`
+
+| Coluna | Descrição |
+|---|---|
+| `DATA_RESGATE` | Data do resgate |
+| `PRODUTO` | Produto resgatado (ex.: `RDB APLICAÇÃO`, `TESOURO SELIC 2029`) |
+| `RENTABILIDADE ATÉ DATA RESGATE` | Lucro obtido até o resgate (negativo em caso de prejuízo). É este valor que soma às entradas |
+
 ---
 
 ## 📐 Regras da Carteira
@@ -166,7 +180,9 @@ Atribuídas automaticamente na importação (a partir de `TIPO` e `ORIGEM`) e ed
 | Venda de Patrimônio | **manual** (não é atribuída automaticamente) |
 | Outros | todo o resto |
 
-No dashboard, os **proventos** consideram apenas a categoria *Proventos*. No saldo (entradas − despesas), a categoria *Venda de Patrimônio* fica de fora.
+No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
+
+**Entradas** = lançamentos do Extrato + rentabilidade dos **Resgates**. É esse total que aparece no painel do Extrato e no fluxo de caixa. No saldo (entradas − despesas), a categoria *Venda de Patrimônio* fica de fora.
 
 ---
 
@@ -194,6 +210,7 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*. No sal
     ├── ExtratoView.jsx            # aba Extrato
     ├── PasteModal.jsx             # colagem interativa de lançamentos
     ├── DespesasView.jsx           # aba Despesas (lista e matriz mensal)
+    ├── ResgatesView.jsx           # aba Resgates
     ├── LancarMes.jsx              # assistente de lançamento mensal
     ├── PeriodFilter.jsx           # seletor de período
     └── styles.css                 # estilos e temas claro/escuro
@@ -205,8 +222,8 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*. No sal
 
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
-- **CSV** exporta a aba atual. **XLSX** exporta as 3 abas no mesmo formato de entrada, então pode ser reimportado.
-- **PDF** traz o resumo e as tabelas. Extrato e despesas saem apenas com o **período filtrado**, para o relatório não ficar enorme.
+- **CSV** exporta a aba atual. **XLSX** exporta as 4 abas no mesmo formato de entrada, então pode ser reimportado.
+- **PDF** traz o resumo e as tabelas. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 
 ---
 
@@ -218,7 +235,7 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*. No sal
 
 ---
 
-## TO DO:
+## 🗺️ Ideias para o futuro
 
 - Gráficos no PDF
 - Filtros globais por banco e tipo
@@ -228,3 +245,5 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*. No sal
 - Colagem de várias despesas de uma vez
 
 ---
+
+Feito para rodar no seu navegador. 💜

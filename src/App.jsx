@@ -4,6 +4,7 @@ import NewItem from './NewItem.jsx'
 import Dashboard, { resumo } from './Dashboard.jsx'
 import ExtratoView from './ExtratoView.jsx'
 import DespesasView from './DespesasView.jsx'
+import ResgatesView from './ResgatesView.jsx'
 import PasteModal from './PasteModal.jsx'
 import { defaultPeriod, rangeOf, inRange, labelOf } from './period.js'
 import CartHero from './CartHero.jsx'
@@ -15,8 +16,8 @@ const KEY = 'fynn-control-v1'
 const load = () => {
   try {
     const d = JSON.parse(localStorage.getItem(KEY)) || {}
-    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), despesas: d.despesas || [] }
-  } catch { return { carteira: [], extrato: [], despesas: [] } }
+    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), despesas: d.despesas || [], resgates: d.resgates || [] }
+  } catch { return { carteira: [], extrato: [], despesas: [], resgates: [] } }
 }
 const initTheme = () => { try { return localStorage.getItem('fynn-theme') } catch {} return null }
 
@@ -45,11 +46,13 @@ export default function App() {
     const extP = data.extrato.filter((r) => inRange(r['DATA DE RECEBIMENTO'], range))
       .sort((x, y) => (y['DATA DE RECEBIMENTO'] || '').localeCompare(x['DATA DE RECEBIMENTO'] || ''))
     const despP = (data.despesas || []).filter((r) => inRange(r.DATA, range)).sort((x, y) => y.DATA.localeCompare(x.DATA))
-    exportPdf({ ...data, extrato: extP, despesas: despP }, resumo(data, extP, label, despP).map(([l, v]) => [l, v]), label)
+    const resP = (data.resgates || []).filter((r) => inRange(r.DATA_RESGATE, range)).sort((x, y) => (y.DATA_RESGATE || '').localeCompare(x.DATA_RESGATE || ''))
+    exportPdf({ ...data, extrato: extP, despesas: despP, resgates: resP }, resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v]), label)
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
+  const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
   const addExtrato = () => setData((d) => ({ ...d, extrato: [...d.extrato, { 'DATA DE RECEBIMENTO': today(), 'VALOR DA APLICAÇÃO': 0, CATEGORIA: 'Outros', ORIGEM: '', 'INSTITUIÇÃO': '', 'CNPJ / CPF': '', TIPO: '' }] }))
   const [theme, setTheme] = useState(() => initTheme() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'))
   useEffect(() => {
@@ -59,19 +62,19 @@ export default function App() {
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} }, [data])
 
-  const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length
+  const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length
   const handleFile = async (f) => {
     if (!f) return
     try {
       const r = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
-      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
+      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
       setData((d) => ({ ...d, ...r }))
       setTab('dash')
     } catch { alert('Não foi possível ler o arquivo.') }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
-  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], despesas: [] }); setTab('dash') } }
+  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], despesas: [], resgates: [] }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -90,7 +93,7 @@ export default function App() {
           <input ref={input} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
           <button onClick={() => input.current.click()}>⬆ Importar</button>
           {!empty && <>
-          <button className="sec" onClick={() => exportCsv(['extrato', 'despesas'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas'].includes(tab) ? tab : 'carteira'])}>CSV</button>
+          <button className="sec" onClick={() => exportCsv(['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'])}>CSV</button>
           <button className="sec" onClick={() => exportXlsx(data)}>XLSX</button>
           <button className="sec" onClick={doPdf}>PDF</button>
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
@@ -100,7 +103,7 @@ export default function App() {
       </header>
       {empty ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} /> : (<>
       <nav className="tabs">
-        {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length]].map(([k, l, c]) => (
+        {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length]].map(([k, l, c]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{c != null && <em>{c}</em>}</button>
         ))}
       </nav>
@@ -111,16 +114,19 @@ export default function App() {
             <CartHero rows={data.carteira} />
             <Table
               cols={SHEETS.carteira.cols} rows={data.carteira} onEdit={edit('carteira')} onDelete={del('carteira')}
-              onAdd={() => setModal(true)} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable}
+              onAdd={() => setModal(true)} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone
               sharedKeys={['PAPEL', 'PRC_UNIT', 'ULTIMA_ATUAL']}
             />
           </>
         )}
         {tab === 'extrato' && (
-          <ExtratoView rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
+          <ExtratoView resgates={data.resgates} rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
         {tab === 'despesas' && (
           <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onSaveMonth={saveMonth} />
+        )}
+        {tab === 'resgates' && (
+          <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
         )}
       </main></>)}
       {paste !== null && (

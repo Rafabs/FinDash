@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
-import { CATS, tickerOf, totalOf, monthOf } from './data.js'
+import { CATS, tickerOf, totalOf, monthOf, RK } from './data.js'
 import { rangeOf, inRange, labelOf } from './period.js'
 
 const COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b', '#22c55e']
@@ -47,7 +47,7 @@ const fillGen = (map, fields) => {
 }
 
 // ext = lançamentos do período (para o PDF); proventos = só categoria "Proventos"
-export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas || []) {
+export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas || [], res = d.resgates || []) {
   const aplicado = sum(d.carteira, 'VLR_APLICACAO'), atual = sum(d.carteira, 'TOTAL_ATUAL')
   const rend = atual - aplicado
   const tone = rend > 0 ? 'pos' : rend < 0 ? 'neg' : ''
@@ -57,6 +57,7 @@ export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas 
     ['Variação', aplicado ? (rend > 0 ? '+' : '') + ((rend / aplicado) * 100).toFixed(2).replace('.', ',') + '%' : '-', tone, '％'],
     [`Proventos (${label})`, brl(sum(ext.filter((r) => r.CATEGORIA === 'Proventos'), V)), '', '💰'],
     [`Despesas (${label})`, brl(dsp.reduce((t, r) => t + totalOf(r), 0)), '', '🧾'],
+    [`Resgates (${label})`, brl(sum(res, RK)), '', '🏁'],
   ]
 }
 
@@ -64,6 +65,10 @@ export default function Dashboard({ data, period, setPeriod }) {
   const { carteira, extrato } = data
   const range = useMemo(() => rangeOf(period), [period])
   const ext = useMemo(() => extrato.filter((r) => r[D] && inRange(r[D], range)), [extrato, range])
+
+  // ---- resgates: a rentabilidade resgatada soma-se às entradas ----
+  const res = useMemo(() => (data.resgates || []).filter((r) => r.DATA_RESGATE && inRange(r.DATA_RESGATE, range)), [data.resgates, range])
+  const totRes = sum(res, RK)
   const years = useMemo(() => [...new Set(extrato.map((r) => Number(String(r[D]).slice(0, 4))).filter(Boolean))], [extrato])
 
   const prov = ext.filter((r) => r.CATEGORIA === 'Proventos')
@@ -82,7 +87,7 @@ export default function Dashboard({ data, period, setPeriod }) {
   const nMes = keys.length ? Math.max(1, monthsBetween(keys[0], range.to && range.to.slice(0, 7) < nowYM ? range.to.slice(0, 7) : nowYM)) : 1
 
   const porPapel = group(prov, (r) => tickerOf(r) || 'Outros', V).slice(0, 10)
-  const porCat = group(ext, 'CATEGORIA', V)
+  const porCat = [...group(ext, 'CATEGORIA', V), ...(totRes ? [{ name: 'Resgates', value: +totRes.toFixed(2) }] : [])]
   const porTipo = group(carteira, 'TIPO_INV', 'TOTAL_ATUAL')
   const porBanco = group(carteira, 'BANCO', 'TOTAL_ATUAL')
   // ---- despesas e fluxo de caixa ----
@@ -91,10 +96,11 @@ export default function Dashboard({ data, period, setPeriod }) {
   const mesesDesp = new Set(dsp.map((r) => monthOf(r.DATA))).size
   const porConta = group(dsp.map((r) => ({ c: r.TIPO_CONTA, v: totalOf(r) })), 'c', 'v')
   const entradas = ext.filter((r) => r.CATEGORIA !== 'Venda de Patrimônio')
-  const totEntr = sum(entradas, V)
+  const totEntr = sum(entradas, V) + totRes
   const saldo = totEntr - totDesp
   const fluxoMap = {}
   entradas.forEach((r) => { const k = r[D].slice(0, 7); (fluxoMap[k] ||= {}).Entradas = (fluxoMap[k].Entradas || 0) + (Number(r[V]) || 0) })
+  res.forEach((r) => { const k = r.DATA_RESGATE.slice(0, 7); (fluxoMap[k] ||= {}).Entradas = (fluxoMap[k].Entradas || 0) + (Number(r[RK]) || 0) })
   dsp.forEach((r) => { const k = monthOf(r.DATA); (fluxoMap[k] ||= {}).Despesas = (fluxoMap[k].Despesas || 0) + totalOf(r) })
   const fluxo = fillGen(fluxoMap, ['Entradas', 'Despesas'])
   const top5 = porConta.slice(0, 5).map((x) => x.name)
@@ -131,6 +137,7 @@ export default function Dashboard({ data, period, setPeriod }) {
         <div className="card kpi"><span className="ic">💰</span><small>Proventos (dividendos, FIIs, JCP)</small><b>{brl(totProv)}</b></div>
         <div className="card kpi"><span className="ic">🏧</span><small>Rendimento de conta</small><b>{brl(totRend)}</b></div>
         <div className="card kpi"><span className="ic">📆</span><small>Média mensal · {nMes} {nMes === 1 ? 'mês' : 'meses'}</small><b>{brl(totProv / nMes)}</b></div>
+        <div className="card kpi"><span className="ic">🏁</span><small>Resgates (rentabilidade)</small><b className={totRes > 0 ? 'pos' : totRes < 0 ? 'neg' : ''}>{brl(totRes)}</b></div>
         <div className="card kpi"><span className="ic">🏆</span><small>Maior pagador{porPapel[0] ? ' · ' + brl(porPapel[0].value) : ''}</small><b>{porPapel[0]?.name || '—'}</b></div>
       </div>
       <div className="grid">
@@ -145,12 +152,12 @@ export default function Dashboard({ data, period, setPeriod }) {
           </ResponsiveContainer></div>
         <div className="card"><h3>Entradas por categoria</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <PieChart><Pie data={porCat} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none">{porCat.map((d, i) => <Cell key={i} fill={CAT_COLORS[CATS.indexOf(d.name)] || '#94a3b8'} />)}</Pie><Tooltip formatter={tip} {...TT} /><Legend /></PieChart>
+            <PieChart><Pie data={porCat} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none">{porCat.map((d, i) => <Cell key={i} fill={(d.name === 'Resgates' ? '#0ea5e9' : CAT_COLORS[CATS.indexOf(d.name)]) || '#94a3b8'} />)}</Pie><Tooltip formatter={tip} {...TT} /><Legend /></PieChart>
           </ResponsiveContainer></div>
       </div>
 
       <div className="sec-head">
-        <div><h2>Despesas e fluxo de caixa</h2><small className="muted">{labelOf(period)} · entradas não incluem “Venda de Patrimônio”</small></div>
+        <div><h2>Despesas e fluxo de caixa</h2><small className="muted">{labelOf(period)} · entradas incluem resgates e não incluem “Venda de Patrimônio”</small></div>
       </div>
       <div className="cards">
         <div className="card kpi"><span className="ic">🧾</span><small>Despesas no período</small><b>{brl(totDesp)}</b></div>
