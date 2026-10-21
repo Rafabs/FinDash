@@ -1,8 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import MoneyInput from './MoneyInput.jsx'
+import { nextSort, sortItems } from './sort.js'
 
 const f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
 const brl = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', f2)
+const isRight = (t) => t === 'money' || t === 'calcm' || t === 'num'
 
 function show(k, t, v) {
   if (v === '' || v == null) return '—'
@@ -14,16 +16,25 @@ function show(k, t, v) {
   return typeof v === 'number' ? v.toLocaleString('pt-BR', f2) : v
 }
 
-// fillTone: destaca rendimento/variação com fundo verde ou vermelho escuro
+// sort/onSort: ordenação controlada pela tela (tabelas paginadas). Sem eles, a tabela ordena sozinha.
+// fillTone: destaque de rendimento/variação · toneMoney: valores em verde/vermelho no modo leitura
 // onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, rowEditing, onToggleEdit }) {
-  // Agrupa lotes do mesmo papel lado a lado (na posição da 1ª ocorrência)
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort }) {
+  const [own, setOwn] = useState(null)
+  const controlled = onSort !== undefined
+  const cur = controlled ? sort : own
+  const toggleSort = controlled ? onSort : (k) => setOwn((s) => nextSort(s, k))
+  const typeOf = (k) => cols.find((c) => c[0] === k)?.[1]
+
+  // ordem de exibição (só quando a tabela ordena sozinha) + agrupamento de lotes do mesmo papel
   const list = useMemo(() => {
-    if (!groupFn) return rows.map((r, i) => ({ r, i, first: true, span: 1, shared: false }))
+    let items = rows.map((r, i) => ({ r, i }))
+    if (!controlled) items = sortItems(items, own, (x, k) => x.r[k], typeOf)
+    if (!groupFn) return items.map(({ r, i }) => ({ r, i, first: true, span: 1, shared: false }))
     const groups = new Map()
-    rows.forEach((r, i) => { if (groupFn(r)) groups.set(r.PAPEL, [...(groups.get(r.PAPEL) || []), i]) })
+    items.forEach(({ r, i }) => { if (groupFn(r)) groups.set(r.PAPEL, [...(groups.get(r.PAPEL) || []), i]) })
     const out = [], done = new Set()
-    rows.forEach((r, i) => {
+    items.forEach(({ r, i }) => {
       if (!groupFn(r)) return out.push({ r, i, first: true, span: 1, shared: false })
       if (done.has(r.PAPEL)) return
       done.add(r.PAPEL)
@@ -31,7 +42,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
       ids.forEach((gi, n) => out.push({ r: rows[gi], i: gi, first: n === 0, span: ids.length, shared: true }))
     })
     return out
-  }, [rows, groupFn])
+  }, [rows, groupFn, own, controlled]) // eslint-disable-line
 
   return (
     <section className="panel">
@@ -40,13 +51,22 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
           {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
           {onToggleEdit ? ' · use o lápis para editar uma linha' : ' · campos com borda são editáveis'}
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
+          {' · clique no cabeçalho para ordenar'}
         </span>
         <div className="ph-actions">{extra}<button onClick={onAdd}>{addLabel}</button></div>
       </div>
       <div className="wrap">
         <table>
           <thead>
-            <tr><th>#</th>{cols.map(([k, , l]) => <th key={k}>{l ?? k}</th>)}<th></th></tr>
+            <tr>
+              <th>#</th>
+              {cols.map(([k, t, l]) => (
+                <th key={k} className={'sortable' + (isRight(t) ? ' r' : '') + (cur?.key === k ? ' on' : '')} onClick={() => toggleSort(k)} title="Clique para ordenar">
+                  {l ?? k}<i className="si">{cur?.key === k ? (cur.dir === 'asc' ? '▲' : '▼') : '↕'}</i>
+                </th>
+              ))}
+              <th></th><th className="grow"></th>
+            </tr>
           </thead>
           <tbody>
             {list.map((e, n) => {
@@ -61,7 +81,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                     const rs = shared ? e.span : undefined
                     const g = shared ? ' grp' : ''
                     const locked = t === 'calc' || t === 'calcm' || isLocked?.(r, k)
-                    const right = t === 'money' || t === 'calcm' || t === 'num'
+                    const right = isRight(t)
                     if (locked) {
                       if (k === 'IOF')
                         return <td key={k} className="ro"><span className={'chip ' + (r[k] === 'SIM' ? 'warn' : r[k] === 'NÃO' ? 'ok' : 'na')}>{r[k] || '—'}</span></td>
@@ -84,7 +104,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                       return <td key={k} rowSpan={rs} className={cls} title={t === 'num' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
                     }
                     if (!editing) { // linha fechada: só leitura (use o lápis)
-                      const tone = t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
+                      const tone = toneMoney && t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
                       return <td key={k} className={'ro' + (right ? ' r' : '') + tone}>{show(k, t, r[k])}</td>
                     }
                     const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
@@ -118,6 +138,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                     {onToggleEdit && <button className={'icon' + (editing ? ' ok' : '')} title={editing ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{editing ? '✓' : '✏️'}</button>}
                     <button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
                   </td>
+                  <td className="grow"></td>
                 </tr>
               )
             })}

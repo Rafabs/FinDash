@@ -5,8 +5,9 @@ import { totalOf, monthOf, round2 } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
+import { nextSort, sortItems } from './sort.js'
+import Pager, { usePageSize } from './Pager.jsx'
 
-const PAGE = 50
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
 
@@ -45,6 +46,10 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   const [view, setView] = useState('lista')
   const [lancar, setLancar] = useState(null)
   const [editing, setEditing] = useState(null)
+  const [sort, setSort] = useState(null)
+  const [size, setSize] = usePageSize()
+  const [mxSort, setMxSort] = useState(null)
+  const [openRows, setOpenRows] = useState(() => new Set()) // linhas abertas pelo lápis
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(r.DATA.slice(0, 4))))], [rows])
   const types = useMemo(() => {
@@ -60,6 +65,8 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
       .sort((a, b) => b.r.DATA.localeCompare(a.r.DATA) || a.r.TIPO_CONTA.localeCompare(b.r.TIPO_CONTA) || a.i - b.i)
   }, [base, cats, q])
 
+  const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => (k === 'TOTAL' ? totalOf(x.r) : x.r[k]), (k) => (k === 'DATA' ? 'date' : k === 'TOTAL' ? 'money' : 'text')), [filtered, sort])
+
   const stat = useMemo(() => {
     const by = {}, cnt = {}, meses = new Set()
     base.forEach(({ r }) => { by[r.TIPO_CONTA] = (by[r.TIPO_CONTA] || 0) + totalOf(r); cnt[r.TIPO_CONTA] = (cnt[r.TIPO_CONTA] || 0) + 1; meses.add(monthOf(r.DATA)) })
@@ -71,10 +78,17 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   const segs = [...top, ...(resto ? [['Demais', resto]] : [])]
   const pos = segs.reduce((s, [, v]) => s + Math.max(v, 0), 0)
 
-  useEffect(() => setPage(0), [period, cats, q])
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE))
+  useEffect(() => setPage(0), [period, cats, q, sort, size])
+  const pages = Math.max(1, Math.ceil(sorted.length / size))
   const cur = Math.min(page, pages - 1)
-  const slice = filtered.slice(cur * PAGE, cur * PAGE + PAGE)
+  const slice = sorted.slice(cur * size, cur * size + size)
+  const toggleOpen = (g) => setOpenRows((x) => { const n = new Set(x); n.has(g) ? n.delete(g) : n.add(g); return n })
+  const del = (g) => { setOpenRows(new Set()); onDelete(g) }
+  const th = (k, label, right, cur, set) => (
+    <th key={k} className={'sortable' + (right ? ' r' : '') + (cur?.key === k ? ' on' : '')} onClick={() => set((s) => nextSort(s, k))} title="Clique para ordenar">
+      {label}<i className="si">{cur?.key === k ? (cur.dir === 'asc' ? '▲' : '▼') : '↕'}</i>
+    </th>
+  )
   const toggle = (c) => setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
 
   // matriz conta x mês (últimos 24 meses do período)
@@ -90,6 +104,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   }, [filtered, view])
 
   const nextYM = nowYM()
+  const mxLines = useMemo(() => (matrix ? sortItems(matrix.lines, mxSort, (l, k) => (k === 't' ? l.t : k === 'tot' ? l.tot : l.v[k]), (k) => (k === 't' ? 'text' : 'money')) : []), [matrix, mxSort])
 
   return (
     <>
@@ -132,55 +147,69 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
       {view === 'lista' ? (
         <>
           <section className="panel">
-            <div className="panel-head"><span className="muted">{filtered.length} lançamento{filtered.length === 1 ? '' : 's'} · campos com borda são editáveis · clique nos itens para detalhar</span></div>
+            <div className="panel-head"><span className="muted">{filtered.length} lançamento{filtered.length === 1 ? '' : 's'} · use o lápis para editar (e os itens para detalhar) · clique no cabeçalho para ordenar</span></div>
             <div className="wrap">
               <datalist id="dl-contas">{types.map((t) => <option key={t} value={t} />)}</datalist>
               <table>
-                <thead><tr><th>#</th><th>Mês</th><th>Conta</th><th>Itens</th><th>Total</th><th></th></tr></thead>
+                <thead><tr>
+                  <th>#</th>{th('DATA', 'Mês', false, sort, setSort)}{th('TIPO_CONTA', 'Conta', false, sort, setSort)}<th>Itens</th>{th('TOTAL', 'Total', true, sort, setSort)}<th></th><th className="grow"></th>
+                </tr></thead>
                 <tbody>
-                  {slice.map(({ r, i }, n) => (
-                    <tr key={i}>
-                      <td className="idx">{cur * PAGE + n + 1}</td>
-                      <td><input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} /></td>
-                      <td><input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} /></td>
-                      <td><button className="items-btn" onClick={() => setEditing(i)}>
+                  {slice.map(({ r, i }, n) => {
+                    const ed = openRows.has(i)
+                    const chips = (
+                      <>
                         {r.ITENS.slice(0, 3).map((it, j) => <span className="chip na" key={j}>{it.NOME || '—'} {it.VALOR.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>)}
                         {r.ITENS.length > 3 && <span className="chip na">+{r.ITENS.length - 3}</span>}
-                      </button></td>
-                      <td className="ro r"><b>{brl(totalOf(r))}</b></td>
-                      <td><button className="icon danger" title="Excluir" onClick={() => confirm('Excluir este lançamento?') && onDelete(i)}>🗑</button></td>
-                    </tr>
-                  ))}
+                      </>
+                    )
+                    return (
+                      <tr key={i}>
+                        <td className="idx">{cur * size + n + 1}</td>
+                        <td className={ed ? '' : 'ro'}>{ed
+                          ? <input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} />
+                          : monthOf(r.DATA).split('-').reverse().join('/')}</td>
+                        <td className={ed ? '' : 'ro'}>{ed
+                          ? <input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} />
+                          : r.TIPO_CONTA}</td>
+                        <td className={ed ? '' : 'ro'}>{ed
+                          ? <button className="items-btn" title="Editar itens" onClick={() => setEditing(i)}>{chips}</button>
+                          : <div className="items-static">{chips}</div>}</td>
+                        <td className="ro r"><b>{brl(totalOf(r))}</b></td>
+                        <td className="acts">
+                          <button className={'icon' + (ed ? ' ok' : '')} title={ed ? 'Concluir edição' : 'Editar'} onClick={() => toggleOpen(i)}>{ed ? '✓' : '✏️'}</button>
+                          <button className="icon danger" title="Excluir" onClick={() => confirm('Excluir este lançamento?') && del(i)}>🗑</button>
+                        </td>
+                        <td className="grow"></td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
               {!filtered.length && <div className="empty">Nenhum lançamento neste filtro. Use “📅 Lançar mês” para registrar.</div>}
             </div>
           </section>
-          <div className="pager">
-            <button className="sec" disabled={cur === 0} onClick={() => setPage(cur - 1)}>‹ Anterior</button>
-            <span className="muted">Página {cur + 1} de {pages}</span>
-            <button className="sec" disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>Próxima ›</button>
-          </div>
+      <Pager page={cur} pages={pages} total={sorted.length} size={size} onPage={setPage} onSize={setSize} />
         </>
       ) : (
         <section className="panel">
-          <div className="panel-head"><span className="muted">Conta × mês · clique em uma célula para lançar/editar aquele mês{matrix?.cut && ' · mostrando os últimos 24 meses'}</span></div>
+          <div className="panel-head"><span className="muted">Conta × mês · clique em uma célula para lançar/editar aquele mês · clique no cabeçalho para ordenar{matrix?.cut && ' · mostrando os últimos 24 meses'}</span></div>
           <div className="wrap">
             <table className="mx">
-              <thead><tr><th>Conta</th>{matrix.months.map((k) => <th key={k} className="r">{mesCurto(k)}</th>)}<th className="r">Total</th></tr></thead>
+              <thead><tr>{th('t', 'Conta', false, mxSort, setMxSort)}{matrix.months.map((k) => th(k, mesCurto(k), true, mxSort, setMxSort))}{th('tot', 'Total', true, mxSort, setMxSort)}<th className="grow"></th></tr></thead>
               <tbody>
-                {matrix.lines.map((l) => (
+                {mxLines.map((l) => (
                   <tr key={l.t}>
                     <td className="ro mx-name">{l.t}</td>
                     {matrix.months.map((k) => {
                       const v = l.v[k]
                       return <td key={k} className="ro r mx-c" title={v != null ? brl(v) : ''} onClick={() => setLancar(k)}
-                        style={v ? { background: `rgba(239,68,68,${Math.min(0.5, (v / l.max) * 0.5)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+                        style={v ? { background: `rgba(239,68,68,${Math.min(0.32, (v / l.max) * 0.32)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
                     })}
-                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
+                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td><td className="grow"></td>
                   </tr>
                 ))}
-                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td></tr>
+                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td><td className="grow"></td></tr>
               </tbody>
             </table>
             {!matrix.lines.length && <div className="empty">Sem dados neste filtro.</div>}

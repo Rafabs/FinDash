@@ -12,6 +12,9 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 **Geral**
 - Importação de `.xlsx` (4 abas de uma vez) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
 - Exportação em **CSV**, **XLSX** e **PDF**
+- Tabelas com **ordenação por cabeçalho** (clique: crescente → decrescente → original; vale para o conjunto filtrado, não só para a página)
+- **Itens por página** configurável (20, 30, 40, 50, 100 ou 200; padrão 40) no Extrato, Despesas e Resgates, e a escolha fica salva
+- Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - Landing page com explicação, modelos para download e dados de exemplo
 - Dados salvos automaticamente no navegador
@@ -213,6 +216,9 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
     ├── ResgatesView.jsx           # aba Resgates
     ├── LancarMes.jsx              # assistente de lançamento mensal
     ├── PeriodFilter.jsx           # seletor de período
+    ├── MoneyInput.jsx             # campo de valor em R$ (2 casas)
+    ├── sort.js                    # ordenação das tabelas
+    ├── Pager.jsx                  # paginação e itens por página
     └── styles.css                 # estilos e temas claro/escuro
 ```
 

@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Table from './Table.jsx'
 import PeriodFilter from './PeriodFilter.jsx'
 import { EXT, CATS, RK } from './data.js'
 import { rangeOf, inRange, labelOf } from './period.js'
 import { brl } from './Dashboard.jsx'
+import { nextSort, sortItems } from './sort.js'
+import Pager, { usePageSize } from './Pager.jsx'
 
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
-const PAGE = 50
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 
 export default function ExtratoView({ resgates = [], rows, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
+  const [sort, setSort] = useState(null)
+  const [size, setSize] = usePageSize()
+  const [editing, setEditing] = useState(() => new Set()) // linhas abertas pelo lápis
+  const wantEdit = useRef(false)
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(String(r[D]).slice(0, 4))).filter(Boolean))], [rows])
 
@@ -23,6 +28,8 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
       .filter(({ r }) => (!cats.length || cats.includes(r.CATEGORIA)) && (!s || `${r.ORIGEM} ${r.TIPO} ${r['INSTITUIÇÃO']}`.toLowerCase().includes(s)))
       .sort((a, b) => (b.r[D] || '').localeCompare(a.r[D] || '') || b.i - a.i)
   }, [base, cats, q])
+
+  const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => x.r[k], (k) => EXT.find((c) => c[0] === k)?.[1]), [filtered, sort])
 
   const byCat = useMemo(() => {
     const m = Object.fromEntries(CATS.map((c) => [c, 0]))
@@ -35,12 +42,16 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
   const total = segs.reduce((s, [, v]) => s + v, 0)
   const pos = segs.reduce((s, [, v]) => s + Math.max(v, 0), 0)
 
-  useEffect(() => setPage(0), [period, cats, q])
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE))
+  useEffect(() => setPage(0), [period, cats, q, sort, size])
+  const pages = Math.max(1, Math.ceil(sorted.length / size))
   const cur = Math.min(page, pages - 1)
-  const slice = filtered.slice(cur * PAGE, cur * PAGE + PAGE)
+  const slice = sorted.slice(cur * size, cur * size + size)
   const toggle = (c) => setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
-  const add = () => { setCats([]); setQ(''); onAdd() }
+  const toggleEdit = (g) => setEditing((s) => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
+  const add = () => { wantEdit.current = true; setCats([]); setQ(''); setSort(null); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
+  // o lançamento recém-criado já abre em modo de edição
+  useEffect(() => { if (wantEdit.current) { wantEdit.current = false; toggleEdit(rows.length - 1) } }, [rows.length])
+  const del = (g) => { setEditing(new Set()); onDelete(g) }
 
   return (
     <>
@@ -81,17 +92,15 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
       </div>
 
       <Table
-        cols={EXT} rows={slice.map((x) => x.r)} offset={cur * PAGE} selects={{ CATEGORIA: CATS }}
-        onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => onDelete(slice[n].i)}
+        cols={EXT} rows={slice.map((x) => x.r)} offset={cur * size} selects={{ CATEGORIA: CATS }}
+        onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
+        rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}
+        sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))}
         onAdd={add} addLabel="+ Novo lançamento"
         info={`${filtered.length} lançamento${filtered.length === 1 ? '' : 's'}`}
         extra={<button className="sec" onClick={onPaste}>📋 Colar dados</button>}
       />
-      <div className="pager">
-        <button className="sec" disabled={cur === 0} onClick={() => setPage(cur - 1)}>‹ Anterior</button>
-        <span className="muted">Página {cur + 1} de {pages}</span>
-        <button className="sec" disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>Próxima ›</button>
-      </div>
+      <Pager page={cur} pages={pages} total={sorted.length} size={size} onPage={setPage} onSize={setSize} />
     </>
   )
 }

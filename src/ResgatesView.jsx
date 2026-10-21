@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Table from './Table.jsx'
 import PeriodFilter from './PeriodFilter.jsx'
 import { RES, RK } from './data.js'
+import { nextSort, sortItems } from './sort.js'
+import Pager, { usePageSize } from './Pager.jsx'
 import { rangeOf, inRange, labelOf } from './period.js'
 import { brl } from './Dashboard.jsx'
 
-const PAGE = 50
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const val = (r) => Number(r[RK]) || 0
 
@@ -13,6 +14,8 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
   const [prods, setProds] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
+  const [sort, setSort] = useState(null)
+  const [size, setSize] = usePageSize()
   const [editing, setEditing] = useState(() => new Set()) // índices em edição (lápis)
   const wantEdit = useRef(false)
   const range = useMemo(() => rangeOf(period), [period])
@@ -25,6 +28,8 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
       .filter(({ r }) => (!prods.length || prods.includes(r.PRODUTO)) && (!s || String(r.PRODUTO).toLowerCase().includes(s)))
       .sort((a, b) => (b.r.DATA_RESGATE || '').localeCompare(a.r.DATA_RESGATE || '') || b.i - a.i)
   }, [base, prods, q])
+
+  const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => x.r[k], (k) => RES.find((c) => c[0] === k)?.[1]), [filtered, sort])
 
   const stat = useMemo(() => {
     const by = {}, cnt = {}
@@ -43,13 +48,13 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
   const pos = segs.reduce((s, [, v]) => s + Math.max(v, 0), 0)
   const dir = stat.total > 0 ? 'up' : stat.total < 0 ? 'down' : ''
 
-  useEffect(() => setPage(0), [period, prods, q])
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE))
+  useEffect(() => setPage(0), [period, prods, q, sort, size])
+  const pages = Math.max(1, Math.ceil(sorted.length / size))
   const cur = Math.min(page, pages - 1)
-  const slice = filtered.slice(cur * PAGE, cur * PAGE + PAGE)
+  const slice = sorted.slice(cur * size, cur * size + size)
   const toggle = (c) => setProds((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
   const toggleEdit = (g) => setEditing((s) => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
-  const add = () => { wantEdit.current = true; setProds([]); setQ(''); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
+  const add = () => { wantEdit.current = true; setSort(null); setProds([]); setQ(''); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
   // o resgate recém-criado já abre em modo de edição
   useEffect(() => { if (wantEdit.current) { wantEdit.current = false; toggleEdit(rows.length - 1) } }, [rows.length])
   const del = (g) => { setEditing(new Set()); onDelete(g) }
@@ -89,17 +94,13 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
       </div>
 
       <Table
-        cols={RES} rows={slice.map((x) => x.r)} offset={cur * PAGE}
+        cols={RES} rows={slice.map((x) => x.r)} offset={cur * size} toneMoney sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))}
         onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
         rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}
         onAdd={add} addLabel="+ Novo resgate"
         info={`${filtered.length} resgate${filtered.length === 1 ? '' : 's'}`}
       />
-      <div className="pager">
-        <button className="sec" disabled={cur === 0} onClick={() => setPage(cur - 1)}>‹ Anterior</button>
-        <span className="muted">Página {cur + 1} de {pages}</span>
-        <button className="sec" disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>Próxima ›</button>
-      </div>
+      <Pager page={cur} pages={pages} total={sorted.length} size={size} onPage={setPage} onSize={setSize} />
     </>
   )
 }

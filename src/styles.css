@@ -206,3 +206,48 @@ td.fill .ar.up{color:#3f9b8c}td.fill .ar.down{color:#e4572e}
 td.acts{white-space:nowrap}
 td.acts .icon+.icon{margin-left:6px}
 button.icon.ok{background:var(--ac2);color:#fff;border-color:transparent}
+
+/* ================= Tabelas: visual arredondado, colunas justas, ordenação ================= */
+:root{--rowa:color-mix(in srgb,var(--zebra) 40%,var(--card))}
+.wrap{padding:0 12px 12px}
+.wrap table{border-spacing:0 4px;width:100%}
+.wrap thead th{background:var(--hover);color:var(--mut);padding:10px 12px;border-bottom:0;box-shadow:0 4px 0 0 var(--card);white-space:nowrap}
+.wrap thead th:first-child{border-radius:12px 0 0 12px}
+.wrap thead th:last-child{border-radius:0 12px 12px 0}
+.wrap tbody td{border-bottom:0;background:var(--rowa);padding:6px 10px;transition:background .12s}
+.wrap tbody tr:nth-child(even) td{background:var(--zebra)}
+.wrap tbody tr:hover td{background:var(--hover)}
+.wrap tbody td:first-child{border-radius:10px 0 0 10px}
+.wrap tbody td:last-child{border-radius:0 10px 10px 0}
+.wrap tbody tr.gtop td{border-top:0}
+.wrap tbody td.ro{padding:8px 12px}
+.wrap tbody td.ro.fill{padding:8px 12px}
+.wrap tbody td.idx{padding:8px 10px 8px 12px}
+.wrap tbody tr.mx-tot td{background:var(--hover)!important;position:sticky;bottom:0}
+th.grow,td.grow{width:100%;min-width:0;padding:0!important}
+th.sortable{cursor:pointer;user-select:none;transition:color .12s}
+th.sortable:hover{color:var(--tx)}
+th.sortable.on{color:var(--ac)}
+th .si{font-style:normal;font-size:9px;margin-left:6px;opacity:0;transition:opacity .15s}
+th.sortable:hover .si{opacity:.55}
+th.sortable.on .si{opacity:1}
+th.r{text-align:right}
+.items-static{display:flex;flex-wrap:wrap;gap:4px;max-width:520px}
+.panel{overflow:hidden;border-radius:18px}
+.panel-head{padding:14px 16px}
+select.cell{background:var(--inp);border:1px solid var(--bd);border-radius:7px;padding:6px 8px;color:inherit;font:inherit}
+td.acts{padding-left:6px!important}
+
+/* ================= Colunas centralizadas e paginação ================= */
+.wrap th,.wrap td,.wrap th.r,.wrap td.r{text-align:center}
+.wrap td.idx{text-align:center}
+.wrap .items-static,.wrap .items-btn{justify-content:center}
+.wrap td .money input,.wrap input.cell{text-align:center}
+.wrap td.ro.fill{text-align:center}
+.wrap .tone{min-width:120px}
+.wrap .mx-name{text-align:center}
+.pager{justify-content:space-between;flex-wrap:wrap;padding:0 6px}
+.pg-nav,.pg-size{display:flex;align-items:center;gap:12px}
+.pg-size select{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx)}
+.pg-info{min-width:120px}
+.wrap .items-static,.wrap .items-btn{flex-wrap:nowrap;max-width:none}
