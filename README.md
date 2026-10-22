@@ -243,13 +243,13 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
 
 ## 🗺️ TO DO
 
-- [ ] Gráficos no PDF
+- [ ] Colagem de várias despesas de uma vez
 - [ ] Pesquisar algum produto e ver detalhes e informações
 - [ ] Filtros globais por banco e tipo
 - [ ] Evolução do patrimônio ao longo do tempo (snapshots mensais)
 - [ ] *Yield on cost* por papel, cruzando proventos e valor aplicado
 - [ ] Metas de alocação e comparação com CDI/IPCA
-- [ ] Colagem de várias despesas de uma vez
+- [X] Gráficos no PDF
 
 ---
 
