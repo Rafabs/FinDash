@@ -12,6 +12,7 @@ import Landing from './Landing.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData } from './data.js'
 import { exportPdf } from './pdf.js'
 
+const TAB_ICONS = { dash: '📊', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁' }
 const KEY = 'fynn-control-v1'
 const load = () => {
   try {
@@ -104,7 +105,7 @@ export default function App() {
       {empty ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} /> : (<>
       <nav className="tabs">
         {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length]].map(([k, l, c]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{c != null && <em>{c}</em>}</button>
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl">{l}</span>{c != null && <em>{c}</em>}</button>
         ))}
       </nav>
       <main>

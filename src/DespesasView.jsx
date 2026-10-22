@@ -150,9 +150,9 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
             <div className="panel-head"><span className="muted">{filtered.length} lançamento{filtered.length === 1 ? '' : 's'} · use o lápis para editar (e os itens para detalhar) · clique no cabeçalho para ordenar</span></div>
             <div className="wrap">
               <datalist id="dl-contas">{types.map((t) => <option key={t} value={t} />)}</datalist>
-              <table>
+              <table className="rt">
                 <thead><tr>
-                  <th>#</th>{th('DATA', 'Mês', false, sort, setSort)}{th('TIPO_CONTA', 'Conta', false, sort, setSort)}<th>Itens</th>{th('TOTAL', 'Total', true, sort, setSort)}<th></th><th className="grow"></th>
+                  <th>#</th>{th('DATA', 'Mês', false, sort, setSort)}{th('TIPO_CONTA', 'Conta', false, sort, setSort)}<th>Itens</th>{th('TOTAL', 'Total', true, sort, setSort)}<th></th>
                 </tr></thead>
                 <tbody>
                   {slice.map(({ r, i }, n) => {
@@ -166,21 +166,21 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
                     return (
                       <tr key={i}>
                         <td className="idx">{cur * size + n + 1}</td>
-                        <td className={ed ? '' : 'ro'}>{ed
+                        <td className={ed ? '' : 'ro'} data-label="Mês">{ed
                           ? <input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} />
                           : monthOf(r.DATA).split('-').reverse().join('/')}</td>
-                        <td className={ed ? '' : 'ro'}>{ed
+                        <td className={ed ? '' : 'ro'} data-label="Conta">{ed
                           ? <input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} />
                           : r.TIPO_CONTA}</td>
-                        <td className={ed ? '' : 'ro'}>{ed
+                        <td className={ed ? '' : 'ro'} data-label="Itens">{ed
                           ? <button className="items-btn" title="Editar itens" onClick={() => setEditing(i)}>{chips}</button>
                           : <div className="items-static">{chips}</div>}</td>
-                        <td className="ro r"><b>{brl(totalOf(r))}</b></td>
+                        <td className="ro r" data-label="Total"><b>{brl(totalOf(r))}</b></td>
                         <td className="acts">
                           <button className={'icon' + (ed ? ' ok' : '')} title={ed ? 'Concluir edição' : 'Editar'} onClick={() => toggleOpen(i)}>{ed ? '✓' : '✏️'}</button>
                           <button className="icon danger" title="Excluir" onClick={() => confirm('Excluir este lançamento?') && del(i)}>🗑</button>
                         </td>
-                        <td className="grow"></td>
+                        
                       </tr>
                     )
                   })}
@@ -196,7 +196,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
           <div className="panel-head"><span className="muted">Conta × mês · clique em uma célula para lançar/editar aquele mês · clique no cabeçalho para ordenar{matrix?.cut && ' · mostrando os últimos 24 meses'}</span></div>
           <div className="wrap">
             <table className="mx">
-              <thead><tr>{th('t', 'Conta', false, mxSort, setMxSort)}{matrix.months.map((k) => th(k, mesCurto(k), true, mxSort, setMxSort))}{th('tot', 'Total', true, mxSort, setMxSort)}<th className="grow"></th></tr></thead>
+              <thead><tr>{th('t', 'Conta', false, mxSort, setMxSort)}{matrix.months.map((k) => th(k, mesCurto(k), true, mxSort, setMxSort))}{th('tot', 'Total', true, mxSort, setMxSort)}</tr></thead>
               <tbody>
                 {mxLines.map((l) => (
                   <tr key={l.t}>
@@ -206,10 +206,10 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
                       return <td key={k} className="ro r mx-c" title={v != null ? brl(v) : ''} onClick={() => setLancar(k)}
                         style={v ? { background: `rgba(239,68,68,${Math.min(0.32, (v / l.max) * 0.32)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
                     })}
-                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td><td className="grow"></td>
+                    <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
                   </tr>
                 ))}
-                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td><td className="grow"></td></tr>
+                <tr className="mx-tot"><td className="ro mx-name"><b>Total</b></td>{matrix.months.map((k) => <td key={k} className="ro r"><b>{matrix.colTot[k].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>)}<td className="ro r"><b>{matrix.lines.reduce((s, l) => s + l.tot, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td></tr>
               </tbody>
             </table>
             {!matrix.lines.length && <div className="empty">Sem dados neste filtro.</div>}

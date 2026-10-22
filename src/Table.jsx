@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import MoneyInput from './MoneyInput.jsx'
 import { nextSort, sortItems } from './sort.js'
+import { useMedia } from './useMedia.js'
 
 const f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
 const brl = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', f2)
@@ -21,6 +22,7 @@ function show(k, t, v) {
 // onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
 export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort }) {
   const [own, setOwn] = useState(null)
+  const mobile = useMedia('(max-width: 700px)') // no celular cada linha vira um cartão (sem mesclar células)
   const controlled = onSort !== undefined
   const cur = controlled ? sort : own
   const toggleSort = controlled ? onSort : (k) => setOwn((s) => nextSort(s, k))
@@ -30,7 +32,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
   const list = useMemo(() => {
     let items = rows.map((r, i) => ({ r, i }))
     if (!controlled) items = sortItems(items, own, (x, k) => x.r[k], typeOf)
-    if (!groupFn) return items.map(({ r, i }) => ({ r, i, first: true, span: 1, shared: false }))
+    if (!groupFn || mobile) return items.map(({ r, i }) => ({ r, i, first: true, span: 1, shared: false }))
     const groups = new Map()
     items.forEach(({ r, i }) => { if (groupFn(r)) groups.set(r.PAPEL, [...(groups.get(r.PAPEL) || []), i]) })
     const out = [], done = new Set()
@@ -42,7 +44,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
       ids.forEach((gi, n) => out.push({ r: rows[gi], i: gi, first: n === 0, span: ids.length, shared: true }))
     })
     return out
-  }, [rows, groupFn, own, controlled]) // eslint-disable-line
+  }, [rows, groupFn, own, controlled, mobile]) // eslint-disable-line
 
   return (
     <section className="panel">
@@ -56,7 +58,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
         <div className="ph-actions">{extra}<button onClick={onAdd}>{addLabel}</button></div>
       </div>
       <div className="wrap">
-        <table>
+        <table className="rt">
           <thead>
             <tr>
               <th>#</th>
@@ -65,7 +67,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                   {l ?? k}<i className="si">{cur?.key === k ? (cur.dir === 'asc' ? '▲' : '▼') : '↕'}</i>
                 </th>
               ))}
-              <th></th><th className="grow"></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -75,7 +77,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
               return (
                 <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
                   <td className="idx">{offset + n + 1}</td>
-                  {cols.map(([k, t, , w]) => {
+                  {cols.map(([k, t, lbl, w]) => {
                     const shared = e.shared && sharedKeys.includes(k)
                     if (shared && !e.first) return null
                     const rs = shared ? e.span : undefined
@@ -84,9 +86,9 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                     const right = isRight(t)
                     if (locked) {
                       if (k === 'IOF')
-                        return <td key={k} className="ro"><span className={'chip ' + (r[k] === 'SIM' ? 'warn' : r[k] === 'NÃO' ? 'ok' : 'na')}>{r[k] || '—'}</span></td>
+                        return <td key={k} data-label={lbl ?? k} className="ro"><span className={'chip ' + (r[k] === 'SIM' ? 'warn' : r[k] === 'NÃO' ? 'ok' : 'na')}>{r[k] || '—'}</span></td>
                       if (k === 'PAPEL' && shared)
-                        return <td key={k} rowSpan={rs} className="ro grp"><span className="papel">{r[k]}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
+                        return <td key={k} data-label={lbl ?? k} rowSpan={rs} className="ro grp"><span className="papel">{r[k]}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
                       let cls = 'ro' + (right ? ' r' : '') + g
                       if (k === 'VAR_PP' || k === 'REND_BRUTO') {
                         const tone = r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : ''
@@ -94,29 +96,29 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                           const a = Math.abs(r[k])
                           const txt = (r[k] < 0 ? '-' : '') + (k === 'VAR_PP' ? (a * 100).toLocaleString('pt-BR', f2) + '%' : brl(a))
                           return (
-                            <td key={k} rowSpan={rs} className={'ro fill' + tone}>
+                            <td key={k} data-label={lbl ?? k} rowSpan={rs} className={'ro fill' + tone}>
                               <div className="tone"><i className={'ar ' + (r[k] > 0 ? 'up' : 'down')}>{r[k] > 0 ? '▲' : '▼'}</i><span>{txt}</span></div>
                             </td>
                           )
                         }
                         cls += tone
                       }
-                      return <td key={k} rowSpan={rs} className={cls} title={t === 'num' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
+                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={cls} title={t === 'num' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
                     }
                     if (!editing) { // linha fechada: só leitura (use o lápis)
                       const tone = toneMoney && t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
-                      return <td key={k} className={'ro' + (right ? ' r' : '') + tone}>{show(k, t, r[k])}</td>
+                      return <td key={k} data-label={lbl ?? k} className={'ro' + (right ? ' r' : '') + tone}>{show(k, t, r[k])}</td>
                     }
                     const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
                     if (t === 'money')
                       return (
-                        <td key={k} rowSpan={rs} className={g.trim()}>
+                        <td key={k} data-label={lbl ?? k} rowSpan={rs} className={g.trim()}>
                           <MoneyInput title={title} value={r[k]} onChange={(v) => onEdit(i, k, v)} />
                         </td>
                       )
                     if (t === 'select')
                       return (
-                        <td key={k} rowSpan={rs}>
+                        <td key={k} data-label={lbl ?? k} rowSpan={rs}>
                           <select className="cell" value={r[k] ?? ''} onChange={(ev) => onEdit(i, k, ev.target.value)}>
                             {!(selects?.[k] || []).includes(r[k]) && <option value={r[k] ?? ''}>{r[k] || '—'}</option>}
                             {(selects?.[k] || []).map((o) => <option key={o}>{o}</option>)}
@@ -124,7 +126,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                         </td>
                       )
                     return (
-                      <td key={k} rowSpan={rs} className={g.trim()}>
+                      <td key={k} data-label={lbl ?? k} rowSpan={rs} className={g.trim()}>
                         <input
                           className="cell" title={title} style={w ? { minWidth: w } : undefined}
                           type={t === 'date' ? 'date' : t === 'num' ? 'number' : 'text'}
@@ -138,7 +140,6 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
                     {onToggleEdit && <button className={'icon' + (editing ? ' ok' : '')} title={editing ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{editing ? '✓' : '✏️'}</button>}
                     <button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
                   </td>
-                  <td className="grow"></td>
                 </tr>
               )
             })}
