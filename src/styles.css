@@ -420,3 +420,8 @@ button.sec,button.icon,.tabs button,.seg button,.chip-btn,.items-btn{background-
   .slot-name{font-size:13.5px}
   .slot-h b{font-size:14px}
 }
+
+/* ---- colar despesas ---- */
+.pd-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:2px 0 10px;font-size:13px;color:var(--mut)}
+.pd-def{display:flex;align-items:center;gap:8px;font-size:12px}
+.pd-def input{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}

@@ -52,6 +52,7 @@ export default function App() {
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
+  const addDesp = (novas) => setData((d) => ({ ...d, despesas: [...d.despesas, ...novas] }))
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
   const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
   const addExtrato = () => setData((d) => ({ ...d, extrato: [...d.extrato, { 'DATA DE RECEBIMENTO': today(), 'VALOR DA APLICAÇÃO': 0, CATEGORIA: 'Outros', ORIGEM: '', 'INSTITUIÇÃO': '', 'CNPJ / CPF': '', TIPO: '' }] }))
@@ -124,7 +125,7 @@ export default function App() {
           <ExtratoView resgates={data.resgates} rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
         {tab === 'despesas' && (
-          <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onSaveMonth={saveMonth} />
+          <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onSaveMonth={saveMonth} onAddRows={addDesp} />
         )}
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />

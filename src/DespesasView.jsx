@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import PeriodFilter from './PeriodFilter.jsx'
 import LancarMes from './LancarMes.jsx'
+import PasteDespesas from './PasteDespesas.jsx'
 import { totalOf, monthOf, round2 } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
@@ -39,7 +40,7 @@ function ItemsModal({ row, onSave, onClose }) {
   )
 }
 
-export default function DespesasView({ rows, period, setPeriod, onUpdate, onDelete, onSaveMonth }) {
+export default function DespesasView({ rows, period, setPeriod, onUpdate, onDelete, onSaveMonth, onAddRows }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
@@ -49,6 +50,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   const [sort, setSort] = useState(null)
   const [size, setSize] = usePageSize()
   const [mxSort, setMxSort] = useState(null)
+  const [pasting, setPasting] = useState(null) // texto colado (abre o modal de colagem)
   const [openRows, setOpenRows] = useState(() => new Set()) // linhas abertas pelo lápis
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(r.DATA.slice(0, 4))))], [rows])
@@ -104,6 +106,18 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   }, [filtered, view])
 
   const nextYM = nowYM()
+
+  // Ctrl+V fora de um campo abre a colagem de despesas
+  useEffect(() => {
+    if (lancar || editing != null || pasting !== null) return
+    const h = (e) => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return
+      const t = e.clipboardData?.getData('text')
+      if (t && t.trim()) { e.preventDefault(); setPasting(t) }
+    }
+    window.addEventListener('paste', h)
+    return () => window.removeEventListener('paste', h)
+  }, [lancar, editing, pasting])
   const mxLines = useMemo(() => (matrix ? sortItems(matrix.lines, mxSort, (l, k) => (k === 't' ? l.t : k === 'tot' ? l.tot : l.v[k]), (k) => (k === 't' ? 'text' : 'money')) : []), [matrix, mxSort])
 
   return (
@@ -135,6 +149,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
           <button className={view === 'lista' ? 'on' : ''} onClick={() => setView('lista')}>Lista</button>
           <button className={view === 'matriz' ? 'on' : ''} onClick={() => setView('matriz')}>Matriz mensal</button>
         </div>
+        <button className="sec" onClick={() => setPasting('')}>📋 Colar despesas</button>
         <button onClick={() => setLancar(nextYM)}>📅 Lançar mês</button>
       </div>
       <div className="chips">
@@ -217,6 +232,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
         </section>
       )}
 
+      {pasting !== null && <PasteDespesas initial={pasting} rows={rows} onClose={() => setPasting(null)} onSave={(novas) => { onAddRows(novas); setPasting(null) }} />}
       {lancar && <LancarMes rows={rows} initialYM={lancar} onClose={() => setLancar(null)} onSave={(ym, novas) => { onSaveMonth(ym, novas); setLancar(null) }} />}
       {editing != null && <ItemsModal row={rows[editing]} onClose={() => setEditing(null)} onSave={(itens) => { onUpdate(editing, { ITENS: itens }); setEditing(null) }} />}
     </>
