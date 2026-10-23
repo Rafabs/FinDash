@@ -243,14 +243,16 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
 
 ## 🗺️ TO DO
 
+- [ ] Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
+- [ ] Melhorar o leitor de colar itens
 - [ ] Pesquisar algum produto e ver detalhes e informações
 - [ ] Filtros globais por banco e tipo
 - [ ] Evolução do patrimônio ao longo do tempo (snapshots mensais)
 - [ ] *Yield on cost* por papel, cruzando proventos e valor aplicado
 - [ ] Metas de alocação e comparação com CDI/IPCA
-- [X] Gráficos no PDF
-- [X] Colagem de várias despesas de uma vez
-
+- [X] v26.10.1 Gráficos no PDF
+- [X] v26.10.2 Colagem de várias despesas de uma vez
+- [X] v26.10.3 Implantar função para selecionar diversos itens em todas as sheets
 ---
 
 Feito para rodar no seu navegador. 💜

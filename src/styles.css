@@ -2,6 +2,7 @@
 [data-theme=dark]{color-scheme:dark;--bg:#0e1118;--card:#171b26;--bd:#272d3d;--tx:#e8ebf5;--mut:#8b93ad;--ac:#818cf8;--ac2:#6366f1;--hover:#252c42;--zebra:#1c2131;--grp:#222a44;--inp:#11141d;--pos:#34d399;--neg:#fb7185;--sh:0 1px 2px #0006,0 8px 24px #0004}
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx);transition:background .2s,color .2s}
+.app-version{padding:0 24px 16px;text-align:right;color:var(--mut);font-size:11px;opacity:.7}
 header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 24px;background:color-mix(in srgb,var(--card) 85%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd)}
 .brand{display:flex;align-items:center;gap:10px}
 .brand h1{margin:0;font-size:17px;line-height:1.1}.brand small{color:var(--mut);font-size:12px}

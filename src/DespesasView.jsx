@@ -52,6 +52,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   const [mxSort, setMxSort] = useState(null)
   const [pasting, setPasting] = useState(null) // texto colado (abre o modal de colagem)
   const [openRows, setOpenRows] = useState(() => new Set()) // linhas abertas pelo lápis
+  const [selected, setSelected] = useState(() => new Set())
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(r.DATA.slice(0, 4))))], [rows])
   const types = useMemo(() => {
@@ -86,6 +87,8 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
   const slice = sorted.slice(cur * size, cur * size + size)
   const toggleOpen = (g) => setOpenRows((x) => { const n = new Set(x); n.has(g) ? n.delete(g) : n.add(g); return n })
   const del = (g) => { setOpenRows(new Set()); onDelete(g) }
+  const allSelected = slice.length > 0 && slice.every(({ i }) => selected.has(i))
+  const deleteSelected = () => { const ids = [...selected].sort((a, b) => b - a); if (ids.length && confirm(`Excluir ${ids.length} itens selecionados?`)) { ids.forEach(del); setSelected(new Set()) } }
   const th = (k, label, right, cur, set) => (
     <th key={k} className={'sortable' + (right ? ' r' : '') + (cur?.key === k ? ' on' : '')} onClick={() => set((s) => nextSort(s, k))} title="Clique para ordenar">
       {label}<i className="si">{cur?.key === k ? (cur.dir === 'asc' ? '▲' : '▼') : '↕'}</i>
@@ -162,12 +165,12 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
       {view === 'lista' ? (
         <>
           <section className="panel">
-            <div className="panel-head"><span className="muted">{filtered.length} lançamento{filtered.length === 1 ? '' : 's'} · use o lápis para editar (e os itens para detalhar) · clique no cabeçalho para ordenar</span></div>
+            <div className="panel-head"><span className="muted">{filtered.length} lançamento{filtered.length === 1 ? '' : 's'} · use o lápis para editar (e os itens para detalhar) · clique no cabeçalho para ordenar</span><div className="ph-actions">{selected.size > 0 && <><span className="muted">{selected.size} selecionados</span><button className="sec danger" onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}</div></div>
             <div className="wrap">
               <datalist id="dl-contas">{types.map((t) => <option key={t} value={t} />)}</datalist>
               <table className="rt">
                 <thead><tr>
-                  <th>#</th>{th('DATA', 'Mês', false, sort, setSort)}{th('TIPO_CONTA', 'Conta', false, sort, setSort)}<th>Itens</th>{th('TOTAL', 'Total', true, sort, setSort)}<th></th>
+                  <th><input aria-label="Selecionar todos os itens visíveis" type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(slice.map(({ i }) => i)))} /></th>{th('DATA', 'Mês', false, sort, setSort)}{th('TIPO_CONTA', 'Conta', false, sort, setSort)}<th>Itens</th>{th('TOTAL', 'Total', true, sort, setSort)}<th></th>
                 </tr></thead>
                 <tbody>
                   {slice.map(({ r, i }, n) => {
@@ -180,7 +183,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
                     )
                     return (
                       <tr key={i}>
-                        <td className="idx">{cur * size + n + 1}</td>
+                        <td className="idx"><input aria-label={`Selecionar lançamento ${cur * size + n + 1}`} type="checkbox" checked={selected.has(i)} onChange={() => setSelected((s) => { const x = new Set(s); x.has(i) ? x.delete(i) : x.add(i); return x })} /></td>
                         <td className={ed ? '' : 'ro'} data-label="Mês">{ed
                           ? <input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} />
                           : monthOf(r.DATA).split('-').reverse().join('/')}</td>

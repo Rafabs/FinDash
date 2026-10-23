@@ -94,6 +94,7 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
       <Table
         cols={EXT} rows={slice.map((x) => x.r)} offset={cur * size} selects={{ CATEGORIA: CATS }}
         onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
+        onDeleteMany={(ns) => ns.map((n) => slice[n].i).sort((a, b) => b - a).forEach(del)}
         rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}
         sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))}
         onAdd={add} addLabel="+ Novo lançamento"

@@ -20,13 +20,20 @@ function show(k, t, v) {
 // sort/onSort: ordenação controlada pela tela (tabelas paginadas). Sem eles, a tabela ordena sozinha.
 // fillTone: destaque de rendimento/variação · toneMoney: valores em verde/vermelho no modo leitura
 // onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort }) {
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort }) {
   const [own, setOwn] = useState(null)
   const mobile = useMedia('(max-width: 700px)') // no celular cada linha vira um cartão (sem mesclar células)
   const controlled = onSort !== undefined
   const cur = controlled ? sort : own
   const toggleSort = controlled ? onSort : (k) => setOwn((s) => nextSort(s, k))
   const typeOf = (k) => cols.find((c) => c[0] === k)?.[1]
+  const [selected, setSelected] = useState(() => new Set())
+  const allSelected = rows.length > 0 && selected.size === rows.length
+  const toggleSelected = (i) => setSelected((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
+  const deleteSelected = () => {
+    const ids = [...selected].sort((a, b) => b - a)
+    if (ids.length && confirm(`Excluir ${ids.length} itens selecionados?`)) { onDeleteMany?.(ids); setSelected(new Set()) }
+  }
 
   // ordem de exibição (só quando a tabela ordena sozinha) + agrupamento de lotes do mesmo papel
   const list = useMemo(() => {
@@ -55,13 +62,13 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
           {' · clique no cabeçalho para ordenar'}
         </span>
-        <div className="ph-actions">{extra}<button onClick={onAdd}>{addLabel}</button></div>
+        <div className="ph-actions">{selected.size > 0 && <><span className="muted">{selected.size} selecionados</span><button className="sec danger" onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}{extra}<button onClick={onAdd}>{addLabel}</button></div>
       </div>
       <div className="wrap">
         <table className="rt">
           <thead>
             <tr>
-              <th>#</th>
+              <th><input aria-label="Selecionar todos os itens visíveis" type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((_, i) => i)))} /></th>
               {cols.map(([k, t, l]) => (
                 <th key={k} className={'sortable' + (isRight(t) ? ' r' : '') + (cur?.key === k ? ' on' : '')} onClick={() => toggleSort(k)} title="Clique para ordenar">
                   {l ?? k}<i className="si">{cur?.key === k ? (cur.dir === 'asc' ? '▲' : '▼') : '↕'}</i>
@@ -76,7 +83,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, addLabel = 
               const editing = onToggleEdit ? !!rowEditing?.(i) : true
               return (
                 <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
-                  <td className="idx">{offset + n + 1}</td>
+                  <td className="idx"><input aria-label={`Selecionar item ${offset + n + 1}`} type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
                   {cols.map(([k, t, lbl, w]) => {
                     const shared = e.shared && sharedKeys.includes(k)
                     if (shared && !e.first) return null

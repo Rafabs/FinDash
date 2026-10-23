@@ -96,6 +96,7 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
       <Table
         cols={RES} rows={slice.map((x) => x.r)} offset={cur * size} toneMoney sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))}
         onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
+        onDeleteMany={(ns) => ns.map((n) => slice[n].i).sort((a, b) => b - a).forEach(del)}
         rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}
         onAdd={add} addLabel="+ Novo resgate"
         info={`${filtered.length} resgate${filtered.length === 1 ? '' : 's'}`}

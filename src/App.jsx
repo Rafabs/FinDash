@@ -116,7 +116,7 @@ export default function App() {
             <CartHero rows={data.carteira} />
             <Table
               cols={SHEETS.carteira.cols} rows={data.carteira} onEdit={edit('carteira')} onDelete={del('carteira')}
-              onAdd={() => setModal(true)} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone
+              onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone
               sharedKeys={['PAPEL', 'PRC_UNIT', 'ULTIMA_ATUAL']}
             />
           </>
@@ -131,6 +131,7 @@ export default function App() {
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
         )}
       </main></>)}
+      <footer className="app-version">v26.10.4</footer>
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
           onSave={(rows) => { setData((d) => ({ ...d, extrato: [...d.extrato, ...rows] })); setPaste(null) }} />
