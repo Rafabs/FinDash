@@ -9,6 +9,7 @@ import PasteModal from './PasteModal.jsx'
 import { defaultPeriod, rangeOf, inRange, labelOf } from './period.js'
 import CartHero from './CartHero.jsx'
 import Landing from './Landing.jsx'
+import ProductSearch from './ProductSearch.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData } from './data.js'
 import { exportPdf } from './pdf.js'
 
@@ -28,6 +29,9 @@ export default function App() {
   const input = useRef()
   const [modal, setModal] = useState(false)
   const [paste, setPaste] = useState(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [cartLocked, setCartLocked] = useState(true) // Carteira começa travada (evita digitação indevida)
+  useEffect(() => { if (tab !== 'carteira') setCartLocked(true) }, [tab]) // sai da aba = trava de novo
   const [period, setPeriod] = useState(defaultPeriod)
 
   // Ctrl+V fora de um campo, na aba Extrato, abre a colagem interativa
@@ -41,6 +45,17 @@ export default function App() {
     window.addEventListener('paste', h)
     return () => window.removeEventListener('paste', h)
   }, [tab, paste])
+
+  // Ctrl+K (ou "/" fora de um campo) abre a busca de produtos
+  useEffect(() => {
+    const h = (e) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(true) }
+      else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setSearchOpen(true) }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
 
   const doPdf = () => {
     const range = rangeOf(period), label = labelOf(period)
@@ -95,6 +110,7 @@ export default function App() {
           <input ref={input} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
           <button onClick={() => input.current.click()}>⬆ Importar</button>
           {!empty && <>
+          <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
           <button className="sec" onClick={() => exportCsv(['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'])}>CSV</button>
           <button className="sec" onClick={() => exportXlsx(data)}>XLSX</button>
           <button className="sec" onClick={doPdf}>PDF</button>
@@ -116,7 +132,7 @@ export default function App() {
             <CartHero rows={data.carteira} />
             <Table
               cols={SHEETS.carteira.cols} rows={data.carteira} onEdit={edit('carteira')} onDelete={del('carteira')}
-              onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone
+              onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
               sharedKeys={['PAPEL', 'PRC_UNIT', 'ULTIMA_ATUAL']}
             />
           </>
@@ -131,7 +147,8 @@ export default function App() {
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
         )}
       </main></>)}
-      <footer className="app-version">v26.10.4</footer>
+      <footer className="app-version">v26.10.5</footer>
+      {searchOpen && !empty && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
           onSave={(rows) => { setData((d) => ({ ...d, extrato: [...d.extrato, ...rows] })); setPaste(null) }} />

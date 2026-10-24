@@ -20,7 +20,8 @@ function show(k, t, v) {
 // sort/onSort: ordenação controlada pela tela (tabelas paginadas). Sem eles, a tabela ordena sozinha.
 // fillTone: destaque de rendimento/variação · toneMoney: valores em verde/vermelho no modo leitura
 // onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort }) {
+// locked + onToggleLock: trava/destrava a edição de toda a tabela (e a exclusão)
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort, locked, onToggleLock }) {
   const [own, setOwn] = useState(null)
   const mobile = useMedia('(max-width: 700px)') // no celular cada linha vira um cartão (sem mesclar células)
   const controlled = onSort !== undefined
@@ -32,6 +33,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
   const toggleSelected = (i) => setSelected((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
   const deleteSelected = () => {
     const ids = [...selected].sort((a, b) => b - a)
+    if (locked) return
     if (ids.length && confirm(`Excluir ${ids.length} itens selecionados?`)) { onDeleteMany?.(ids); setSelected(new Set()) }
   }
 
@@ -58,11 +60,11 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
       <div className="panel-head">
         <span className="muted">
           {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
-          {onToggleEdit ? ' · use o lápis para editar uma linha' : ' · campos com borda são editáveis'}
+          {onToggleEdit ? ' · use o lápis para editar uma linha' : onToggleLock && locked ? ' · edição travada: clique em “Destravar” para editar' : ' · campos com borda são editáveis'}
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
           {' · clique no cabeçalho para ordenar'}
         </span>
-        <div className="ph-actions">{selected.size > 0 && <><span className="muted">{selected.size} selecionados</span><button className="sec danger" onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}{extra}<button onClick={onAdd}>{addLabel}</button></div>
+        <div className="ph-actions">{onToggleLock && <button className={'sec lock' + (locked ? '' : ' open')} onClick={onToggleLock} title={locked ? 'Clique para liberar a edição' : 'Clique para travar a edição'}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button>}{selected.size > 0 && <><span className="muted">{selected.size} selecionados</span><button className="sec danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : ''} onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}{extra}<button onClick={onAdd}>{addLabel}</button></div>
       </div>
       <div className="wrap">
         <table className="rt">
@@ -80,7 +82,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
           <tbody>
             {list.map((e, n) => {
               const { r, i } = e
-              const editing = onToggleEdit ? !!rowEditing?.(i) : true
+              const editing = onToggleEdit ? !!rowEditing?.(i) : !locked
               return (
                 <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
                   <td className="idx"><input aria-label={`Selecionar item ${offset + n + 1}`} type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
@@ -114,7 +116,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
                     }
                     if (!editing) { // linha fechada: só leitura (use o lápis)
                       const tone = toneMoney && t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
-                      return <td key={k} data-label={lbl ?? k} className={'ro' + (right ? ' r' : '') + tone}>{show(k, t, r[k])}</td>
+                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={'ro' + (right ? ' r' : '') + tone + g}>{show(k, t, r[k])}</td>
                     }
                     const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
                     if (t === 'money')
@@ -145,7 +147,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
                   })}
                   <td className="acts">
                     {onToggleEdit && <button className={'icon' + (editing ? ' ok' : '')} title={editing ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{editing ? '✓' : '✏️'}</button>}
-                    <button className="icon danger" title="Excluir linha" onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
+                    <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir linha'} onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
                   </td>
                 </tr>
               )
