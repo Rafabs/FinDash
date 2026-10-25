@@ -8,11 +8,12 @@ const FEATURES = [
   ['📋', 'Cole do Excel', 'Copie linhas de qualquer planilha e cole: o app reconhece as colunas e evita duplicatas.'],
   ['📤', 'Exporte em 3 formatos', 'CSV, XLSX e PDF prontos para anexar, guardar ou enviar.'],
   ['🧾', 'Despesas mês a mês', 'Lance as contas do mês em poucos cliques, copie o mês anterior e veja a matriz conta × mês.'],
+  ['📝', 'Notas pessoais', 'Registre lembretes na aba Notas; eles são salvos no navegador e acompanham a exportação .xlsx.'],
   ['🔒', '100% no seu navegador', 'Nenhum dado vai para servidor. Tudo fica salvo só no seu computador.'],
 ]
 const STEPS = [
-  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 4 abas: Control_Fynn (carteira), Extrato (entradas), Despesas (contas do mês) e Resgates.'],
-  ['2', 'Importe', 'Arraste o .xlsx (as 4 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
+  ['1', 'Prepare a planilha', 'Use a sua ou baixe o modelo. São 5 abas: Control_Fynn (carteira), Extrato (entradas), Despesas (contas do mês), Resgates e Notas.'],
+  ['2', 'Importe', 'Arraste o .xlsx (as 5 abas) ou um .csv por vez. O app identifica cada tabela pelo cabeçalho.'],
   ['3', 'Analise e edite', 'Veja o dashboard, ajuste valores, cole novos lançamentos e filtre por período.'],
   ['4', 'Exporte', 'Baixe CSV, XLSX ou PDF quando quiser e continue de onde parou.'],
 ]
@@ -36,12 +37,12 @@ const RES_COLS = [
 ]
 const FAQ = [
   ['Meus dados vão para algum servidor?', 'Não. O app roda inteiro no navegador e salva no armazenamento local. Como limpar o cache apaga esses dados, exporte um XLSX de vez em quando.'],
-  ['Posso importar CSV?', 'Pode. Como CSV tem uma única tabela, importe um arquivo por vez (carteira e extrato separados). O XLSX traz as duas abas de uma vez.'],
+  ['Posso importar CSV?', 'Pode. Como CSV tem uma única tabela, importe um arquivo por vez. O XLSX pode trazer carteira, extrato, despesas, resgates e notas no mesmo arquivo.'],
   ['Qual o formato das datas?', 'AAAA-MM-DD ou DD/MM/AAAA. Valores com ponto decimal na planilha; ao colar, também aceita 1.234,56 e R$.'],
   ['Quero só conhecer, sem planilha.', 'Clique em "Ver com dados de exemplo". Os dados são fictícios e você pode apagar tudo depois no botão Limpar.'],
 ]
 
-export default function Landing({ onPick, onFile, onDemo }) {
+export default function Landing({ onPick, onFile, onDemo, onNotes }) {
   const [drag, setDrag] = useState(false)
   return (
     <div className="lp">
@@ -53,6 +54,7 @@ export default function Landing({ onPick, onFile, onDemo }) {
           <div className="lp-cta">
             <button onClick={onPick}>⬆ Importar planilha</button>
             <button className="sec" onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo .xlsx</button>
+            <button className="sec" onClick={onNotes}>📝 Criar notas</button>
             <button className="sec" onClick={onDemo}>👀 Ver com dados de exemplo</button>
           </div>
         </div>
@@ -108,7 +110,7 @@ export default function Landing({ onPick, onFile, onDemo }) {
             <table><tbody>{RES_COLS.map(([c, d]) => <tr key={c}><td><code>{c}</code></td><td>{d}</td></tr>)}</tbody></table>
             <button className="sec" onClick={() => downloadTemplate('resgates')}>⬇ Modelo CSV dos resgates</button></div>
         </div>
-        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 4 abas)</button></div>
+        <div className="lp-cta center"><button onClick={() => downloadTemplate('xlsx')}>⬇ Baixar modelo completo (.xlsx · 5 abas)</button></div>
       </section>
 
       <section>

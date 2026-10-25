@@ -194,6 +194,23 @@ table.mx th:first-child{position:sticky;left:0;z-index:2}
 
 .bar .c6,.dot.c6{background:#38bdf8}
 
+.notes-card{max-width:960px;margin:20px auto;padding:20px}
+.notes-head h2{margin:0 0 6px;font-size:20px}
+.notes-head p{margin:0 0 14px}
+.notes-editor{overflow:hidden;border:1px solid var(--bd);border-radius:10px;background:var(--inp)}
+.notes-toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:9px;border-bottom:1px solid var(--bd);background:var(--card)}
+.notes-control{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px}
+.notes-control select{max-width:150px;padding:6px;border:1px solid var(--bd);border-radius:7px;background:var(--inp);color:var(--tx);font:inherit}
+.notes-tool{min-width:34px;padding:6px 9px}
+.notes-color{position:relative;display:grid;place-items:center;width:34px;height:32px;border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-weight:800;cursor:pointer}
+.notes-color input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.notes-highlight{font-size:18px;color:#d89e00}
+.notes-content{min-height:48vh;max-height:70vh;overflow:auto;padding:14px;background:var(--inp);color:var(--tx);font-family:Arial,sans-serif;font-size:16px;line-height:1.6;outline:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.notes-content:focus{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--ac) 40%,transparent)}
+.notes-content:empty::before{content:attr(data-placeholder);color:var(--mut);pointer-events:none}
+.notes-content ul,.notes-content ol{padding-left:28px}
+.notes-back{max-width:960px;margin:0 auto 24px}
+
 /* ---- destaque suave (Carteira, estilo formatação condicional) e botões de linha ---- */
 td.ro.fill{min-width:130px}
 td.fill .tone{display:flex;align-items:center;justify-content:space-between;gap:14px;font-weight:700;font-variant-numeric:tabular-nums}

@@ -10,7 +10,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 ## ✨ Funcionalidades
 
 **Geral**
-- Importação de `.xlsx` (4 abas de uma vez) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
+- Importação de `.xlsx` (dados e notas) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
 - Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas)
 - **Busca de produtos** (🔍 no topo, `Ctrl+K` ou `/`): veja detalhes de qualquer papel ou produto (veja [Busca de produtos](#-busca-de-produtos))
 - **Seleção múltipla**: marque várias linhas com o checkbox e exclua de uma vez
@@ -21,6 +21,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Versão para celular**: abas viram barra inferior, tabelas viram cartões e janelas sobem de baixo da tela
 - Landing page com explicação, modelos para download e dados de exemplo
 - Dados salvos automaticamente no navegador
+- **Notas pessoais formatadas**: fonte, tamanho, negrito, itálico, sublinhado e cores; salvas automaticamente e preservadas no XLSX
 
 **Carteira**
 - Itens de renda fixa (RF) e variável (RV) com cálculos automáticos
@@ -106,7 +107,7 @@ Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (cami
 
 ## 📥 Formato da planilha
 
-O arquivo `.xlsx` tem 4 abas. Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada aba).
+O arquivo `.xlsx` tem até 5 abas de dados. Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
 
 Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
 
@@ -154,6 +155,10 @@ A mesma conta pode aparecer em mais de uma linha no mesmo mês (por exemplo, doi
 | `DATA_RESGATE` | Data do resgate |
 | `PRODUTO` | Produto resgatado (ex.: `RDB APLICAÇÃO`, `TESOURO SELIC 2029`) |
 | `RENTABILIDADE ATÉ DATA RESGATE` | Lucro obtido até o resgate (negativo em caso de prejuízo). É este valor que soma às entradas |
+
+### Aba `Notas`
+
+A aba `Notas` guarda o texto escrito no editor do app. O texto legível fica na célula `A2`; a formatação é armazenada em metadados na coluna oculta `B` para ser restaurada ao importar o arquivo. Arquivos antigos sem essa aba ou sem formatação continuam sendo aceitos.
 
 ---
 
@@ -275,7 +280,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
-- **CSV** exporta a aba atual. **XLSX** exporta as 4 abas no mesmo formato de entrada, então pode ser reimportado.
+- **CSV** exporta a aba atual. **XLSX** exporta as abas de dados e `Notas` no mesmo formato de entrada, então pode ser reimportado.
 - **PDF** traz o resumo, os gráficos e as tabelas. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 
 ---
@@ -290,8 +295,10 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 
 ## 🗺️ TO DO
 
+- [ ] Ao filtrar um item em Despesas, exibir total apurado
+- [ ] Em Extrato, retirar os itens predefinidos de CATEGORIA
+- [ ] Exibir o percentual de gastos de cada categoria de item
 - [ ] Pesquisar algum produto e ver detalhes e informações
-- [ ] Evolução do patrimônio ao longo do tempo (snapshots mensais)
 - [ ] *Yield on cost* por papel, cruzando proventos e valor aplicado
 - [ ] Metas de alocação e comparação com CDI/IPCA
 - [X] v26.10.1 Gráficos no PDF
@@ -300,6 +307,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - [X] Pesquisar algum produto e filtrar seleção
 - [X] Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
 - [X] Melhorar o leitor de colar itens
+- [X] Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
 ---
 
 Feito para rodar no seu navegador. 💜

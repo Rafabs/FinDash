@@ -10,16 +10,17 @@ import { defaultPeriod, rangeOf, inRange, labelOf } from './period.js'
 import CartHero from './CartHero.jsx'
 import Landing from './Landing.jsx'
 import ProductSearch from './ProductSearch.jsx'
+import NotesEditor from './NotesEditor.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData } from './data.js'
 import { exportPdf } from './pdf.js'
 
-const TAB_ICONS = { dash: '📊', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁' }
+const TAB_ICONS = { dash: '📊', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
 const KEY = 'fynn-control-v1'
 const load = () => {
   try {
     const d = JSON.parse(localStorage.getItem(KEY)) || {}
-    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), despesas: d.despesas || [], resgates: d.resgates || [] }
-  } catch { return { carteira: [], extrato: [], despesas: [], resgates: [] } }
+    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), despesas: d.despesas || [], resgates: d.resgates || [], notas: d.notas || '', notasHtml: d.notasHtml || '' }
+  } catch { return { carteira: [], extrato: [], despesas: [], resgates: [], notas: '', notasHtml: '' } }
 }
 const initTheme = () => { try { return localStorage.getItem('fynn-theme') } catch {} return null }
 
@@ -79,19 +80,20 @@ export default function App() {
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} }, [data])
 
-  const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length
+  const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length && !data.notas?.trim()
+  const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
   const handleFile = async (f) => {
     if (!f) return
     try {
       const r = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
-      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
+      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length && r.notas == null) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
       setData((d) => ({ ...d, ...r }))
-      setTab('dash')
+      setTab(r.notas?.trim() ? 'notas' : 'dash')
     } catch { alert('Não foi possível ler o arquivo.') }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
-  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], despesas: [], resgates: [] }); setTab('dash') } }
+  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], despesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -110,18 +112,20 @@ export default function App() {
           <input ref={input} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
           <button onClick={() => input.current.click()}>⬆ Importar</button>
           {!empty && <>
-          <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
-          <button className="sec" onClick={() => exportCsv(['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'])}>CSV</button>
+          {hasFinancialData && <>
+            <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
+            <button className="sec" onClick={() => exportCsv(['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'])}>CSV</button>
+          </>}
           <button className="sec" onClick={() => exportXlsx(data)}>XLSX</button>
-          <button className="sec" onClick={doPdf}>PDF</button>
+          {hasFinancialData && <button className="sec" onClick={doPdf}>PDF</button>}
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
           </>}
           <button className="icon" title="Alternar tema" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
         </div>
       </header>
-      {empty ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} /> : (<>
+      {empty && tab !== 'notas' ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} onNotes={() => setTab('notas')} /> : (<>
       <nav className="tabs">
-        {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length]].map(([k, l, c]) => (
+        {[['dash', 'Dashboard', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length], ['notas', 'Notas', null]].map(([k, l, c]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl">{l}</span>{c != null && <em>{c}</em>}</button>
         ))}
       </nav>
@@ -137,6 +141,7 @@ export default function App() {
             />
           </>
         )}
+        {empty && tab === 'notas' && <div className="notes-back"><button className="sec" onClick={() => setTab('dash')}>← Voltar à página inicial</button></div>}
         {tab === 'extrato' && (
           <ExtratoView resgates={data.resgates} rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
@@ -146,9 +151,17 @@ export default function App() {
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
         )}
+        {tab === 'notas' && (
+          <section className="card notes-card">
+            <div className="notes-head">
+              <div><h2>Notas</h2><p className="muted">Anotações pessoais sobre seus investimentos. Formate o texto pela barra de ferramentas; tudo é salvo automaticamente e preservado no XLSX.</p></div>
+            </div>
+            <NotesEditor text={data.notas} html={data.notasHtml} onChange={({ text, html }) => setData((d) => ({ ...d, notas: text, notasHtml: html }))} />
+          </section>
+        )}
       </main></>)}
-      <footer className="app-version">v26.10.5</footer>
-      {searchOpen && !empty && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
+      <footer className="app-version">v26.10.6</footer>
+      {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
           onSave={(rows) => { setData((d) => ({ ...d, extrato: [...d.extrato, ...rows] })); setPaste(null) }} />

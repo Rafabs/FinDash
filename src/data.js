@@ -154,7 +154,15 @@ function toRows(ws, cols) {
     .filter((r) => cols.some(([k]) => r[k] !== '' && r[k] != null))
 }
 
-// Aceita .xlsx (2 abas) ou .csv (detecta a qual tabela pertence pelo cabeçalho)
+const NOTES_FORMAT_MARKER = 'FYNN_CONTROL_NOTES_HTML_V1'
+function toNotes(ws) {
+  if (ws?.A1?.v !== 'NOTAS') return null
+  const result = { text: String(ws.A2?.v ?? '') }
+  if (ws.B1?.v === NOTES_FORMAT_MARKER && typeof ws.B2?.v === 'string') result.html = ws.B2.v
+  return result
+}
+
+// Aceita .xlsx com múltiplas abas ou .csv (detecta a tabela pelo cabeçalho)
 export async function importFile(file) {
   const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true })
   const out = {}
@@ -177,6 +185,12 @@ export async function importFile(file) {
   if (dd) out.despesas = dd
   const rs = wb.Sheets[SHEETS.resgates.name] || (wb.SheetNames[3] ? wb.Sheets[wb.SheetNames[3]] : null)
   if (rs && hasHdr(rs, 'DATA_RESGATE')) out.resgates = toRows(rs, RES)
+  const noteSheet = wb.Sheets.Notas
+  const notes = toNotes(noteSheet)
+  if (notes !== null) {
+    out.notas = notes.text
+    out.notasHtml = notes.html || ''
+  }
   return out
 }
 
@@ -194,7 +208,13 @@ export function exportXlsx(data) {
     XLSX.utils.book_append_sheet(wb, sheetOf(data[k], SHEETS[k].cols), SHEETS[k].name)
   if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas), SHEETS.despesas.name)
   if (data.resgates?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.resgates, RES), SHEETS.resgates.name)
-  XLSX.writeFile(wb, 'fynn-control.xlsx')
+  const noteSheet = XLSX.utils.aoa_to_sheet([
+    ['NOTAS', NOTES_FORMAT_MARKER],
+    [data.notas || '', data.notasHtml || ''],
+  ])
+  noteSheet['!cols'] = [{ wch: 100 }, { hidden: true }]
+  XLSX.utils.book_append_sheet(wb, noteSheet, 'Notas')
+  XLSX.writeFile(wb, 'fynn-control.xlsx', { cellStyles: true })
 }
 
 // ---------- Modelos para download e dados de exemplo ----------
@@ -216,7 +236,7 @@ const TPL_DESP = [
   { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'ITAÚ', VALOR: 1180.4 }] },
   { DATA: '2026-09-01', TIPO_CONTA: 'CARTÃO DE CRÉDITO', ITENS: [{ NOME: 'NUBANK', VALOR: 640.15 }] },
 ]
-// kind: 'xlsx' (4 abas) | 'carteira' | 'extrato' | 'despesas' | 'resgates' (csv)
+// kind: 'xlsx' (5 abas) | 'carteira' | 'extrato' | 'despesas' | 'resgates' (csv)
 export function downloadTemplate(kind) {
   const ck = CART.filter(([, t]) => t !== 'calc' && t !== 'calcm').map(([k]) => k)
   const ek = EXT.filter(([k]) => k !== 'CATEGORIA').map(([k]) => k)
@@ -228,7 +248,12 @@ export function downloadTemplate(kind) {
   }
   const wb = XLSX.utils.book_new()
   ;(kind === 'xlsx' ? ['carteira', 'extrato', 'despesas', 'resgates'] : [kind]).forEach((k) => XLSX.utils.book_append_sheet(wb, make[k](), SHEETS[k].name))
-  if (kind === 'xlsx') XLSX.writeFile(wb, 'modelo-fynn-control.xlsx')
+  if (kind === 'xlsx') {
+    const notes = XLSX.utils.aoa_to_sheet([['NOTAS', NOTES_FORMAT_MARKER], ['', '']])
+    notes['!cols'] = [{ wch: 100 }, { hidden: true }]
+    XLSX.utils.book_append_sheet(wb, notes, 'Notas')
+  }
+  if (kind === 'xlsx') XLSX.writeFile(wb, 'modelo-fynn-control.xlsx', { cellStyles: true })
   else XLSX.writeFile(wb, `modelo-${kind}.csv`, { bookType: 'csv' })
 }
 
@@ -284,4 +309,3 @@ export function demoData() {
   }
   return { carteira, extrato: extrato.map(withCat), despesas, resgates }
 }
-
