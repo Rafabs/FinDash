@@ -11,7 +11,7 @@ import CartHero from './CartHero.jsx'
 import Landing from './Landing.jsx'
 import ProductSearch from './ProductSearch.jsx'
 import NotesEditor from './NotesEditor.jsx'
-import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData } from './data.js'
+import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
 import { exportPdf } from './pdf.js'
 
 const TAB_ICONS = { dash: '📊', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
@@ -68,6 +68,10 @@ export default function App() {
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
+  const moveDespItem = (fromRow, itemIndex, toRow) => setData((d) => {
+    const despesas = moveExpenseItem(d.despesas, fromRow, itemIndex, toRow)
+    return despesas === d.despesas ? d : { ...d, despesas }
+  })
   const addDesp = (novas) => setData((d) => ({ ...d, despesas: [...d.despesas, ...novas] }))
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
   const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
@@ -146,7 +150,7 @@ export default function App() {
           <ExtratoView resgates={data.resgates} rows={data.extrato} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
         {tab === 'despesas' && (
-          <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onSaveMonth={saveMonth} onAddRows={addDesp} />
+          <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
         )}
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
@@ -160,7 +164,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.10.6</footer>
+      <footer className="app-version">v26.10.7</footer>
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}

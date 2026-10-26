@@ -70,7 +70,7 @@ export default function LancarMes({ rows, initialYM, onSave, onClose }) {
           <div>
             <h3>📅 Lançar despesas do mês</h3>
             <small className="muted">
-              {prevYM ? `Contas sugeridas a partir dos últimos meses (até ${prevYM.split('-').reverse().join('/')}). ` : 'Sem meses anteriores para usar de base. '}
+              {prevYM ? `Grupos sugeridos a partir dos últimos meses (até ${prevYM.split('-').reverse().join('/')}). ` : 'Sem meses anteriores para usar de base. '}
               Deixe em branco o que não houve; só o que tiver valor é salvo.
             </small>
           </div>
@@ -81,7 +81,7 @@ export default function LancarMes({ rows, initialYM, onSave, onClose }) {
           <span><b>{nFilled}</b> de {slots.length} contas preenchidas · <b>{brl(total)}</b> em {label}</span>
           <div className="ph-actions">
             <button className="sec" onClick={copyPrev} disabled={!prevYM}>↩ Copiar últimos valores</button>
-            <button className="sec" onClick={addSlot}>+ Conta</button>
+            <button className="sec" onClick={addSlot}>+ Grupo</button>
           </div>
         </div>
 
@@ -90,23 +90,23 @@ export default function LancarMes({ rows, initialYM, onSave, onClose }) {
           {slots.map((s) => (
             <div className={'slot' + (filled(s) ? ' done' : '')} key={s.id}>
               <div className="slot-h">
-                <input className="cell slot-name" list="dl-contas" placeholder="Conta (ex.: INTERNET)" value={s.TIPO_CONTA} onChange={(e) => upSlot(s.id, { TIPO_CONTA: e.target.value })} />
+                <input className="cell slot-name" list="dl-contas" placeholder="Grupo (ex.: Cartão de crédito)" value={s.TIPO_CONTA} onChange={(e) => upSlot(s.id, { TIPO_CONTA: e.target.value })} />
                 <b>{brl(slotTotal(s))}</b>
                 <button className="icon danger" title="Remover conta" onClick={() => setSlots((ss) => ss.filter((x) => x.id !== s.id))}>🗑</button>
               </div>
               <div className="slot-items">
                 {s.ITENS.map((it, j) => (
                   <div className="it" key={j}>
-                    <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => upItem(s.id, j, { NOME: e.target.value })} />
+                    <input className="cell" placeholder="Despesa dentro do grupo" value={it.NOME} onChange={(e) => upItem(s.id, j, { NOME: e.target.value })} />
                     <MoneyInput value={it.VALOR} placeholder={it.prev !== '' ? Number(it.prev).toFixed(2) : '0.00'} onChange={(v) => upItem(s.id, j, { VALOR: v })} />
                     {s.ITENS.length > 1 && <button className="icon" title="Remover item" onClick={() => upSlot(s.id, { ITENS: s.ITENS.filter((_, k) => k !== j) })}>✕</button>}
                   </div>
                 ))}
-                <button className="sec sm" onClick={() => upSlot(s.id, { ITENS: [...s.ITENS, { NOME: '', VALOR: '', prev: '' }] })}>+ item</button>
+                <button className="sec sm" onClick={() => upSlot(s.id, { ITENS: [...s.ITENS, { NOME: '', VALOR: '', prev: '' }] })}>+ Despesa no grupo</button>
               </div>
             </div>
           ))}
-          {!slots.length && <div className="empty">Nenhuma conta ainda. Clique em “+ Conta” para começar.</div>}
+          {!slots.length && <div className="empty">Nenhum grupo ainda. Clique em “+ Grupo” para começar.</div>}
         </div>
 
         <div className="actions">

@@ -10,8 +10,8 @@ export const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u0
 const FIELD_RES = [
   ['data', /(pag|data|venc|quit|compet|refer|^mes\b)/],
   ['valor', /(valor|preco|total|quantia|montante|vlr|^r\$)/],
-  ['conta', /(despesa|custo|conta|gasto|tipo|categoria)/],
-  ['desc', /(descri|item|obs|detalhe|nome|cota)/],
+  ['desc', /(despesa dentro|descri|item|obs|detalhe|nome|cota)/],
+  ['conta', /(despesa|custo|conta|gasto|grupo|tipo|categoria)/],
 ]
 export const fieldOf = (key) => {
   const k = norm(key)
@@ -126,10 +126,11 @@ export function parseDespesas(text, types = []) {
   return { records: recs, ignored, format }
 }
 
-export const EXEMPLO = `despesa: energia elétrica
-valor: R$ 150,00
+export const EXEMPLO = `grupo: Cartão de crédito
+despesa dentro do grupo: Manutenção veicular
+valor: R$ 1.200,00
 pago em: 15/05/2020
 
-custo: internet
+despesa: Internet
 preço: R$ 119,90
 pagamento: 15/05/2020`

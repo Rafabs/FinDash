@@ -162,7 +162,7 @@ export default function Dashboard({ data, period, setPeriod }) {
       <div className="cards">
         <div className="card kpi"><span className="ic">🧾</span><small>Despesas no período</small><b>{brl(totDesp)}</b></div>
         <div className="card kpi"><span className="ic">📆</span><small>Média mensal · {mesesDesp || 0} {mesesDesp === 1 ? 'mês' : 'meses'}</small><b>{brl(mesesDesp ? totDesp / mesesDesp : 0)}</b></div>
-        <div className="card kpi"><span className="ic">🔥</span><small>Maior conta{porConta[0] ? ' · ' + brl(porConta[0].value) : ''}</small><b>{porConta[0]?.name || '—'}</b></div>
+        <div className="card kpi"><span className="ic">🔥</span><small>Maior grupo{porConta[0] ? ' · ' + brl(porConta[0].value) : ''}</small><b>{porConta[0]?.name || '—'}</b></div>
         <div className="card kpi"><span className="ic">⚖️</span><small>Saldo (entradas − despesas)</small><b className={saldo > 0 ? 'pos' : saldo < 0 ? 'neg' : ''}>{brl(saldo)}</b></div>
       </div>
       <div className="grid">
@@ -171,11 +171,11 @@ export default function Dashboard({ data, period, setPeriod }) {
             <BarChart data={fluxo}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} /><Legend />
               <Bar dataKey="Entradas" fill="#14b8a6" radius={[6, 6, 0, 0]} /><Bar dataKey="Despesas" fill="#ef4444" radius={[6, 6, 0, 0]} /></BarChart>
           </ResponsiveContainer></div>
-        <div className="card"><h3>Despesas por conta</h3>
+        <div className="card"><h3>Despesas por grupo</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={porConta.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={120} fontSize={11} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]} /></BarChart>
           </ResponsiveContainer></div>
-        <div className="card"><h3>Despesas por mês (principais contas)</h3>
+        <div className="card"><h3>Despesas por mês (principais grupos)</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} />
               {empCats.map((c, i) => <Bar key={c} dataKey={c} stackId="d" fill={DESP_COLORS[i % 6]} />)}</BarChart>

@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { SHEETS, totalOf, RES, RK, tickerOf, monthOf } from './data.js'
+import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown } from './data.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const aggregate = (rows, key, val) => {
@@ -62,7 +62,7 @@ function addCharts(doc, data, periodo) {
     ['Proventos por papel (top 6)', aggregate(ext.filter((r) => r.CATEGORIA === 'Proventos'), (r) => tickerOf(r) || 'Outros', valor)],
     ['Entradas por categoria', cats],
     ['Saldo mensal (entradas − despesas)', [...flow].sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([name, v]) => ({ name: name.slice(5) + '/' + name.slice(2, 4), value: (v.Entradas || 0) - (v.Despesas || 0) }))],
-    ['Despesas por conta', despesasConta],
+    ['Despesas por grupo', despesasConta],
     ['Despesas por mês', aggregate(dsp.map((r) => ({ mes: monthOf(r.DATA), total: totalOf(r) })), 'mes', 'total').sort((a, b) => a.name.localeCompare(b.name)).slice(-6)],
   ]
   for (let p = 0; p < 2; p++) {
@@ -100,9 +100,48 @@ export function exportPdf(data, resumo, periodo) {
     doc.text('Despesas', 14, 14)
     autoTable(doc, {
       startY: 18,
-      head: [['Mês', 'Conta', 'Itens', 'Total']],
+      head: [['Mês', 'Grupo', 'Despesas do grupo', 'Total']],
       body: data.despesas.map((r) => [r.DATA.slice(0, 7).split('-').reverse().join('/'), r.TIPO_CONTA, r.ITENS.map((i) => `${i.NOME || '-'}: ${i.VALOR.toFixed(2)}`).join(' · '), totalOf(r).toFixed(2)]),
       styles: { fontSize: 6 },
+    })
+    const grupos = expenseBreakdown(data.despesas)
+    const totalDespesas = grupos.reduce((s, group) => s + group.total, 0)
+    const groupHeaderRows = new Set()
+    let rowIndex = 0
+    grupos.forEach((group) => {
+      groupHeaderRows.add(rowIndex)
+      rowIndex += group.items.length + 1
+    })
+    let breakdownStart = doc.lastAutoTable.finalY + 10
+    if (breakdownStart > doc.internal.pageSize.getHeight() - 35) {
+      doc.addPage()
+      breakdownStart = 18
+    }
+    doc.setFontSize(11)
+    doc.setTextColor(35, 40, 52)
+    doc.text('Detalhamento percentual por grupo e despesa', 14, breakdownStart)
+    autoTable(doc, {
+      startY: breakdownStart + 4,
+      head: [['Grupo / despesa', 'Total', '% do grupo', '% das despesas']],
+      body: grupos.flatMap((group) => [
+        [
+          group.name,
+          money(group.total),
+          '100,00%',
+          totalDespesas ? (group.total / totalDespesas * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—',
+        ],
+        ...group.items.map((item) => [
+          `   ${item.name}`,
+          money(item.total),
+          group.total ? (item.total / group.total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—',
+          totalDespesas ? (item.total / totalDespesas * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—',
+        ]),
+      ]),
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [99, 102, 241] },
+      didParseCell: (data) => {
+        if (data.section === 'body' && groupHeaderRows.has(data.row.index)) data.cell.styles.fontStyle = 'bold'
+      },
     })
   }
   if (data.resgates?.length) {

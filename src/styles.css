@@ -83,8 +83,20 @@ td.ro.grp{text-align:center}
 .bar .rf,.dot.rf{background:#fff}.bar .rv,.dot.rv{background:#fcd34d}
 .legend{display:grid;gap:8px;font-size:13px}
 .legend span{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hero-legend-item{display:flex;align-items:center;gap:8px;padding:0;border:0;background:transparent;color:inherit;text-align:left;font-size:13px}
+.hero-legend-item:hover{text-decoration:underline;background:transparent;filter:none}
 .legend em{font-style:normal;opacity:.7;margin-left:auto}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.hero-breakdown{margin-top:12px;padding:10px 12px;border:1px solid #ffffff45;border-radius:10px;background:#ffffff12}
+.hero-breakdown-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.hero-breakdown-close{padding:3px 8px;border:1px solid #ffffff55;background:transparent;font-size:11px}
+.hero-breakdown-list{display:grid;gap:6px;max-height:220px;overflow:auto;font-size:12px}
+.hero-breakdown-list>button,.hero-breakdown-list>div{display:flex;align-items:center;gap:8px;padding:3px 0;border:0;background:transparent;color:inherit;text-align:left;font-size:12px}
+.hero-breakdown-list>button{cursor:pointer}
+.hero-breakdown-list>button:hover{text-decoration:underline;background:transparent;filter:none}
+.hero-breakdown-list>button span,.hero-breakdown-list>div span{flex:1}
+.hero-breakdown-list em{font-style:normal;opacity:.8}
+.hero-breakdown-list small{opacity:.75}
 
 /* ---- Extrato / período / colar dados ---- */
 .sec-head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin:26px 0 12px}
@@ -251,6 +263,10 @@ th.sortable:hover .si{opacity:.55}
 th.sortable.on .si{opacity:1}
 th.r{text-align:right}
 .items-static{display:flex;flex-wrap:wrap;gap:4px;max-width:520px}
+.draggable-expense{cursor:grab}
+.draggable-expense:active{cursor:grabbing}
+tr.expense-drop-target td{background:color-mix(in srgb,var(--ac) 16%,var(--card))!important}
+.move-message{margin:0;padding:8px 14px;background:var(--hover);border-bottom:1px solid var(--bd)}
 .panel{overflow:hidden;border-radius:18px}
 .panel-head{padding:14px 16px}
 select.cell{background:var(--inp);border:1px solid var(--bd);border-radius:7px;padding:6px 8px;color:inherit;font:inherit}

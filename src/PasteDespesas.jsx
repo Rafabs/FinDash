@@ -8,7 +8,7 @@ import { brl } from './Dashboard.jsx'
 const SHOW = 100
 const FORMATOS = { blocos: 'blocos "rótulo: valor"', tabela: 'tabela', linhas: 'linhas livres' }
 
-// Cola texto com várias despesas (blocos, tabela do Excel ou linhas livres), mostra a prévia e adiciona
+// Cola despesas em grupos (blocos, tabela do Excel ou linhas livres), mostra a prévia e adiciona
 export default function PasteDespesas({ initial, rows: existing, onSave, onClose }) {
   const types = useMemo(() => [...new Set(existing.map((r) => r.TIPO_CONTA))], [existing])
   const [raw, setRaw] = useState(initial || '')
@@ -58,13 +58,13 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
         <div className="lm-head">
           <div>
             <h3>📋 Colar despesas</h3>
-            <small className="muted">Cole um ou vários registros. Entendo rótulos como despesa/custo/conta, valor/preço e pago em/pagamento/data.</small>
+            <small className="muted">Cada grupo recebe suas despesas internas. Para colar em blocos, use “grupo” e “despesa dentro do grupo”.</small>
           </div>
           <button className="sec sm" onClick={() => setRaw(EXEMPLO)}>Inserir exemplo</button>
         </div>
         <textarea
           autoFocus={!initial} rows={6} value={raw} onChange={(e) => setRaw(e.target.value)}
-          placeholder={'despesa: energia elétrica\nvalor: R$ 150,00\npago em: 15/05/2020\n\n— ou uma linha por despesa —\nInternet - R$ 119,90 - 15/05/2020\n\n— ou células copiadas do Excel (conta · valor · data) —'}
+          placeholder={'grupo: Cartão de crédito\ndespesa dentro do grupo: Manutenção veicular\nvalor: R$ 1.200,00\npago em: 15/05/2020\n\n— ou uma linha por despesa —\nInternet - R$ 119,90 - 15/05/2020\n\n— ou células copiadas do Excel (grupo · valor · data) —'}
         />
 
         {recs.length > 0 && (
@@ -80,7 +80,7 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
             <datalist id="dl-contas-p">{types.map((t) => <option key={t} value={t} />)}</datalist>
             <div className="wrap pv">
               <table>
-                <thead><tr><th></th><th>Status</th><th>Pago em</th><th>Conta</th><th>Descrição</th><th>Valor</th></tr></thead>
+                <thead><tr><th></th><th>Status</th><th>Pago em</th><th>Grupo</th><th>Despesa dentro do grupo</th><th>Valor</th></tr></thead>
                 <tbody>
                   {recs.slice(0, SHOW).map((r, i) => (
                     <tr key={i} className={info[i].valid ? '' : 'bad'}>
@@ -88,7 +88,7 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
                       <td><span className={'chip ' + (!info[i].valid ? 'warn' : info[i].dup ? 'na' : 'ok')}>{!info[i].valid ? 'incompleta' : info[i].dup ? 'duplicada' : 'nova'}</span></td>
                       <td><input className="cell" type="date" value={r.date} title={r.date ? '' : `Sem data: será lançada em ${defYM.split('-').reverse().join('/')}`} onChange={(e) => upd(i, { date: e.target.value })} /></td>
                       <td><input className="cell" list="dl-contas-p" style={{ minWidth: 150 }} value={r.conta} onChange={(e) => upd(i, { conta: e.target.value })} /></td>
-                      <td><input className="cell" style={{ minWidth: 130 }} placeholder="(igual à conta)" value={r.desc} onChange={(e) => upd(i, { desc: e.target.value })} /></td>
+                      <td><input className="cell" style={{ minWidth: 130 }} placeholder="(igual ao grupo)" value={r.desc} onChange={(e) => upd(i, { desc: e.target.value })} /></td>
                       <td><MoneyInput value={r.valor} onChange={(v) => upd(i, { valor: v })} /></td>
                     </tr>
                   ))}
@@ -99,13 +99,13 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
               {recs.length} registro{recs.length === 1 ? '' : 's'} lido{recs.length === 1 ? '' : 's'} · <b>{sel.length}</b> {sel.length === 1 ? 'será adicionado' : 'serão adicionados'}
               {sel.length > 0 && <> ({brl(total)} em {nMeses} {nMeses === 1 ? 'mês' : 'meses'})</>}
               {nDup > 0 && <> · {nDup} duplicada{nDup === 1 ? '' : 's'} (marque para incluir)</>}
-              {nBad > 0 && <> · {nBad} incompleta{nBad === 1 ? '' : 's'} (falta conta ou valor)</>}
+              {nBad > 0 && <> · {nBad} incompleta{nBad === 1 ? '' : 's'} (falta grupo ou valor)</>}
               {parsed.ignored.length > 0 && <> · {parsed.ignored.length} linha{parsed.ignored.length === 1 ? '' : 's'} não reconhecida{parsed.ignored.length === 1 ? '' : 's'}</>}
               {recs.length > SHOW && <> · mostrando as {SHOW} primeiras (todas serão adicionadas)</>}
             </p>
           </>
         )}
-        {raw.trim() && !recs.length && <p className="hint">Não consegui identificar despesas nesse texto. Use rótulos como “despesa:”, “valor:” e “pago em:”, ou uma linha por despesa.</p>}
+        {raw.trim() && !recs.length && <p className="hint">Não consegui identificar despesas nesse texto. Use rótulos como “grupo:”, “despesa dentro do grupo:” e “valor:”, ou uma linha por despesa.</p>}
 
         <div className="actions">
           <button className="sec" onClick={onClose}>Cancelar</button>

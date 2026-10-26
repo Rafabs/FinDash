@@ -115,6 +115,40 @@ const iso = (v) => {
 // No app: { DATA: 'AAAA-MM-01', TIPO_CONTA, ITENS: [{ NOME, VALOR }] } (o total é sempre a soma dos itens)
 export const monthOf = (s) => String(s || '').slice(0, 7)
 export const totalOf = (r) => round2((r.ITENS || []).reduce((t, i) => t + (Number(i.VALOR) || 0), 0))
+export function expenseBreakdown(rows) {
+  const groups = new Map()
+  rows.forEach((row) => {
+    const name = row.TIPO_CONTA || 'N/A'
+    if (!groups.has(name)) groups.set(name, { name, total: 0, items: new Map() })
+    const group = groups.get(name)
+    ;(row.ITENS || []).forEach((item) => {
+      const itemName = String(item.NOME || '').trim() || '(Sem descrição)'
+      const value = Number(item.VALOR) || 0
+      group.total += value
+      group.items.set(itemName, (group.items.get(itemName) || 0) + value)
+    })
+  })
+  return [...groups.values()]
+    .map((group) => ({
+      name: group.name,
+      total: round2(group.total),
+      items: [...group.items].map(([name, value]) => ({ name, total: round2(value) })).sort((a, b) => b.total - a.total),
+    }))
+    .sort((a, b) => b.total - a.total)
+}
+export function moveExpenseItem(rows, fromRow, itemIndex, toRow) {
+  const source = rows[fromRow], target = rows[toRow]
+  if (fromRow === toRow || !source || !target ||
+    source.TIPO_CONTA === target.TIPO_CONTA || monthOf(source.DATA) !== monthOf(target.DATA)) return rows
+  const item = source.ITENS[itemIndex]
+  if (!item) return rows
+  const next = [...rows]
+  next[toRow] = { ...target, ITENS: [...target.ITENS, item] }
+  const remaining = source.ITENS.filter((_, i) => i !== itemIndex)
+  if (remaining.length) next[fromRow] = { ...source, ITENS: remaining }
+  else next.splice(fromRow, 1)
+  return next
+}
 
 function toDespesas(ws) {
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })

@@ -295,7 +295,6 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 
 ## 🗺️ TO DO
 
-- [ ] Ao filtrar um item em Despesas, exibir total apurado
 - [ ] Em Extrato, retirar os itens predefinidos de CATEGORIA
 - [ ] Exibir o percentual de gastos de cada categoria de item
 - [ ] Pesquisar algum produto e ver detalhes e informações
@@ -308,6 +307,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - [X] Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
 - [X] Melhorar o leitor de colar itens
 - [X] Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
+- [X] Ao filtrar um item em Despesas, exibir total apurado
 ---
 
 Feito para rodar no seu navegador. 💜
