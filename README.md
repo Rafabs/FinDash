@@ -296,18 +296,18 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 ## 🗺️ TO DO
 
 - [ ] Em Extrato, retirar os itens predefinidos de CATEGORIA
-- [ ] Exibir o percentual de gastos de cada categoria de item
 - [ ] Pesquisar algum produto e ver detalhes e informações
 - [ ] *Yield on cost* por papel, cruzando proventos e valor aplicado
 - [ ] Metas de alocação e comparação com CDI/IPCA
 - [X] v26.10.1 Gráficos no PDF
 - [X] v26.10.2 Colagem de várias despesas de uma vez
 - [X] v26.10.3 Implantar função para selecionar diversos itens em todas as sheets
-- [X] Pesquisar algum produto e filtrar seleção
-- [X] Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
-- [X] Melhorar o leitor de colar itens
-- [X] Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
-- [X] Ao filtrar um item em Despesas, exibir total apurado
+- [X] v26.10.4 Pesquisar algum produto e filtrar seleção
+- [X] v26.10.5 Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
+- [X] v26.10.6 Melhorar o leitor de colar itens
+- [X] v26.10.7 Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
+- [X] v26.10.7 Ao filtrar um item em Despesas, exibir total apurado
+- [X] v26.10.7 Exibir o percentual de gastos de cada categoria de item
 ---
 
 Feito para rodar no seu navegador. 💜
