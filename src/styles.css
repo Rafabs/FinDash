@@ -105,7 +105,10 @@ td.ro.grp{text-align:center}
 .pf{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .pf input,.pf select,.search,.modal textarea,.mapgrid select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx)}
 .pf input:focus,.search:focus{border-color:var(--ac);outline:0}
-.search{flex:1;min-width:220px;max-width:380px}
+.search-field{position:relative;display:flex;align-items:center;flex:1;min-width:220px;max-width:380px}
+.search{flex:1;min-width:0;width:100%;max-width:none;padding-right:34px!important}
+.search-clear{position:absolute;right:5px;display:grid;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:21px;line-height:1;cursor:pointer}
+.search-clear:hover{background:var(--bg);color:var(--tx)}
 .seg{display:flex;gap:2px;padding:3px;background:var(--card);border:1px solid var(--bd);border-radius:11px;overflow:auto}
 .seg button{background:transparent;color:var(--mut);padding:6px 11px;border-radius:8px;font-size:12px}
 .seg button.on{background:var(--ac2);color:#fff}
@@ -372,7 +375,7 @@ button.sec,button.icon,.tabs button,.seg button,.chip-btn,.items-btn{background-
   .sec-head{align-items:flex-start}
   .toolbar{gap:8px}
   .pf{width:100%}.seg{max-width:100%;overflow-x:auto}
-  .search{flex:1 1 100%;max-width:none;min-width:0}
+  .search-field{flex:1 1 100%;max-width:none;min-width:0}
   .toolbar>button{flex:1 1 100%}
   .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
   .chip-btn{flex:none}
@@ -464,7 +467,9 @@ button.sec,button.icon,.tabs button,.seg button,.chip-btn,.items-btn{background-
 .ps{padding:0;display:flex;flex-direction:column;max-height:88vh;overflow:hidden}
 .ps>.hint,.ps>.pdet-top,.ps>.pdet-head,.ps>.pdet-kpis,.ps>.pdet-sec{margin-left:20px;margin-right:20px}
 .ps-input{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bd)}
-.ps-input input{flex:1;min-width:0;font:inherit;font-size:16px;border:0;outline:0;background:transparent;color:var(--tx)}
+.ps-input .search-field{max-width:none;min-width:0}
+.ps-input .search{font:inherit;font-size:16px;padding:0 34px 0 0!important;border:0;background:transparent;color:var(--tx)}
+.ps-input .search-clear{right:0}
 .ps-list{overflow:auto;padding:6px 10px;flex:1;min-height:200px}
 .ps-group{padding:12px 8px 4px;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}
 .ps-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:transparent!important;color:var(--tx);border:1px solid transparent;border-radius:12px;padding:10px;cursor:pointer;font-weight:400}

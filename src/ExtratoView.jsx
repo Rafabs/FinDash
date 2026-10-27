@@ -6,11 +6,12 @@ import { rangeOf, inRange, labelOf } from './period.js'
 import { brl } from './Dashboard.jsx'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
+import SearchField from './SearchField.jsx'
 
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 
-export default function ExtratoView({ resgates = [], rows, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
+export default function ExtratoView({ resgates = [], rows, categories = [], onAddCategory, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
@@ -20,6 +21,7 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
   const wantEdit = useRef(false)
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(String(r[D]).slice(0, 4))).filter(Boolean))], [rows])
+  const types = useMemo(() => [...new Set([...CATS, ...categories, ...rows.map((r) => r.CATEGORIA)].filter(Boolean))], [categories, rows])
 
   const base = useMemo(() => rows.map((r, i) => ({ r, i })).filter(({ r }) => inRange(r[D], range)), [rows, range])
   const filtered = useMemo(() => {
@@ -32,13 +34,13 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
   const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => x.r[k], (k) => EXT.find((c) => c[0] === k)?.[1]), [filtered, sort])
 
   const byCat = useMemo(() => {
-    const m = Object.fromEntries(CATS.map((c) => [c, 0]))
-    const cnt = Object.fromEntries(CATS.map((c) => [c, 0]))
-    base.forEach(({ r }) => { const c = CATS.includes(r.CATEGORIA) ? r.CATEGORIA : 'Outros'; m[c] += Number(r[V]) || 0; cnt[c]++ })
+    const m = Object.fromEntries(types.map((c) => [c, 0]))
+    const cnt = Object.fromEntries(types.map((c) => [c, 0]))
+    base.forEach(({ r }) => { const c = types.includes(r.CATEGORIA) ? r.CATEGORIA : 'Outros'; m[c] = (m[c] || 0) + (Number(r[V]) || 0); cnt[c] = (cnt[c] || 0) + 1 })
     return { m, cnt }
-  }, [base])
+  }, [base, types])
   const resTotal = useMemo(() => resgates.filter((r) => inRange(r.DATA_RESGATE, range)).reduce((s, r) => s + (Number(r[RK]) || 0), 0), [resgates, range])
-  const segs = [...CATS.map((c) => [c, byCat.m[c]]), ['Resgates', resTotal]] // resgates somam às entradas
+  const segs = [...types.map((c) => [c, byCat.m[c] || 0]), ['Resgates', resTotal]] // resgates somam às entradas
   const total = segs.reduce((s, [, v]) => s + v, 0)
   const pos = segs.reduce((s, [, v]) => s + Math.max(v, 0), 0)
 
@@ -47,6 +49,12 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
   const cur = Math.min(page, pages - 1)
   const slice = sorted.slice(cur * size, cur * size + size)
   const toggle = (c) => setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
+  const createCategory = () => {
+    const name = window.prompt('Nome da nova categoria de entrada:')?.trim()
+    if (!name) return
+    if (types.some((t) => t.toLocaleLowerCase() === name.toLocaleLowerCase())) return window.alert('Essa categoria já existe.')
+    onAddCategory?.(name)
+  }
   const toggleEdit = (g) => setEditing((s) => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
   const add = () => { wantEdit.current = true; setCats([]); setQ(''); setSort(null); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
   // o lançamento recém-criado já abre em modo de edição
@@ -72,7 +80,7 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
           <div className="bar">{segs.map(([c, v], i) => <i key={c} className={'c' + i} style={{ width: pos ? (Math.max(v, 0) / pos) * 100 + '%' : 0 }} />)}</div>
           <div className="legend">
             {segs.map(([c, v], i) => (
-              <span key={c}><i className={'dot c' + i} />{c} <b>{pos ? pct((Math.max(v, 0) / pos) * 100) : '—'}</b><em>{brl(v)}</em></span>
+              <span key={c}><i className={'dot c' + (i % 6)} />{c} <b>{pos ? pct((Math.max(v, 0) / pos) * 100) : '—'}</b><em>{brl(v)}</em></span>
             ))}
           </div>
         </div>
@@ -80,19 +88,20 @@ export default function ExtratoView({ resgates = [], rows, period, setPeriod, on
 
       <div className="toolbar">
         <PeriodFilter period={period} onChange={setPeriod} years={years} />
-        <input className="search" placeholder="Buscar origem, tipo ou instituição…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <SearchField placeholder="Buscar origem, tipo ou instituição…" value={q} onChange={setQ} />
+        <button className="sec" onClick={createCategory}>＋ Categoria</button>
       </div>
       <div className="chips">
-        {CATS.map((c, i) => (
+        {types.map((c, i) => (
           <button key={c} className={'chip-btn' + (cats.includes(c) ? ' on' : '')} onClick={() => toggle(c)}>
-            <i className={'dot c' + i} />{c}<em>{byCat.cnt[c]}</em>
+          <i className={'dot c' + (i % 6)} />{c}<em>{byCat.cnt[c] || 0}</em>
           </button>
         ))}
         {cats.length > 0 && <button className="chip-btn" onClick={() => setCats([])}>limpar</button>}
       </div>
 
       <Table
-        cols={EXT} rows={slice.map((x) => x.r)} offset={cur * size} selects={{ CATEGORIA: CATS }}
+        cols={EXT} rows={slice.map((x) => x.r)} offset={cur * size} selects={{ CATEGORIA: types }}
         onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
         onDeleteMany={(ns) => ns.map((n) => slice[n].i).sort((a, b) => b - a).forEach(del)}
         rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}

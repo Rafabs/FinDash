@@ -4,6 +4,7 @@ import PeriodFilter from './PeriodFilter.jsx'
 import { RES, RK } from './data.js'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
+import SearchField from './SearchField.jsx'
 import { rangeOf, inRange, labelOf } from './period.js'
 import { brl } from './Dashboard.jsx'
 
@@ -84,7 +85,7 @@ export default function ResgatesView({ rows, period, setPeriod, onEdit, onDelete
 
       <div className="toolbar">
         <PeriodFilter period={period} onChange={setPeriod} years={years} />
-        <input className="search" placeholder="Buscar produto…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <SearchField placeholder="Buscar produto…" value={q} onChange={setQ} />
       </div>
       <div className="chips">
         {stat.list.map(([c]) => (

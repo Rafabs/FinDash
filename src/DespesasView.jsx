@@ -8,6 +8,7 @@ import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
+import SearchField from './SearchField.jsx'
 
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
@@ -236,7 +237,7 @@ export default function DespesasView({ rows, period, setPeriod, onUpdate, onDele
 
       <div className="toolbar">
         <PeriodFilter period={period} onChange={setPeriod} years={years} />
-        <input className="search" placeholder="Buscar grupo ou despesa…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <SearchField placeholder="Buscar grupo ou despesa…" value={q} onChange={setQ} />
         <div className="seg">
           <button className={view === 'lista' ? 'on' : ''} onClick={() => setView('lista')}>Lista</button>
           <button className={view === 'matriz' ? 'on' : ''} onClick={() => setView('matriz')}>Matriz mensal</button>

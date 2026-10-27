@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import SearchField from './SearchField.jsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { buildProducts, searchProducts } from './products.js'
 import { brl } from './Dashboard.jsx'
@@ -180,7 +181,7 @@ export default function ProductSearch({ data, onClose }) {
           <>
             <div className="ps-input">
               <span>🔍</span>
-              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto, papel ou banco… (ex.: MXRF11, tesouro, RDB, banco xp)" />
+              <SearchField autoFocus value={q} onChange={setQ} placeholder="Buscar produto, papel ou banco… (ex.: MXRF11, tesouro, RDB, banco xp)" />
               <button className="icon" onClick={onClose} title="Fechar (Esc)">✕</button>
             </div>
             <div className="ps-list" ref={box}>
