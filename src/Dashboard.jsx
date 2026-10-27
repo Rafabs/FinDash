@@ -9,6 +9,10 @@ const CAT_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#22c55e', '#c084fc', '#94a
 const DESP_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#ec4899', '#22c55e', '#94a3b8']
 const TT = { contentStyle: { background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx)' }, cursor: { fill: 'var(--hover)' } }
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
+function formatBcbDate(value) {
+  const [day, month, year] = String(value || '').split('/')
+  return day && month && year ? `${day}/${month}/${year}` : value
+}
 
 export const brl = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const sum = (rows, k) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0)
@@ -61,7 +65,7 @@ export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas 
   ]
 }
 
-export default function Dashboard({ data, period, setPeriod }) {
+export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, selic, selicStatus }) {
   const { carteira, extrato } = data
   const range = useMemo(() => rangeOf(period), [period])
   const ext = useMemo(() => extrato.filter((r) => r[D] && inRange(r[D], range)), [extrato, range])
@@ -117,6 +121,16 @@ export default function Dashboard({ data, period, setPeriod }) {
         {resumo(data).slice(0, 4).map(([l, v, tone, ic]) => (
           <div className="card kpi" key={l}><span className="ic">{ic}</span><small>{l}</small><b className={tone}>{v}</b></div>
         ))}
+        <div className="card kpi" title="Taxa CDI anualizada, série 4389 do Banco Central do Brasil">
+          <span className="ic">％</span><small>CDI anualizado</small>
+          <b>{cdi ? `${cdi.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.` : cdiStatus === 'loading' ? 'Carregando…' : 'Indisponível'}</b>
+          <small>{cdi ? `${cdiStatus === 'error' ? 'Último dado salvo' : 'Referência'}: ${formatBcbDate(cdi.date)} · BCB` : cdiStatus === 'error' ? 'Não foi possível atualizar' : 'Consultando Banco Central'}</small>
+        </div>
+        <div className="card kpi" title="Meta Selic definida pelo Copom, série 432 do Banco Central do Brasil">
+          <span className="ic">％</span><small>Meta Selic · Copom</small>
+          <b>{selic ? `${selic.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.` : selicStatus === 'loading' ? 'Carregando…' : 'Indisponível'}</b>
+          <small>{selic ? `${selicStatus === 'error' ? 'Último dado salvo' : 'Vigente desde'}: ${formatBcbDate(selic.date)} · BCB` : selicStatus === 'error' ? 'Não foi possível atualizar' : 'Consultando Banco Central'}</small>
+        </div>
       </div>
       <div className="grid">
         <div className="card"><h3>Alocação (RF x RV)</h3>

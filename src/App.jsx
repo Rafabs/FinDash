@@ -13,6 +13,7 @@ import ProductSearch from './ProductSearch.jsx'
 import NotesEditor from './NotesEditor.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
 import { exportPdf } from './pdf.js'
+import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
 const TAB_ICONS = { dash: '📊', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
 const KEY = 'fynn-control-v1'
@@ -32,6 +33,10 @@ export default function App() {
   const [paste, setPaste] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [cartLocked, setCartLocked] = useState(true) // Carteira começa travada (evita digitação indevida)
+  const [cdi, setCdi] = useState(readCachedCdi)
+  const [cdiStatus, setCdiStatus] = useState('loading')
+  const [selic, setSelic] = useState(readCachedSelic)
+  const [selicStatus, setSelicStatus] = useState('loading')
   useEffect(() => { if (tab !== 'carteira') setCartLocked(true) }, [tab]) // sai da aba = trava de novo
   const [period, setPeriod] = useState(defaultPeriod)
 
@@ -64,7 +69,7 @@ export default function App() {
       .sort((x, y) => (y['DATA DE RECEBIMENTO'] || '').localeCompare(x['DATA DE RECEBIMENTO'] || ''))
     const despP = (data.despesas || []).filter((r) => inRange(r.DATA, range)).sort((x, y) => y.DATA.localeCompare(x.DATA))
     const resP = (data.resgates || []).filter((r) => inRange(r.DATA_RESGATE, range)).sort((x, y) => (y.DATA_RESGATE || '').localeCompare(x.DATA_RESGATE || ''))
-    exportPdf({ ...data, extrato: extP, despesas: despP, resgates: resP }, resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v]), label)
+    exportPdf({ ...data, extrato: extP, despesas: despP, resgates: resP }, resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v]), label, { cdi, selic })
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
@@ -84,6 +89,30 @@ export default function App() {
   }, [theme])
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} }, [data])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchLatestCdi(controller.signal)
+      .then((quote) => {
+        setCdi(quote)
+        setCdiStatus('ready')
+        try { localStorage.setItem(CDI_CACHE_KEY, JSON.stringify(quote)) } catch {}
+      })
+      .catch((error) => { if (error.name !== 'AbortError') setCdiStatus('error') })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchLatestSelic(controller.signal)
+      .then((quote) => {
+        setSelic(quote)
+        setSelicStatus('ready')
+        try { localStorage.setItem(SELIC_CACHE_KEY, JSON.stringify(quote)) } catch {}
+      })
+      .catch((error) => { if (error.name !== 'AbortError') setSelicStatus('error') })
+    return () => controller.abort()
+  }, [])
 
   const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length && !data.notas?.trim()
   const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
@@ -135,7 +164,7 @@ export default function App() {
         ))}
       </nav>
       <main>
-        {tab === 'dash' && <Dashboard data={data} period={period} setPeriod={setPeriod} />}
+        {tab === 'dash' && <Dashboard data={data} period={period} setPeriod={setPeriod} cdi={cdi} cdiStatus={cdiStatus} selic={selic} selicStatus={selicStatus} />}
         {tab === 'carteira' && (
           <>
             <CartHero rows={data.carteira} />
@@ -165,7 +194,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.10.7</footer>
+      <footer className="app-version">v26.10.9</footer>
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
