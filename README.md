@@ -296,7 +296,6 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 ## 🗺️ TO DO
 
 - [ ] Pesquisar algum produto e ver detalhes e informações
-- [ ] *Yield on cost* por papel, cruzando proventos e valor aplicado
 - [X] `v26.10.1` Gráficos no PDF
 - [X] `v26.10.2` Colagem de várias despesas de uma vez
 - [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
@@ -308,7 +307,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - [X] `v26.10.7` Exibir o percentual de gastos de cada categoria de item
 - [X] `v26.10.8` Em Extrato, retirar os itens predefinidos de CATEGORIA
 - [X] `v26.10.9` Metas de alocação e comparação com CDI/IPCA
-
+- [X] `v26.10.10`  *Yield on cost* por papel, cruzando proventos e valor aplicado
 
 ---
 
