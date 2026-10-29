@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Table from './Table.jsx'
 import NewItem from './NewItem.jsx'
-import Dashboard, { resumo } from './Dashboard.jsx'
+import Dashboard, { resumo, brl } from './Dashboard.jsx'
 import ExtratoView from './ExtratoView.jsx'
 import DespesasView from './DespesasView.jsx'
 import ResgatesView from './ResgatesView.jsx'
 import PasteModal from './PasteModal.jsx'
-import { defaultPeriod, rangeOf, inRange, labelOf } from './period.js'
+import { defaultPeriod, rangeOf, inRange, labelOf, nowYM } from './period.js'
 import CartHero from './CartHero.jsx'
 import Landing from './Landing.jsx'
 import ProductSearch from './ProductSearch.jsx'
@@ -21,8 +21,8 @@ const KEY = 'fynn-control-v1'
 const load = () => {
   try {
     const d = JSON.parse(localStorage.getItem(KEY)) || {}
-    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), categoriasExtrato: d.categoriasExtrato || [], despesas: d.despesas || [], resgates: d.resgates || [], notas: d.notas || '', notasHtml: d.notasHtml || '' }
-  } catch { return { carteira: [], extrato: [], categoriasExtrato: [], despesas: [], resgates: [], notas: '', notasHtml: '' } }
+    return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), categoriasExtrato: d.categoriasExtrato || [], despesas: d.despesas || [], contasDespesas: d.contasDespesas || [], resgates: d.resgates || [], notas: d.notas || '', notasHtml: d.notasHtml || '' }
+  } catch { return { carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' } }
 }
 const initTheme = () => { try { return localStorage.getItem('fynn-theme') } catch {} return null }
 
@@ -66,11 +66,24 @@ export default function App() {
 
   const doPdf = () => {
     const range = rangeOf(period), label = labelOf(period)
+    const currentMonth = nowYM()
+    const includeFuture = !range.to || range.to.slice(0, 7) >= currentMonth
     const extP = data.extrato.filter((r) => inRange(r['DATA DE RECEBIMENTO'], range))
       .sort((x, y) => (y['DATA DE RECEBIMENTO'] || '').localeCompare(x['DATA DE RECEBIMENTO'] || ''))
-    const despP = (data.despesas || []).filter((r) => inRange(r.DATA, range)).sort((x, y) => y.DATA.localeCompare(x.DATA))
+    const allDesp = data.despesas || []
+    const despP = allDesp.filter((r) => inRange(r.DATA, range) && r.DATA.slice(0, 7) <= currentMonth).sort((x, y) => y.DATA.localeCompare(x.DATA))
+    const despFuturas = includeFuture ? allDesp.filter((r) => r.DATA.slice(0, 7) > currentMonth).sort((x, y) => y.DATA.localeCompare(x.DATA)) : []
+    const despesasPdf = [...despP, ...despFuturas]
     const resP = (data.resgates || []).filter((r) => inRange(r.DATA_RESGATE, range)).sort((x, y) => (y.DATA_RESGATE || '').localeCompare(x.DATA_RESGATE || ''))
-    exportPdf({ ...data, extrato: extP, despesas: despP, resgates: resP }, resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v]), label, { cdi, selic })
+    const indicadoresResumo = resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v])
+    if (despFuturas.length) {
+      const previsto = despFuturas.reduce((s, r) => s + r.ITENS.reduce((t, i) => t + (Number(i.VALOR) || 0), 0), 0)
+      const pago = despFuturas.reduce((s, r) => s + r.ITENS.reduce((t, i) => t + Math.min(Number(i.VALOR) || 0, Number(i.PARCELAMENTO?.valorPago) || 0), 0), 0)
+      indicadoresResumo.push(['Despesas futuras · previsto', brl(previsto)])
+      indicadoresResumo.push(['Despesas futuras · pago', brl(pago)])
+      indicadoresResumo.push(['Despesas futuras · pendente', brl(Math.max(0, previsto - pago))])
+    }
+    exportPdf({ ...data, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP }, indicadoresResumo, label, { cdi, selic })
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
@@ -79,6 +92,12 @@ export default function App() {
     return despesas === d.despesas ? d : { ...d, despesas }
   })
   const addDesp = (novas) => setData((d) => ({ ...d, despesas: [...d.despesas, ...novas] }))
+  const addExpenseAccount = (account) => setData((d) => ({ ...d, contasDespesas: [...(d.contasDespesas || []), account] }))
+  const updateExpenseAccount = (account) => setData((d) => {
+    const current = d.contasDespesas || []
+    const i = current.findIndex((a) => a.name.toLocaleLowerCase() === account.name.toLocaleLowerCase())
+    return { ...d, contasDespesas: i < 0 ? [...current, account] : current.map((a, j) => j === i ? { ...a, ...account } : a) }
+  })
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
   const addExtratoCategory = (name) => setData((d) => ({ ...d, categoriasExtrato: [...new Set([...(d.categoriasExtrato || []), name])] }))
   const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
@@ -128,7 +147,7 @@ export default function App() {
     } catch { alert('Não foi possível ler o arquivo.') }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
-  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
+  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -182,7 +201,7 @@ export default function App() {
           <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         )}
         {tab === 'despesas' && (
-          <DespesasView rows={data.despesas} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
+          <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
         )}
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />

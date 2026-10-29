@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown } from './data.js'
+import { nowYM } from './period.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const PDF_COLORS = {
@@ -180,13 +181,29 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
   }
   if (data.despesas?.length) {
     doc.addPage()
-    sectionHeading(doc, 'Dados detalhados', 'Despesas', `${data.despesas.length.toLocaleString('pt-BR')} registros`)
+    const currentMonth = nowYM()
+    const futuras = data.despesas.filter((r) => monthOf(r.DATA) > currentMonth)
+    sectionHeading(doc, 'Dados detalhados', 'Despesas', `${data.despesas.length.toLocaleString('pt-BR')} registros · ${futuras.length} contas futuras`)
     autoTable(doc, {
       ...tableStyles,
       startY: 34,
-      head: [['Mês', 'Grupo', 'Despesas do grupo', 'Total']],
-      body: data.despesas.map((r) => [datePt(r.DATA).slice(3), r.TIPO_CONTA, r.ITENS.map((i) => `${i.NOME || '-'}: ${money(i.VALOR)}`).join(' · '), money(totalOf(r))]),
-      columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 38 }, 3: { halign: 'right', cellWidth: 34, fontStyle: 'bold' } },
+      head: [['Mês', 'Grupo', 'Despesas / parcelas', 'Previsto', 'Pago', 'Pendente']],
+      body: data.despesas.map((r) => {
+        const futuro = monthOf(r.DATA) > currentMonth
+        const previsto = totalOf(r)
+        const pago = r.ITENS.reduce((sum, item) => {
+          const valor = Number(item.VALOR) || 0
+          return sum + (item.PARCELAMENTO ? Math.min(valor, Number(item.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : valor)
+        }, 0)
+        const itens = r.ITENS.map((item) => {
+          const parcela = item.PARCELAMENTO
+          const baixadaEm = parcela?.dataPagamento ? `; baixada em ${datePt(parcela.dataPagamento)}` : ''
+          const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : ''
+          return `${item.NOME || '-'}: ${money(item.VALOR)}${sufixo}`
+        }).join(' · ')
+        return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(Math.max(0, previsto - pago))]
+      }),
+      columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 38 }, 3: { halign: 'right', cellWidth: 31 }, 4: { halign: 'right', cellWidth: 29 }, 5: { halign: 'right', cellWidth: 31, fontStyle: 'bold' } },
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
     const grupos = expenseBreakdown(data.despesas)

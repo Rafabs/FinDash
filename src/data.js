@@ -115,6 +115,7 @@ const iso = (v) => {
 // No app: { DATA: 'AAAA-MM-01', TIPO_CONTA, ITENS: [{ NOME, VALOR }] } (o total é sempre a soma dos itens)
 export const monthOf = (s) => String(s || '').slice(0, 7)
 export const totalOf = (r) => round2((r.ITENS || []).reduce((t, i) => t + (Number(i.VALOR) || 0), 0))
+export const installmentItems = (rows) => (rows || []).flatMap((r, rowIndex) => (r.ITENS || []).flatMap((item, itemIndex) => item.PARCELAMENTO ? [{ ...item.PARCELAMENTO, descricao: item.NOME, valor: Number(item.VALOR) || 0, conta: r.TIPO_CONTA, mes: monthOf(r.DATA), rowIndex, itemIndex }] : []))
 export function expenseBreakdown(rows) {
   const groups = new Map()
   rows.forEach((row) => {
@@ -153,27 +154,58 @@ export function moveExpenseItem(rows, fromRow, itemIndex, toRow) {
 function toDespesas(ws) {
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })
   if (!aoa.length || !aoa[0].includes('TIPO_CONTA')) return null
+  const parcelColumns = new Map()
+  aoa[0].forEach((header, column) => {
+    const match = String(header || '').match(/^PARCELAMENTO_(\d+)$/)
+    if (match) parcelColumns.set(Number(match[1]), column)
+  })
+  const itemColumnsEnd = parcelColumns.size ? Math.min(...parcelColumns.values()) : aoa[0].length
   const out = []
   aoa.slice(1).forEach((row) => {
     const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
     if (!data || !tipo) return
     const itens = []
-    for (let k = 3; k < row.length; k += 2) {
+    for (let k = 3; k < itemColumnsEnd; k += 2) {
       const v = row[k + 1]
       if (v === null || v === undefined || v === '' || isNaN(Number(v))) continue // linhas "vazias" do mês futuro são ignoradas
-      itens.push({ NOME: String(row[k] ?? '').trim(), VALOR: round2(v) })
+      const item = { NOME: String(row[k] ?? '').trim(), VALOR: round2(v) }
+      const metadataColumn = parcelColumns.get((k - 3) / 2 + 1)
+      const rawMetadata = metadataColumn == null ? null : row[metadataColumn]
+      if (rawMetadata) {
+        try {
+          const metadata = typeof rawMetadata === 'string' ? JSON.parse(rawMetadata) : rawMetadata
+          const numero = Number(metadata?.numero), quantidade = Number(metadata?.quantidade)
+          if (metadata && typeof metadata.id === 'string' && Number.isInteger(numero) && Number.isInteger(quantidade) && numero >= 1 && quantidade >= 2 && numero <= quantidade) {
+            item.PARCELAMENTO = {
+              id: metadata.id.slice(0, 120), numero, quantidade,
+              valorPago: round2(Math.max(0, Math.min(item.VALOR, Number(metadata.valorPago) || 0))),
+              ...(typeof metadata.dataPagamento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metadata.dataPagamento) ? { dataPagamento: metadata.dataPagamento } : {}),
+            }
+          }
+        } catch { /* mantém a despesa mesmo se metadados ocultos estiverem inválidos */ }
+      }
+      itens.push(item)
     }
     if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ITENS: itens })
   })
   return out
 }
 
-function despSheet(rows) {
+function despSheet(rows, includeParcelMetadata = false) {
   const maxN = Math.max(12, ...rows.map((r) => r.ITENS.length))
   const head = ['DATA', 'VALOR', 'TIPO_CONTA']
   for (let k = 1; k <= maxN; k++) head.push(`COTA_${k}`, 'VALOR')
-  const aoa = [head, ...rows.map((r) => [r.DATA, totalOf(r), r.TIPO_CONTA, ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat()])]
+  if (includeParcelMetadata) for (let k = 1; k <= maxN; k++) head.push(`PARCELAMENTO_${k}`)
+  const aoa = [head, ...rows.map((r) => [
+    r.DATA, totalOf(r), r.TIPO_CONTA,
+    ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat(),
+    ...(includeParcelMetadata ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PARCELAMENTO ? JSON.stringify(r.ITENS[k].PARCELAMENTO) : null) : []),
+  ])]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
+  if (includeParcelMetadata) ws['!cols'] = [
+    ...Array.from({ length: 3 + 2 * maxN }, () => ({})),
+    ...Array.from({ length: maxN }, () => ({ hidden: true })),
+  ]
   rows.forEach((r, i) => { // mantém a fórmula de soma da sua planilha
     const cells = Array.from({ length: maxN }, (_, k) => XLSX.utils.encode_col(4 + 2 * k) + (i + 2)).join('+')
     ws['B' + (i + 2)] = { t: 'n', v: totalOf(r), f: `SUM(${cells})` }
@@ -217,6 +249,10 @@ export async function importFile(file) {
   const dsp = wb.Sheets[SHEETS.despesas.name] || (wb.SheetNames[2] ? wb.Sheets[wb.SheetNames[2]] : null)
   const dd = dsp && toDespesas(dsp)
   if (dd) out.despesas = dd
+  const accountsSheet = wb.Sheets['Contas de despesas']
+  if (accountsSheet) out.contasDespesas = XLSX.utils.sheet_to_json(accountsSheet, { defval: '' })
+    .map((r) => ({ name: String(r.NOME || '').trim(), icon: String(r.ICONE || '🧾').trim() || '🧾', logo: String(r.LOGO || '') }))
+    .filter((r) => r.name)
   const rs = wb.Sheets[SHEETS.resgates.name] || (wb.SheetNames[3] ? wb.Sheets[wb.SheetNames[3]] : null)
   if (rs && hasHdr(rs, 'DATA_RESGATE')) out.resgates = toRows(rs, RES)
   const noteSheet = wb.Sheets.Notas
@@ -240,7 +276,8 @@ export function exportXlsx(data) {
   const wb = XLSX.utils.book_new()
   for (const k of ['carteira', 'extrato'])
     XLSX.utils.book_append_sheet(wb, sheetOf(data[k], SHEETS[k].cols), SHEETS[k].name)
-  if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas), SHEETS.despesas.name)
+  if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas, true), SHEETS.despesas.name)
+  if (data.contasDespesas?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.contasDespesas.map((a) => ({ NOME: a.name, ICONE: a.icon || '🧾', LOGO: a.logo || '' })), [['NOME'], ['ICONE'], ['LOGO']]), 'Contas de despesas')
   if (data.resgates?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.resgates, RES), SHEETS.resgates.name)
   const noteSheet = XLSX.utils.aoa_to_sheet([
     ['NOTAS', NOTES_FORMAT_MARKER],

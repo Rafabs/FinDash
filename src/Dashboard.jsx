@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
-import { CATS, tickerOf, totalOf, monthOf, RK } from './data.js'
-import { rangeOf, inRange, labelOf } from './period.js'
+import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems } from './data.js'
+import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 
 const COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b', '#22c55e']
 const CAT_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#22c55e', '#c084fc', '#94a3b8']
@@ -87,8 +87,8 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
   })
   const porMes = fillMonths(monthsMap)
   const keys = Object.keys(monthsMap).sort()
-  const nowYM = new Date().toISOString().slice(0, 7)
-  const nMes = keys.length ? Math.max(1, monthsBetween(keys[0], range.to && range.to.slice(0, 7) < nowYM ? range.to.slice(0, 7) : nowYM)) : 1
+  const currentMonth = nowYM()
+  const nMes = keys.length ? Math.max(1, monthsBetween(keys[0], range.to && range.to.slice(0, 7) < currentMonth ? range.to.slice(0, 7) : currentMonth)) : 1
 
   const porPapel = group(prov, (r) => tickerOf(r) || 'Outros', V).slice(0, 10)
   const porCat = [...group(ext, 'CATEGORIA', V), ...(totRes ? [{ name: 'Resgates', value: +totRes.toFixed(2) }] : [])]
@@ -112,6 +112,22 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
   dsp.forEach((r) => { const k = monthOf(r.DATA), c = top5.includes(r.TIPO_CONTA) ? r.TIPO_CONTA : 'Demais'; (empMap[k] ||= {})[c] = (empMap[k][c] || 0) + totalOf(r) })
   const empCats = [...top5, ...(porConta.length > 5 ? ['Demais'] : [])]
   const empilhado = fillGen(empMap, empCats)
+  const parcelamentos = useMemo(() => installmentItems(data.despesas), [data.despesas])
+  const parcelasFuturas = useMemo(() => {
+    const todayMonth = nowYM()
+    const map = new Map()
+    parcelamentos.filter((x) => x.mes >= todayMonth).forEach((x) => {
+      const row = map.get(x.mes) || { mes: x.mes, previsto: 0, pago: 0, pagoAntecipado: 0, pendente: 0, quantidade: 0 }
+      row.previsto += x.valor
+      const valorPago = Math.min(x.valor, Number(x.valorPago) || 0)
+      row.pago += valorPago
+      if (x.dataPagamento && x.dataPagamento.slice(0, 7) < x.mes) row.pagoAntecipado += valorPago
+      row.pendente += Math.max(0, x.valor - valorPago)
+      row.quantidade += 1
+      map.set(x.mes, row)
+    })
+    return [...map.values()].sort((a, b) => a.mes.localeCompare(b.mes)).slice(0, 12)
+  }, [parcelamentos])
   const tip = (v) => brl(v)
   const mesTick = (k) => k.slice(5) + '/' + k.slice(2, 4)
 
@@ -142,6 +158,7 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
             <BarChart data={porBanco} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} fontSize={11} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#6366f1" radius={[0, 6, 6, 0]} /></BarChart>
           </ResponsiveContainer></div>
       </div>
+      {parcelasFuturas.length > 0 && <section className="panel expense-history-panel"><div className="panel-head"><div><h3>Previsão de parcelas</h3><small className="muted">Compromissos futuros no cartão · dê baixa antecipada na edição da fatura em Despesas</small></div><span className="expense-history-count">{parcelasFuturas.length} meses</span></div><div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Parcelas</th><th>Previsto</th><th>Pago</th><th>Pago antecipado</th><th>Pendente</th></tr></thead><tbody>{parcelasFuturas.map((x) => <tr key={x.mes}><td className="ro">{x.mes.slice(5)}/{x.mes.slice(2, 4)}</td><td className="ro">{x.quantidade}</td><td className="ro">{brl(x.previsto)}</td><td className="ro">{brl(x.pago)}</td><td className="ro">{brl(x.pagoAntecipado)}</td><td className="ro"><b>{brl(x.pendente)}</b></td></tr>)}</tbody></table></div></section>}
 
       <div className="sec-head">
         <div><h2>Proventos e entradas</h2><small className="muted">{labelOf(period)}</small></div>

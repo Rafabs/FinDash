@@ -3,7 +3,7 @@
 Painel pessoal de **investimentos, proventos e despesas** que roda inteiro no navegador.
 Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela, acompanha o dashboard por período e exporta quando quiser.
 
-> **Privacidade:** não existe servidor nem banco de dados. Os dados ficam apenas no `localStorage` do seu navegador e nunca são enviados para lugar nenhum.
+> **Privacidade:** não existe servidor nem banco de dados. Os seus dados ficam apenas no `localStorage` do navegador e nunca são enviados para lugar nenhum. A única consulta externa é pública e não leva nada seu: o **CDI** e a **meta Selic** vêm da API do Banco Central.
 
 ---
 
@@ -19,6 +19,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - **Versão para celular**: abas viram barra inferior, tabelas viram cartões e janelas sobem de baixo da tela
+- Abas: **Dashboard**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e dados de exemplo
 - Dados salvos automaticamente no navegador
 - **Notas pessoais formatadas**: fonte, tamanho, negrito, itálico, sublinhado e cores; salvas automaticamente e preservadas no XLSX
@@ -33,9 +34,16 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 
 **Extrato (entradas)**
 - Categorias automáticas: Proventos, Rendimentos, Aluguel, Salário e Outros (mais "Venda de Patrimônio", escolhida manualmente)
-- Filtro por **período**, categoria e busca em texto
+- Filtro por **período**, categoria e busca em texto (com botão para limpar)
+- **Categorias personalizadas**: crie as suas com **＋ Categoria**; elas aparecem nos filtros, na tabela, no painel e ficam salvas no XLSX
 - Tabela paginada e editável
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
+
+**Renda por papel** (*yield on cost*)
+- Mostra quanto cada papel de renda variável rendeu em proventos nos **últimos 12 meses** em relação ao valor aplicado
+- Indicadores: proventos em 12 meses, valor aplicado, *yield on cost* ponderado da carteira e média mensal
+- Gráfico com os 8 maiores yields e tabela ordenável (valor aplicado, proventos, média mensal e yield), com filtro por ticker
+- Veja a explicação do indicador em [Renda por papel](#-renda-por-papel)
 
 **Resgates**
 - Resgates de investimentos com a **rentabilidade** obtida até a data do resgate (lucro, pode ser negativo)
@@ -43,14 +51,16 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Filtros por período, produto e busca, com tabela editável e paginada
 
 **Despesas**
-- Lista, **matriz mensal** (conta × mês) e filtros
+- Despesas organizadas em **grupos** (ex.: *Cartão de crédito*) com as **despesas de dentro do grupo** (ex.: *Manutenção veicular*); é possível mover uma despesa de um grupo para outro
+- Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
-- **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`despesa:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
+- **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`grupo:` / `despesa dentro do grupo:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
 
 **Dashboard**
 - Patrimônio, alocação e patrimônio por banco
+- **CDI anualizado** e **meta Selic** (Banco Central), com a data de referência; sem internet, mostra o último valor salvo
 - Proventos por mês e por papel, média mensal e maior pagador
-- Despesas por conta e por mês, entradas (com resgates) × despesas e saldo do período
+- Despesas por grupo e por mês, entradas (com resgates) × despesas e saldo do período
 - Resgates do período como indicador próprio e como fatia em "Entradas por categoria"
 - Os mesmos gráficos saem no **PDF**, respeitando o período escolhido
 
@@ -99,7 +109,7 @@ O repositório já inclui o workflow `.github/workflows/deploy.yml`.
 1. Crie um repositório no GitHub e envie o projeto (incluindo a pasta `.github`).
 2. No repositório, vá em **Settings → Pages → Build and deployment → Source** e escolha **GitHub Actions**.
 3. A cada `push` na branch `main`, o site é compilado e publicado em:
-   `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`
+   `https://rafabs.github.io/FinDash/`
 
 Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (caminhos relativos) e o app não usa rotas por URL, apenas abas internas. Por isso não há erro 404 ao recarregar a página.
 
@@ -218,21 +228,37 @@ O cruzamento entre abas é tolerante a nomes diferentes: proventos são ligados 
 
 ---
 
+## 💹 Renda por papel
+
+Na aba **Renda por papel**, o *yield on cost* de cada papel de renda variável é:
+
+```text
+yield on cost = proventos recebidos nos últimos 12 meses ÷ valor aplicado no papel
+```
+
+- Os proventos vêm da categoria **Proventos** do Extrato, ligados ao papel pelo código (ex.: `MXRF11`)
+- O cálculo usa o valor aplicado **atual** da carteira e uma janela móvel de 12 meses; ele compara a renda histórica entre posições e não estima pagamentos futuros
+- Aportes recentes ainda não completaram 12 meses de proventos, então tendem a aparecer com yield menor
+- A mesma métrica aparece no detalhe de cada produto na busca (🔍)
+
+---
+
 ## 📋 Colar despesas
 
 Na aba Despesas, use **📋 Colar despesas** ou `Ctrl+V` fora de qualquer campo. Formatos aceitos:
 
 ```text
-despesa: energia elétrica          custo: internet
-valor: R$ 150,00                   preço: R$ 119,90
-pago em: 15/05/2020                pagamento: 15/05/2020
+grupo: Cartão de crédito           despesa: Internet
+despesa dentro do grupo: Manutenção veicular   preço: R$ 119,90
+valor: R$ 1.200,00                 pagamento: 15/05/2020
+pago em: 15/05/2020
 ```
 
-- **Blocos "rótulo: valor"**: conta (`despesa`, `custo`, `conta`, `gasto`, `tipo`, `categoria`), valor (`valor`, `preço`, `total`), data (`pago em`, `pagamento`, `data`, `vencimento`) e descrição opcional (`descrição`, `item`, `obs`)
+- **Blocos "rótulo: valor"**: grupo/conta (`grupo`, `despesa`, `custo`, `conta`, `gasto`, `tipo`, `categoria`), valor (`valor`, `preço`, `total`), data (`pago em`, `pagamento`, `data`, `vencimento`) e a despesa de dentro do grupo (`despesa dentro do grupo`, `descrição`, `item`, `obs`)
 - **Tabela copiada do Excel/Sheets**, com ou sem cabeçalho
 - **Uma despesa por linha**, em ordem livre: `Energia elétrica - R$ 150,00 - 15/05/2020`
 
-A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e permite editar antes de adicionar. Contas parecidas com as existentes são unificadas (`energia` → `ENERGIA ELÉTRICA`), registros sem data vão para um mês padrão à sua escolha e registros do mesmo mês e conta viram uma linha com vários itens. Só o **mês** é guardado, já que a aba Despesas é mensal.
+A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e permite editar antes de adicionar. Grupos parecidos com os existentes são unificados (`energia` → `ENERGIA ELÉTRICA`), registros sem data vão para um mês padrão à sua escolha e registros do mesmo mês e grupo viram uma linha com várias despesas dentro. Só o **mês** é guardado, já que a aba Despesas é mensal.
 
 ---
 
@@ -257,6 +283,8 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
     ├── useMedia.js                # detecta tela de celular
     ├── Landing.jsx                # tela inicial (sem dados)
     ├── Dashboard.jsx              # indicadores e gráficos
+    ├── RendaPorPapel.jsx          # aba Renda por papel (yield on cost)
+    ├── market.js                  # CDI e Selic (API pública do Banco Central, com cache local)
     ├── CartHero.jsx               # painel de resumo da Carteira
     ├── Table.jsx                  # tabela editável (todas as abas): ordenação, seleção, lápis e trava
     ├── NewItem.jsx                # formulário de novo item da Carteira
@@ -266,6 +294,8 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
     ├── ProductSearch.jsx          # busca e detalhe de produtos
     ├── DespesasView.jsx           # aba Despesas (lista e matriz mensal)
     ├── ResgatesView.jsx           # aba Resgates
+    ├── NotesEditor.jsx            # editor de Notas com formatação
+    ├── SearchField.jsx            # campo de busca com botão de limpar
     ├── LancarMes.jsx              # assistente de lançamento mensal
     ├── PeriodFilter.jsx           # seletor de período
     ├── MoneyInput.jsx             # campo de valor em R$ (2 casas)
@@ -288,14 +318,14 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 ## ⚠️ Observações
 
 - **Segurança do `xlsx`:** a versão `0.18.x` publicada no npm (usada aqui) está desatualizada e o `npm audit` aponta vulnerabilidades. Como o app roda só no seu navegador e abre arquivos seus, o risco prático é baixo, mas evite importar planilhas de origem desconhecida.
-- A busca de produtos usa apenas os dados da sua planilha; não consulta cotações nem informações de mercado (o app não usa servidor).
+- A busca de produtos usa apenas os dados da sua planilha; o app **não consulta cotações** de ativos. A única consulta de mercado é o **CDI** (série 4389) e a **meta Selic** (série 432) na API pública do Banco Central. Se ela estiver fora do ar ou sem internet, o último valor salvo é exibido.
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
 
 ---
 
 ## 🗺️ TO DO
 
-- [ ] Pesquisar algum produto e ver detalhes e informações
+- [ ] Pesquisar algum produto e ver detalhes e informações 
 - [X] `v26.10.1` Gráficos no PDF
 - [X] `v26.10.2` Colagem de várias despesas de uma vez
 - [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
@@ -307,7 +337,8 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - [X] `v26.10.7` Exibir o percentual de gastos de cada categoria de item
 - [X] `v26.10.8` Em Extrato, retirar os itens predefinidos de CATEGORIA
 - [X] `v26.10.9` Metas de alocação e comparação com CDI/IPCA
-- [X] `v26.10.10`  *Yield on cost* por papel, cruzando proventos e valor aplicado
+- [X] `v26.10.10` *Yield on cost* por papel, cruzando proventos e valor aplicado
+- [X] `v26.10.11` Atribuir abas de contas, com layout próprio, que ao ir inserindo, ir para os itens principais, respectivamente para o .xls
 
 ---
 
