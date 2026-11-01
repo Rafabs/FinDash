@@ -16,8 +16,13 @@ const tableStyles = {
   styles: { font: 'helvetica', fontSize: 8, textColor: PDF_COLORS.ink, lineColor: PDF_COLORS.line, lineWidth: 0.2, cellPadding: 3.5, overflow: 'linebreak', valign: 'middle' },
   headStyles: { fillColor: [35, 40, 62], textColor: [255, 255, 255], fontStyle: 'bold', lineColor: [35, 40, 62], cellPadding: 4.5 },
   alternateRowStyles: { fillColor: PDF_COLORS.stripe },
+  footStyles: { fillColor: [232, 235, 252], textColor: PDF_COLORS.ink, fontStyle: 'bold', lineColor: PDF_COLORS.line },
+  showFoot: 'lastPage',
   margin: { left: 14, right: 14, bottom: 16 },
 }
+// linha de totais no fim da tabela: soma só as colunas de valor indicadas
+const sumOf = (rows, key) => rows.reduce((t, r) => t + (Number(r[key]) || 0), 0)
+const totalsRow = (cols, rows, sumKeys, label) => cols.map((c, i) => (i === 0 ? label : sumKeys.includes(c) ? money(sumOf(rows, c)) : ''))
 const datePt = (value) => {
   const match = String(value ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
   return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value ?? '')
@@ -71,6 +76,8 @@ function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241]) {
     doc.setFont('helvetica', 'bold'); doc.setTextColor(...PDF_COLORS.ink); doc.text(money(r.value), x + w - 5, yy + 3, { align: 'right' }); doc.setFont('helvetica', 'normal')
   })
 }
+
+const SUM_KEYS = { carteira: ['VLR_APLICACAO', 'TOTAL_ATUAL', 'REND_BRUTO'], extrato: ['VALOR DA APLICAÇÃO'] }
 
 function addCharts(doc, data, periodo) {
   const carteira = data.carteira || [], ext = data.extrato || [], dsp = data.despesas || [], res = data.resgates || []
@@ -175,6 +182,12 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
       startY: 34,
       head: [labels],
       body: data[k].map((r) => cols.map((c, i) => tableValue(r[c], definitions[i], c))),
+      foot: data[k].length ? [(() => {
+        const row = totalsRow(cols, data[k], SUM_KEYS[k] || [], 'Total')
+        const vi = cols.indexOf('VAR_PP')
+        if (k === 'carteira' && vi >= 0 && sumOf(data[k], 'VLR_APLICACAO')) row[vi] = tableValue(sumOf(data[k], 'REND_BRUTO') / sumOf(data[k], 'VLR_APLICACAO'), 'calc', 'VAR_PP')
+        return row
+      })()] : undefined,
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
       columnStyles: Object.fromEntries(definitions.map((type, i) => [i, type === 'money' || type === 'calcm' || type === 'num' ? { halign: 'right' } : {}])),
     })
@@ -184,25 +197,36 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
     const currentMonth = nowYM()
     const futuras = data.despesas.filter((r) => monthOf(r.DATA) > currentMonth)
     sectionHeading(doc, 'Dados detalhados', 'Despesas', `${data.despesas.length.toLocaleString('pt-BR')} registros · ${futuras.length} contas futuras`)
+    const calcDesp = (r) => {
+      const futuro = monthOf(r.DATA) > currentMonth
+      const previsto = totalOf(r)
+      const pago = r.ITENS.reduce((sum, item) => {
+        const valor = Number(item.VALOR) || 0
+        return sum + (item.PARCELAMENTO ? Math.min(valor, Number(item.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : valor)
+      }, 0)
+      return { futuro, previsto, pago, pendente: Math.max(0, previsto - pago) }
+    }
+    const calcs = data.despesas.map(calcDesp)
+    const somar = (list, k) => list.reduce((t, c) => t + c[k], 0)
+    const ateHoje = calcs.filter((c) => !c.futuro)
     autoTable(doc, {
       ...tableStyles,
       startY: 34,
       head: [['Mês', 'Grupo', 'Despesas / parcelas', 'Previsto', 'Pago', 'Pendente']],
-      body: data.despesas.map((r) => {
-        const futuro = monthOf(r.DATA) > currentMonth
-        const previsto = totalOf(r)
-        const pago = r.ITENS.reduce((sum, item) => {
-          const valor = Number(item.VALOR) || 0
-          return sum + (item.PARCELAMENTO ? Math.min(valor, Number(item.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : valor)
-        }, 0)
+      body: data.despesas.map((r, idx) => {
+        const { futuro, previsto, pago, pendente } = calcs[idx]
         const itens = r.ITENS.map((item) => {
           const parcela = item.PARCELAMENTO
           const baixadaEm = parcela?.dataPagamento ? `; baixada em ${datePt(parcela.dataPagamento)}` : ''
           const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : ''
           return `${item.NOME || '-'}: ${money(item.VALOR)}${sufixo}`
         }).join(' · ')
-        return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(Math.max(0, previsto - pago))]
+        return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(pendente)]
       }),
+      foot: [
+        ['Total geral', '', `${calcs.length.toLocaleString('pt-BR')} lançamentos`, money(somar(calcs, 'previsto')), money(somar(calcs, 'pago')), money(somar(calcs, 'pendente'))],
+        ...(ateHoje.length < calcs.length ? [['Até o mês atual', '', `${ateHoje.length.toLocaleString('pt-BR')} lançamentos`, money(somar(ateHoje, 'previsto')), money(somar(ateHoje, 'pago')), money(somar(ateHoje, 'pendente'))]] : []),
+      ],
       columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 38 }, 3: { halign: 'right', cellWidth: 31 }, 4: { halign: 'right', cellWidth: 29 }, 5: { halign: 'right', cellWidth: 31, fontStyle: 'bold' } },
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
@@ -244,6 +268,7 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
           totalDespesas ? (item.total / totalDespesas * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—',
         ]),
       ]),
+      foot: [['Total das despesas', money(totalDespesas), '', totalDespesas ? '100,00%' : '—']],
       ...tableStyles,
       headStyles: tableStyles.headStyles,
       styles: { ...tableStyles.styles, fontSize: 8 },
@@ -260,6 +285,8 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
       startY: 34,
       head: [RES.map(([, , l]) => l)],
       body: data.resgates.map((r) => RES.map(([k, t]) => tableValue(r[k], t, k))),
+      foot: [totalsRow(RES.map(([k]) => k), data.resgates, [RK], 'Total')],
+      columnStyles: { 2: { halign: 'right' } },
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
   }

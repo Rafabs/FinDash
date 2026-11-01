@@ -533,3 +533,13 @@ button.sec,button.icon,.tabs button,.seg button,.chip-btn,.items-btn{background-
 button.lock{font-weight:700}
 button.lock.open{background:#f59e0b;color:#1f2937;border-color:transparent;box-shadow:0 6px 16px -8px #f59e0b}
 button:disabled.icon{opacity:.35;cursor:not-allowed}
+
+/* ================= Despesas: lista sem rolagem horizontal ================= */
+.wrap table.desp-table{width:100%;max-width:100%;table-layout:fixed;margin:0}
+.desp-table th:nth-child(1){width:44px}
+.desp-table th:nth-child(2){width:96px}
+.desp-table th:nth-child(3){width:190px}
+.desp-table th:nth-child(5){width:130px}
+.desp-table th:nth-child(6){width:100px}
+.wrap table.desp-table .items-static,.wrap table.desp-table .items-btn{flex-wrap:wrap;align-items:flex-start;justify-content:flex-start;gap:6px;width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal}
+.wrap table.desp-table .items-static .chip,.wrap table.desp-table .items-btn .chip{white-space:normal;overflow-wrap:anywhere;max-width:100%;text-align:left}

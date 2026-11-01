@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import PeriodFilter from './PeriodFilter.jsx'
 import LancarMes from './LancarMes.jsx'
 import PasteDespesas from './PasteDespesas.jsx'
-import { totalOf, monthOf, round2, expenseBreakdown } from './data.js'
+import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
 import SearchField from './SearchField.jsx'
+import LogoPicker from './LogoPicker.jsx'
+import { useLogoBank, resolveLogo, suggestLogo, LOGO_PREFIX } from './logos.js'
 
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
@@ -29,7 +31,7 @@ function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CR
   const n = Math.max(2, Math.min(120, Number(count) || 0))
   const amount = Number(String(total).replace(',', '.'))
   const save = () => {
-    if (!description.trim() || !account.trim() || !Number.isFinite(amount) || amount <= 0 || !firstMonth || n < 2) return
+    if (!description.trim() || !account.trim() || total === '' || !Number.isFinite(amount) || amount === 0 || !firstMonth || n < 2) return
     const cents = Math.round(amount * 100), base = Math.floor(cents / n), remainder = cents - base * n
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const rows = Array.from({ length: n }, (_, i) => {
@@ -41,7 +43,7 @@ function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CR
     onSave(rows)
   }
   return <div className="overlay" onClick={onClose}><div className="modal installment-modal" onClick={(e) => e.stopPropagation()}>
-    <h3>＋ Nova compra parcelada</h3><p className="muted">O valor total será dividido entre as faturas mensais.</p>
+    <h3>＋ Nova compra parcelada</h3><p className="muted">O valor total será dividido entre as faturas mensais. Use valor negativo para um abatimento parcelado (estorno, desconto).</p>
     <div className="account-name-field">
       <label>Descrição da compra</label><input className="cell" autoFocus placeholder="Ex.: Notebook" value={description} onChange={(e) => setDescription(e.target.value)} />
       <label>Conta / cartão</label><input className="cell" list="installment-accounts" value={account} onChange={(e) => setAccount(e.target.value)} /><datalist id="installment-accounts">{accounts.map((a) => <option key={a.name} value={a.name} />)}</datalist>
@@ -49,9 +51,17 @@ function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CR
       <label>Quantidade de parcelas</label><input className="cell" type="number" min="2" max="120" value={count} onChange={(e) => setCount(e.target.value)} />
       <label>Mês da primeira fatura</label><input className="cell" type="month" value={firstMonth} onChange={(e) => setFirstMonth(e.target.value)} />
     </div>
-    {amount > 0 && n >= 2 && <p className="hint">{n} parcelas · aproximadamente {brl(round2(amount / n))} por mês · total {brl(amount)}</p>}
-    <div className="actions"><button className="sec" onClick={onClose}>Cancelar</button><button disabled={!description.trim() || !account.trim() || !(amount > 0) || n < 2 || !firstMonth} onClick={save}>Criar parcelas</button></div>
+    {amount !== 0 && Number.isFinite(amount) && n >= 2 && <p className="hint">{n} parcelas · {amount < 0 ? 'abatimento de ' : ''}aproximadamente {brl(round2(amount / n))} por mês · total {brl(amount)}</p>}
+    <div className="actions"><button className="sec" onClick={onClose}>Cancelar</button><button disabled={!description.trim() || !account.trim() || total === '' || !Number.isFinite(amount) || amount === 0 || n < 2 || !firstMonth} onClick={save}>Criar parcelas</button></div>
   </div></div>
+}
+
+// Campo "Dentro do grupo": confirma ao sair do campo ou com Enter; volta ao valor anterior se for recusado
+function ParentField({ value, onCommit }) {
+  const [v, setV] = useState(value || '')
+  useEffect(() => setV(value || ''), [value])
+  const commit = () => { if (v.trim() !== (value || '') && onCommit(v.trim()) === false) setV(value || '') }
+  return <input className="cell" list="dl-contas" placeholder="Dentro do grupo… (opcional)" title="Coloque este grupo dentro de outro grupo (deixe vazio para ser um grupo principal)" style={{ minWidth: 170, marginTop: 4 }} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
 function ItemsModal({ row, onSave, onClose }) {
@@ -108,6 +118,8 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const [accountIcon, setAccountIcon] = useState('🧾')
   const [accountLogo, setAccountLogo] = useState('')
   const logoInput = useRef(null)
+  const bank = useLogoBank()
+  const [picker, setPicker] = useState(null) // 'new' (criando conta) | 'current' (conta aberta)
   const [quickItem, setQuickItem] = useState('')
   const [quickValue, setQuickValue] = useState('')
   const [quickMonth, setQuickMonth] = useState(nowYM())
@@ -118,6 +130,16 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     return Object.keys(c).sort((a, b) => c[b] - c[a])
   }, [rows])
 
+  const parents = useMemo(() => groupParents(rows), [rows])
+  const setParent = (group, parent) => {
+    const name = String(group || '').trim(), p = String(parent || '').trim()
+    if (p && p === name) { setMoveMessage('Um grupo não pode ficar dentro dele mesmo.'); return false }
+    if (p && groupPath(p, parents).includes(name)) { setMoveMessage(`“${p}” já está dentro de “${name}”.`); return false }
+    rows.forEach((r, k) => { if (String(r.TIPO_CONTA || '').trim() === name && String(r.PAI || '') !== p) onUpdate(k, { PAI: p }) })
+    setMoveMessage(p ? `“${name}” agora está dentro de “${p}”.` : `“${name}” voltou a ser um grupo principal.`)
+    return true
+  }
+
   const currentMonth = nowYM()
   const includeFuture = !range.to || range.to.slice(0, 7) >= currentMonth
   const base = useMemo(() => rows.map((r, i) => ({ r, i })).filter(({ r }) => inRange(r.DATA, range) || (includeFuture && monthOf(r.DATA) > currentMonth)), [rows, range, includeFuture, currentMonth])
@@ -126,22 +148,22 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     return base
       .filter(({ r }) => !cats.length || cats.includes(r.TIPO_CONTA))
       .map(({ r, i }) => {
-        const groupMatches = !!s && r.TIPO_CONTA.toLowerCase().includes(s)
+        const groupMatches = !!s && groupPath(String(r.TIPO_CONTA || '').trim(), parents).join(' ').toLowerCase().includes(s)
         const items = r.ITENS
           .map((item, index) => ({ item, index }))
           .filter(({ item }) => !s || groupMatches || String(item.NOME || '').toLowerCase().includes(s))
         return { r, i, items, total: totalOf({ ITENS: items.map(({ item }) => item) }) }
       })
-      .filter(({ items }) => items.length > 0)
+      .filter(({ r, items }) => items.length > 0 || (!s && r.ITENS.length === 0)) // mantém grupos vazios visíveis (alvo de arrastar)
       .sort((a, b) => b.r.DATA.localeCompare(a.r.DATA) || a.r.TIPO_CONTA.localeCompare(b.r.TIPO_CONTA) || a.i - b.i)
-  }, [base, cats, q])
+  }, [base, cats, q, parents])
 
   const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => (k === 'TOTAL' ? x.total : x.r[k]), (k) => (k === 'DATA' ? 'date' : k === 'TOTAL' ? 'money' : 'text')), [filtered, sort])
 
   const detailRows = useMemo(() => q.trim()
     ? filtered.map(({ r, items }) => ({ ...r, ITENS: items.map(({ item }) => item) }))
     : base.map(({ r }) => r), [base, filtered, q])
-  const breakdown = useMemo(() => expenseBreakdown(detailRows), [detailRows])
+  const breakdown = useMemo(() => expenseBreakdown(detailRows, parents), [detailRows, parents])
   const stat = useMemo(() => {
     const summaryRows = q.trim() ? filtered : base
     const meses = new Set(summaryRows.filter(({ r }) => monthOf(r.DATA) <= currentMonth).map(({ r }) => monthOf(r.DATA)))
@@ -158,7 +180,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     }, 0)
     const pendingOf = (entry) => itemsOf(entry).reduce((s, item) => {
       const value = Number(item.VALOR) || 0
-      return s + Math.max(0, value - (Number(item.PARCELAMENTO?.valorPago) || 0))
+      return s + (value < 0 ? value : Math.max(0, value - (Number(item.PARCELAMENTO?.valorPago) || 0)))
     }, 0)
     const periodTotal = currentRows.reduce((s, entry) => s + (entry.total ?? totalOf(entry.r)), 0) + futureRows.reduce((s, entry) => s + paidAheadOf(entry), 0)
     const futureTotal = futureRows.reduce((s, entry) => s + pendingOf(entry), 0)
@@ -182,11 +204,10 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const deleteSelected = () => { const ids = [...selected].sort((a, b) => b - a); if (!locked && ids.length && confirm(`Excluir ${ids.length} itens selecionados?`)) { ids.forEach(del); setSelected(new Set()) } }
   const canDropOn = (from, to) => !locked && from != null && from.row !== to &&
     rows[from.row] && rows[from.row].ITENS[from.item] && rows[to] &&
-    monthOf(rows[from.row].DATA) === monthOf(rows[to].DATA) &&
-    rows[from.row].TIPO_CONTA !== rows[to].TIPO_CONTA
+    monthOf(rows[from.row].DATA) === monthOf(rows[to].DATA)
   const dropItem = (to) => {
     if (!canDropOn(dragSource, to)) {
-      if (dragSource && dragSource.row !== to) setMoveMessage('Solte em uma conta diferente do mesmo mês.')
+      if (dragSource && dragSource.row !== to) setMoveMessage('Solte em outro grupo do mesmo mês.')
       return
     }
     const item = rows[dragSource.row].ITENS[dragSource.item]
@@ -242,9 +263,11 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     rows.forEach((r) => { const name = String(r.TIPO_CONTA || '').trim(); if (name && !known.has(name.toLocaleLowerCase())) known.set(name.toLocaleLowerCase(), { name, icon: '🧾' }) })
     return [...known.values()].map((a) => {
       const accountRows = rows.filter((r) => String(r.TIPO_CONTA || '').toLocaleLowerCase() === a.name.toLocaleLowerCase())
-      return { ...a, count: accountRows.length, total: accountRows.reduce((s, r) => s + totalOf(r), 0) }
+      // logo salvo (banco:id ou imagem própria); sem logo, sugere pelo nome da conta
+      const src = resolveLogo(a.logo, bank) || (a.logo ? '' : suggestLogo(a.name, bank)?.src || '')
+      return { ...a, src, count: accountRows.length, total: accountRows.reduce((s, r) => s + totalOf(r), 0) }
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [accounts, rows])
+  }, [accounts, rows, bank])
   const currentAccount = accountCards.find((a) => a.name.toLocaleLowerCase() === accountPage?.toLocaleLowerCase())
   const currentRows = currentAccount ? rows.map((r, i) => ({ r, i })).filter(({ r }) => String(r.TIPO_CONTA || '').toLocaleLowerCase() === currentAccount.name.toLocaleLowerCase()).sort((a, b) => b.r.DATA.localeCompare(a.r.DATA)) : []
   const createAccount = () => {
@@ -254,7 +277,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       if (accountLogo) onUpdateAccount({ name, icon: accountIcon || '🧾', logo: accountLogo })
       setAccountPage(name); setNewAccount(false); return
     }
-    onAddAccount({ name, icon: accountIcon || '🧾', logo: accountLogo })
+    onAddAccount({ name, icon: accountIcon || '🧾', logo: accountLogo || (suggestLogo(name, bank) ? LOGO_PREFIX + suggestLogo(name, bank).id : '') })
     setAccountName(''); setAccountIcon('🧾'); setAccountLogo(''); setNewAccount(false); setAccountPage(name)
   }
   const readLogo = async (file) => {
@@ -274,7 +297,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   }
   const addToAccount = () => {
     const value = Number(String(quickValue).replace(',', '.'))
-    if (!quickItem.trim() || !Number.isFinite(value) || value < 0 || !quickMonth) return
+    if (!quickItem.trim() || !Number.isFinite(value) || !quickMonth) return
     onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value) }] }])
     setQuickItem(''); setQuickValue('')
   }
@@ -296,9 +319,10 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       <div className="expense-account-page-nav"><button className="sec" onClick={() => setAccountPage(null)}>← Todas as contas</button><button className={'sec lock' + (locked ? '' : ' open')} onClick={toggleLock}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button></div>
       <div className="expense-account-hero card">
         <button type="button" className="expense-account-brand" onClick={() => !locked && logoInput.current?.click()} title={locked ? 'Destrave a edição para alterar a logo' : 'Adicionar ou trocar logo'} disabled={locked}>
-          {currentAccount?.logo ? <img src={currentAccount.logo} alt={`Logo de ${currentAccount.name}`} /> : <span>{currentAccount?.icon || '🧾'}</span>}
-          <small>{currentAccount?.logo ? 'Trocar logo' : 'Adicionar logo'}</small>
+          {currentAccount?.src ? <img src={currentAccount.src} alt={`Logo de ${currentAccount.name}`} /> : <span>{currentAccount?.icon || '🧾'}</span>}
+          <small>{currentAccount?.src ? 'Enviar outra imagem' : 'Enviar imagem'}</small>
         </button>
+        <button type="button" className="sec sm" disabled={locked} title={locked ? 'Destrave a edição para alterar a logo' : 'Escolher no banco de logos'} onClick={() => setPicker('current')}>🖼️ Banco de logos</button>
         <input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} />
         <div className="expense-account-title"><small className="muted">SUBPÁGINA DA CONTA</small><h2>{currentAccount?.name || accountPage}</h2><p className="muted">Acompanhe os lançamentos e valores desta conta em um só lugar.</p></div>
         <div className="expense-account-total"><small>Total histórico</small><b>{brl(currentAccount?.total || 0)}</b><small>{currentAccount?.count || 0} lançamentos</small></div>
@@ -316,8 +340,9 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Despesas</th><th>Total</th></tr></thead><tbody>
           {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span></td><td><div className="account-history-items">{r.ITENS.map((it, j) => {
             const paid = Math.min(Number(it.VALOR) || 0, Number(it.PARCELAMENTO?.valorPago) || 0)
-            const unpaid = it.PARCELAMENTO && paid < (Number(it.VALOR) || 0)
-            return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span>{it.PARCELAMENTO && <div className="installment-row-action"><small>{unpaid ? `Pendente · ${brl((Number(it.VALOR) || 0) - paid)}` : `✓ Paga${it.PARCELAMENTO.dataPagamento ? ` em ${dataCurta(it.PARCELAMENTO.dataPagamento)}` : ''}`}</small><button type="button" className="sec sm" disabled={locked || !unpaid} title={locked ? 'Destrave a edição para dar baixa' : ''} onClick={() => markInstallmentPaid(i, j)}>{paid ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></div>}</div>
+            const credit = (Number(it.VALOR) || 0) < 0
+            const unpaid = it.PARCELAMENTO && !credit && paid < (Number(it.VALOR) || 0)
+            return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span>{it.PARCELAMENTO && <div className="installment-row-action"><small>{credit ? 'Abatimento · sem baixa' : unpaid ? `Pendente · ${brl((Number(it.VALOR) || 0) - paid)}` : `✓ Paga${it.PARCELAMENTO.dataPagamento ? ` em ${dataCurta(it.PARCELAMENTO.dataPagamento)}` : ''}`}</small><button type="button" className="sec sm" disabled={locked || !unpaid} title={locked ? 'Destrave a edição para dar baixa' : ''} onClick={() => markInstallmentPaid(i, j)}>{paid ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></div>}</div>
           })}</div></td><td className="ro"><b>{brl(totalOf(r))}</b></td></tr>)}
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
         </tbody></table></div>
@@ -331,11 +356,12 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       <section className="expense-accounts-section">
         <div className="expense-accounts-heading"><div><h2>Contas</h2><p className="muted">Abra uma subpágina para acompanhar cada conta. Os lançamentos ficam integrados às Despesas.</p></div><button disabled={locked} title={locked ? 'Destrave a edição para criar uma conta' : ''} onClick={() => setNewAccount(true)}>＋ Criar subpágina</button></div>
         <div className="expense-account-grid">
-          {accountCards.map((a) => <button type="button" className="expense-account-card card" key={a.name} onClick={() => setAccountPage(a.name)}><span className="expense-account-icon">{a.logo ? <img src={a.logo} alt="" /> : a.icon || '🧾'}</span><span className="expense-account-card-info"><b>{a.name}</b><small>{a.count} lançamentos</small></span><strong>{brl(a.total)}</strong><span className="expense-account-arrow">→</span></button>)}
+          {accountCards.map((a) => <button type="button" className="expense-account-card card" key={a.name} onClick={() => setAccountPage(a.name)}><span className="expense-account-icon">{a.src ? <img src={a.src} alt="" /> : a.icon || '🧾'}</span><span className="expense-account-card-info"><b>{a.name}</b><small>{a.count} lançamentos</small></span><strong>{brl(a.total)}</strong><span className="expense-account-arrow">→</span></button>)}
           {!accountCards.length && <div className="empty">Nenhuma conta criada ainda. Crie uma subpágina para começar.</div>}
         </div>
       </section>
-      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}>{accountLogo ? <img src={accountLogo} alt="Prévia da logo" /> : <span>{accountIcon}</span>}<small>{accountLogo ? 'Trocar imagem' : '＋ Logo'}</small></button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
+      {picker && <LogoPicker bank={bank} onClose={() => setPicker(null)} onPick={(ref) => { if (picker === 'new') setAccountLogo(ref); else if (currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', logo: ref }); setPicker(null) }} />}
+      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}>{resolveLogo(accountLogo, bank) ? <img src={resolveLogo(accountLogo, bank)} alt="Prévia da logo" /> : <span>{accountIcon}</span>}<small>{accountLogo ? 'Trocar imagem' : '＋ Enviar imagem'}</small></button><button type="button" className="sec sm" onClick={() => setPicker('new')}>🖼️ Banco de logos</button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
       <section className="hero">
         <div className="hero-main">
           <small>{q.trim() ? 'Total encontrado' : stat.futureCount ? 'Período + despesas futuras' : 'Despesas no período'}</small>
@@ -350,7 +376,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         </div>
         <div className="hero-alloc">
           <small>Por grupo</small>
-          <div className="bar">{segs.map(([n, v], i) => <i key={n} className={'c' + i} style={{ width: pos ? (Math.max(v, 0) / pos) * 100 + '%' : 0 }} />)}</div>
+          <div className="bar">{segs.map(([n, v], i) => <i key={n} className={'c' + i} style={{ width: pos > 0 ? (Math.max(v, 0) / pos) * 100 + '%' : 0 }} />)}</div>
           <div className="legend">
             {segs.map(([name, value], i) => (
               <button
@@ -432,7 +458,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
             {moveMessage && <p className="hint move-message">{moveMessage}</p>}
             <div className="wrap">
               <datalist id="dl-contas">{types.map((t) => <option key={t} value={t} />)}</datalist>
-              <table className="rt">
+              <table className="rt desp-table">
                 <thead><tr>
                   <th><input aria-label="Selecionar todos os itens visíveis" type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(slice.map(({ i }) => i)))} /></th>
                   {th('DATA', 'Mês', false, sort, setSort)}
@@ -464,6 +490,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                             {it.NOME || '—'} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
                           </span>
                         ))}
+                        {!items.length && <span className="muted">Sem despesas · arraste uma aqui</span>}
                       </>
                     )
                     return (
@@ -481,8 +508,8 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                           ? <input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} />
                           : monthOf(r.DATA).split('-').reverse().join('/')}</td>
                         <td className={ed ? '' : 'ro'} data-label="Grupo">{ed
-                          ? <input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} />
-                          : r.TIPO_CONTA}</td>
+                          ? <><input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} /><ParentField value={parents.get(String(r.TIPO_CONTA || '').trim()) || ''} onCommit={(p) => setParent(r.TIPO_CONTA, p)} /></>
+                          : <>{r.TIPO_CONTA}{parents.get(String(r.TIPO_CONTA || '').trim()) && <small className="muted" style={{ display: 'block' }}>↳ dentro de {groupPath(String(r.TIPO_CONTA || '').trim(), parents).slice(0, -1).join(' › ')}</small>}</>}</td>
                         <td className={ed ? '' : 'ro'} data-label="Despesas do grupo">{ed
                           ? <button className="items-btn" title="Editar despesas do grupo" onClick={() => setEditing(i)}>{chips}</button>
                           : <div className="items-static">{chips}</div>}</td>
@@ -511,11 +538,11 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
               <tbody>
                 {mxLines.map((l) => (
                   <tr key={l.t}>
-                    <td className="ro mx-name">{l.t}</td>
+                    <td className="ro mx-name">{groupPath(String(l.t || '').trim(), parents).join(' › ')}</td>
                     {matrix.months.map((k) => {
                       const v = l.v[k]
                       return <td key={k} className="ro r mx-c" title={locked ? 'Destrave a edição para lançar neste mês' : v != null ? brl(v) : ''} onClick={() => !locked && setLancar(k)}
-                        style={v ? { background: `rgba(239,68,68,${Math.min(0.32, (v / l.max) * 0.32)})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+                        style={v ? { background: `rgba(239,68,68,${Math.max(0, Math.min(0.32, (v / l.max) * 0.32))})` } : undefined}>{v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
                     })}
                     <td className="ro r"><b>{l.tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
                   </tr>

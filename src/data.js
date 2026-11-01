@@ -116,14 +116,41 @@ const iso = (v) => {
 export const monthOf = (s) => String(s || '').slice(0, 7)
 export const totalOf = (r) => round2((r.ITENS || []).reduce((t, i) => t + (Number(i.VALOR) || 0), 0))
 export const installmentItems = (rows) => (rows || []).flatMap((r, rowIndex) => (r.ITENS || []).flatMap((item, itemIndex) => item.PARCELAMENTO ? [{ ...item.PARCELAMENTO, descricao: item.NOME, valor: Number(item.VALOR) || 0, conta: r.TIPO_CONTA, mes: monthOf(r.DATA), rowIndex, itemIndex }] : []))
-export function expenseBreakdown(rows) {
+// Grupo dentro de grupo: cada linha pode ter PAI (nome do grupo onde ela está). O pai vale para o grupo
+// inteiro (todas as linhas com o mesmo nome); a linha mais recente com PAI define. Ciclos são ignorados.
+export function groupParents(rows) {
+  const raw = new Map()
+  ;[...(rows || [])].sort((a, b) => String(a.DATA).localeCompare(String(b.DATA))).forEach((r) => {
+    const g = String(r.TIPO_CONTA || '').trim(), p = String(r.PAI || '').trim()
+    if (g && p) raw.set(g, p)
+  })
+  const out = new Map()
+  raw.forEach((p, g) => {
+    const seen = new Set([g]); let cur = p, ok = true
+    while (cur) { if (seen.has(cur)) { ok = false; break } seen.add(cur); cur = raw.get(cur) }
+    if (ok) out.set(g, p)
+  })
+  return out
+}
+// caminho do grupo da raiz até ele, ex.: ['ALUGUEL', 'CONDOMÍNIO']
+export function groupPath(name, parents) {
+  const path = [name]; const seen = new Set(path); let cur = parents?.get(name)
+  while (cur && !seen.has(cur)) { path.unshift(cur); seen.add(cur); cur = parents.get(cur) }
+  return path
+}
+export function expenseBreakdown(rows, parentsArg) {
+  const parents = parentsArg || groupParents(rows)
   const groups = new Map()
   rows.forEach((row) => {
-    const name = row.TIPO_CONTA || 'N/A'
+    const own = String(row.TIPO_CONTA || '').trim() || 'N/A'
+    const path = groupPath(own, parents)
+    const name = path[0] // o total sobe para o grupo principal (sem contar duas vezes)
+    const prefix = path.slice(1).join(' › ')
     if (!groups.has(name)) groups.set(name, { name, total: 0, items: new Map() })
     const group = groups.get(name)
     ;(row.ITENS || []).forEach((item) => {
-      const itemName = String(item.NOME || '').trim() || '(Sem descrição)'
+      const base = String(item.NOME || '').trim() || '(Sem descrição)'
+      const itemName = prefix ? `${prefix} › ${base}` : base
       const value = Number(item.VALOR) || 0
       group.total += value
       group.items.set(itemName, (group.items.get(itemName) || 0) + value)
@@ -139,15 +166,12 @@ export function expenseBreakdown(rows) {
 }
 export function moveExpenseItem(rows, fromRow, itemIndex, toRow) {
   const source = rows[fromRow], target = rows[toRow]
-  if (fromRow === toRow || !source || !target ||
-    source.TIPO_CONTA === target.TIPO_CONTA || monthOf(source.DATA) !== monthOf(target.DATA)) return rows
+  if (fromRow === toRow || !source || !target || monthOf(source.DATA) !== monthOf(target.DATA)) return rows
   const item = source.ITENS[itemIndex]
   if (!item) return rows
   const next = [...rows]
   next[toRow] = { ...target, ITENS: [...target.ITENS, item] }
-  const remaining = source.ITENS.filter((_, i) => i !== itemIndex)
-  if (remaining.length) next[fromRow] = { ...source, ITENS: remaining }
-  else next.splice(fromRow, 1)
+  next[fromRow] = { ...source, ITENS: source.ITENS.filter((_, i) => i !== itemIndex) } // o grupo de origem pode ficar vazio
   return next
 }
 
@@ -159,7 +183,8 @@ function toDespesas(ws) {
     const match = String(header || '').match(/^PARCELAMENTO_(\d+)$/)
     if (match) parcelColumns.set(Number(match[1]), column)
   })
-  const itemColumnsEnd = parcelColumns.size ? Math.min(...parcelColumns.values()) : aoa[0].length
+  const paiCol = aoa[0].indexOf('GRUPO_PAI')
+  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
   const out = []
   aoa.slice(1).forEach((row) => {
     const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
@@ -186,7 +211,8 @@ function toDespesas(ws) {
       }
       itens.push(item)
     }
-    if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ITENS: itens })
+    const pai = paiCol >= 0 ? String(row[paiCol] ?? '').trim() : ''
+    if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ...(pai ? { PAI: pai } : {}), ITENS: itens })
   })
   return out
 }
@@ -196,15 +222,19 @@ function despSheet(rows, includeParcelMetadata = false) {
   const head = ['DATA', 'VALOR', 'TIPO_CONTA']
   for (let k = 1; k <= maxN; k++) head.push(`COTA_${k}`, 'VALOR')
   if (includeParcelMetadata) for (let k = 1; k <= maxN; k++) head.push(`PARCELAMENTO_${k}`)
+  const withParent = rows.some((r) => r.PAI)
+  if (withParent) head.push('GRUPO_PAI')
   const aoa = [head, ...rows.map((r) => [
     r.DATA, totalOf(r), r.TIPO_CONTA,
     ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat(),
     ...(includeParcelMetadata ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PARCELAMENTO ? JSON.stringify(r.ITENS[k].PARCELAMENTO) : null) : []),
+    ...(withParent ? [r.PAI || null] : []),
   ])]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   if (includeParcelMetadata) ws['!cols'] = [
     ...Array.from({ length: 3 + 2 * maxN }, () => ({})),
     ...Array.from({ length: maxN }, () => ({ hidden: true })),
+    ...(withParent ? [{}] : []),
   ]
   rows.forEach((r, i) => { // mantém a fórmula de soma da sua planilha
     const cells = Array.from({ length: maxN }, (_, k) => XLSX.utils.encode_col(4 + 2 * k) + (i + 2)).join('+')

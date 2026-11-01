@@ -1,0 +1,175 @@
+{
+  "_aviso": "Monogramas provisórios. Substitua cada arquivo pelo logo oficial mantendo o mesmo nome (ou ajuste 'arquivo'). Para adicionar: coloque o arquivo nesta pasta e inclua uma entrada em 'logos'.",
+  "logos": [
+    {
+      "id": "nubank",
+      "nome": "Nubank",
+      "apelidos": [
+        "nu",
+        "nu pagamentos"
+      ],
+      "arquivo": "nubank.svg"
+    },
+    {
+      "id": "itau",
+      "nome": "Itaú",
+      "apelidos": [
+        "itau",
+        "itaucard",
+        "itau unibanco"
+      ],
+      "arquivo": "itau.svg"
+    },
+    {
+      "id": "bradesco",
+      "nome": "Bradesco",
+      "apelidos": [
+        "bradescard"
+      ],
+      "arquivo": "bradesco.svg"
+    },
+    {
+      "id": "santander",
+      "nome": "Santander",
+      "apelidos": [],
+      "arquivo": "santander.svg"
+    },
+    {
+      "id": "banco-do-brasil",
+      "nome": "Banco do Brasil",
+      "apelidos": [
+        "bb",
+        "ourocard"
+      ],
+      "arquivo": "banco-do-brasil.svg"
+    },
+    {
+      "id": "caixa",
+      "nome": "Caixa",
+      "apelidos": [
+        "caixa economica",
+        "cef"
+      ],
+      "arquivo": "caixa.svg"
+    },
+    {
+      "id": "inter",
+      "nome": "Inter",
+      "apelidos": [
+        "banco inter"
+      ],
+      "arquivo": "inter.svg"
+    },
+    {
+      "id": "c6",
+      "nome": "C6 Bank",
+      "apelidos": [
+        "c6"
+      ],
+      "arquivo": "c6.svg"
+    },
+    {
+      "id": "xp",
+      "nome": "XP",
+      "apelidos": [
+        "xp investimentos",
+        "xp visa"
+      ],
+      "arquivo": "xp.svg"
+    },
+    {
+      "id": "btg",
+      "nome": "BTG Pactual",
+      "apelidos": [
+        "btg"
+      ],
+      "arquivo": "btg.svg"
+    },
+    {
+      "id": "picpay",
+      "nome": "PicPay",
+      "apelidos": [],
+      "arquivo": "picpay.svg"
+    },
+    {
+      "id": "mercado-pago",
+      "nome": "Mercado Pago",
+      "apelidos": [],
+      "arquivo": "mercado-pago.svg"
+    },
+    {
+      "id": "mercado-livre",
+      "nome": "Mercado Livre",
+      "apelidos": [
+        "meli"
+      ],
+      "arquivo": "mercado-livre.svg"
+    },
+    {
+      "id": "ifood",
+      "nome": "iFood",
+      "apelidos": [],
+      "arquivo": "ifood.svg"
+    },
+    {
+      "id": "amazon",
+      "nome": "Amazon",
+      "apelidos": [
+        "amazon prime",
+        "prime video"
+      ],
+      "arquivo": "amazon.svg"
+    },
+    {
+      "id": "netflix",
+      "nome": "Netflix",
+      "apelidos": [],
+      "arquivo": "netflix.svg"
+    },
+    {
+      "id": "spotify",
+      "nome": "Spotify",
+      "apelidos": [],
+      "arquivo": "spotify.svg"
+    },
+    {
+      "id": "uber",
+      "nome": "Uber",
+      "apelidos": [
+        "99",
+        "99 pop"
+      ],
+      "arquivo": "uber.svg"
+    },
+    {
+      "id": "vivo",
+      "nome": "Vivo",
+      "apelidos": [
+        "telefonica"
+      ],
+      "arquivo": "vivo.svg"
+    },
+    {
+      "id": "claro",
+      "nome": "Claro",
+      "apelidos": [
+        "net claro"
+      ],
+      "arquivo": "claro.svg"
+    },
+    {
+      "id": "tim",
+      "nome": "TIM",
+      "apelidos": [],
+      "arquivo": "tim.svg"
+    },
+    {
+      "id": "magalu",
+      "nome": "Magalu",
+      "apelidos": [
+        "magazine luiza"
+      ],
+      "arquivo": "magalu.svg"
+    }
+  ]
+}
