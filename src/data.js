@@ -146,7 +146,7 @@ export function expenseBreakdown(rows, parentsArg) {
     const path = groupPath(own, parents)
     const name = path[0] // o total sobe para o grupo principal (sem contar duas vezes)
     const prefix = path.slice(1).join(' › ')
-    if (!groups.has(name)) groups.set(name, { name, total: 0, items: new Map() })
+    if (!groups.has(name)) groups.set(name, { name, total: 0, items: new Map(), cats: new Map() })
     const group = groups.get(name)
     ;(row.ITENS || []).forEach((item) => {
       const base = String(item.NOME || '').trim() || '(Sem descrição)'
@@ -154,6 +154,8 @@ export function expenseBreakdown(rows, parentsArg) {
       const value = Number(item.VALOR) || 0
       group.total += value
       group.items.set(itemName, (group.items.get(itemName) || 0) + value)
+      const cat = String(item.CATEGORIA || '').trim()
+      group.cats.set(cat, (group.cats.get(cat) || 0) + value)
     })
   })
   return [...groups.values()]
@@ -161,6 +163,10 @@ export function expenseBreakdown(rows, parentsArg) {
       name: group.name,
       total: round2(group.total),
       items: [...group.items].map(([name, value]) => ({ name, total: round2(value) })).sort((a, b) => b.total - a.total),
+      // subtotal por categoria (só quando o grupo tem algum item categorizado)
+      categories: [...group.cats.keys()].some(Boolean)
+        ? [...group.cats].map(([name, value]) => ({ name: name || 'Sem categoria', total: round2(value) })).sort((a, b) => b.total - a.total)
+        : [],
     }))
     .sort((a, b) => b.total - a.total)
 }
@@ -183,8 +189,13 @@ function toDespesas(ws) {
     const match = String(header || '').match(/^PARCELAMENTO_(\d+)$/)
     if (match) parcelColumns.set(Number(match[1]), column)
   })
+  const catColumns = new Map()
+  aoa[0].forEach((header, column) => {
+    const match = String(header || '').trim().match(/^CATEGORIA[_ ]?(\d+)$/i)
+    if (match) catColumns.set(Number(match[1]), column)
+  })
   const paiCol = aoa[0].indexOf('GRUPO_PAI')
-  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
+  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...catColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
   const out = []
   aoa.slice(1).forEach((row) => {
     const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
@@ -194,6 +205,9 @@ function toDespesas(ws) {
       const v = row[k + 1]
       if (v === null || v === undefined || v === '' || isNaN(Number(v))) continue // linhas "vazias" do mês futuro são ignoradas
       const item = { NOME: String(row[k] ?? '').trim(), VALOR: round2(v) }
+      const catColumn = catColumns.get((k - 3) / 2 + 1)
+      const categoria = catColumn == null ? '' : String(row[catColumn] ?? '').trim()
+      if (categoria) item.CATEGORIA = categoria.slice(0, 60)
       const metadataColumn = parcelColumns.get((k - 3) / 2 + 1)
       const rawMetadata = metadataColumn == null ? null : row[metadataColumn]
       if (rawMetadata) {
@@ -217,23 +231,48 @@ function toDespesas(ws) {
   return out
 }
 
+// Aba "Despesas por categoria" (editável no Excel): preenche a categoria dos itens que ainda não têm,
+// casando por mês + grupo + item (+ valor; se o valor mudou, ignora o valor).
+function applyCategorySheet(despesas, ws) {
+  const mesOf = (v) => v instanceof Date || typeof v === 'number' ? monthOf(iso(v)) : /^\d{4}-\d{2}/.test(String(v)) ? String(v).slice(0, 7) : monthOf(iso(v))
+  const norm = (v) => String(v ?? '').trim().toLowerCase()
+  const exact = new Map(), loose = new Map()
+  XLSX.utils.sheet_to_json(ws, { defval: '' }).forEach((r) => {
+    const cat = String(r.CATEGORIA ?? '').trim()
+    if (!cat || !r.ITEM) return
+    const base = `${mesOf(r['MÊS'] ?? r.MES)}|${norm(r.GRUPO)}|${norm(r.ITEM)}`
+    ;[[exact, `${base}|${round2(r.VALOR)}`], [loose, base]].forEach(([map, key]) => map.set(key, [...(map.get(key) || []), cat]))
+  })
+  const take = (map, key) => { const q = map.get(key); return q?.length ? q.shift() : '' }
+  despesas.forEach((row) => row.ITENS.forEach((item) => {
+    if (item.CATEGORIA) return
+    const base = `${monthOf(row.DATA)}|${norm(row.TIPO_CONTA)}|${norm(item.NOME)}`
+    const cat = take(exact, `${base}|${round2(item.VALOR)}`) || take(loose, base)
+    if (cat) item.CATEGORIA = cat.slice(0, 60)
+  }))
+}
+
 function despSheet(rows, includeParcelMetadata = false) {
   const maxN = Math.max(12, ...rows.map((r) => r.ITENS.length))
   const head = ['DATA', 'VALOR', 'TIPO_CONTA']
   for (let k = 1; k <= maxN; k++) head.push(`COTA_${k}`, 'VALOR')
   if (includeParcelMetadata) for (let k = 1; k <= maxN; k++) head.push(`PARCELAMENTO_${k}`)
+  const withItemCat = rows.some((r) => r.ITENS.some((i) => i.CATEGORIA))
+  if (withItemCat) for (let k = 1; k <= maxN; k++) head.push(`CATEGORIA_${k}`)
   const withParent = rows.some((r) => r.PAI)
   if (withParent) head.push('GRUPO_PAI')
   const aoa = [head, ...rows.map((r) => [
     r.DATA, totalOf(r), r.TIPO_CONTA,
     ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat(),
     ...(includeParcelMetadata ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PARCELAMENTO ? JSON.stringify(r.ITENS[k].PARCELAMENTO) : null) : []),
+    ...(withItemCat ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.CATEGORIA || null) : []),
     ...(withParent ? [r.PAI || null] : []),
   ])]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   if (includeParcelMetadata) ws['!cols'] = [
     ...Array.from({ length: 3 + 2 * maxN }, () => ({})),
     ...Array.from({ length: maxN }, () => ({ hidden: true })),
+    ...(withItemCat ? Array.from({ length: maxN }, () => ({})) : []),
     ...(withParent ? [{}] : []),
   ]
   rows.forEach((r, i) => { // mantém a fórmula de soma da sua planilha
@@ -278,6 +317,8 @@ export async function importFile(file) {
   if (e) out.extrato = toRows(e, EXT).map(withCat)
   const dsp = wb.Sheets[SHEETS.despesas.name] || (wb.SheetNames[2] ? wb.Sheets[wb.SheetNames[2]] : null)
   const dd = dsp && toDespesas(dsp)
+  const categorySheet = wb.Sheets['Despesas por categoria']
+  if (dd && categorySheet) applyCategorySheet(dd, categorySheet)
   if (dd) out.despesas = dd
   const accountsSheet = wb.Sheets['Contas de despesas']
   if (accountsSheet) out.contasDespesas = XLSX.utils.sheet_to_json(accountsSheet, { defval: '' })
@@ -315,6 +356,14 @@ export function exportXlsx(data) {
   ])
   noteSheet['!cols'] = [{ wch: 100 }, { hidden: true }]
   XLSX.utils.book_append_sheet(wb, noteSheet, 'Notas')
+  // relatório legível das categorias (só leitura: a importação lê as colunas CATEGORIA_n da aba Despesas)
+  if (data.despesas?.some((r) => r.ITENS.some((i) => i.CATEGORIA))) {
+    const lines = [...data.despesas].sort((x, y) => String(y.DATA).localeCompare(String(x.DATA)))
+      .flatMap((r) => r.ITENS.map((i) => [monthOf(r.DATA), r.TIPO_CONTA, i.NOME, i.CATEGORIA || '', Number(i.VALOR) || 0]))
+    const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR'], ...lines])
+    catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }]
+    XLSX.utils.book_append_sheet(wb, catSheet, 'Despesas por categoria')
+  }
   XLSX.writeFile(wb, 'fynn-control.xlsx', { cellStyles: true })
 }
 

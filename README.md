@@ -11,8 +11,8 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 
 **Geral**
 - Importação de `.xlsx` (dados e notas) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
-- Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas)
-- **Busca de produtos** (🔍 no topo, `Ctrl+K` ou `/`): veja detalhes de qualquer papel ou produto (veja [Busca de produtos](#-busca-de-produtos))
+- Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas, todas com linha de **totais** no fim)
+- **Busca de produtos** (🔍 no topo, `Ctrl+K` ou `/`; a barra só abre a busca fora de campos de texto, então pode ser digitada normalmente nas Notas): veja detalhes de qualquer papel ou produto (veja [Busca de produtos](#-busca-de-produtos))
 - **Seleção múltipla**: marque várias linhas com o checkbox e exclua de uma vez
 - Tabelas com **ordenação por cabeçalho** (clique: crescente → decrescente → original; vale para o conjunto filtrado, não só para a página)
 - **Itens por página** configurável (20, 30, 40, 50, 100 ou 200; padrão 40) no Extrato, Despesas e Resgates, e a escolha fica salva
@@ -51,8 +51,15 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Filtros por período, produto e busca, com tabela editável e paginada
 
 **Despesas**
-- Despesas organizadas em **grupos** (ex.: *Cartão de crédito*) com as **despesas de dentro do grupo** (ex.: *Manutenção veicular*); é possível mover uma despesa de um grupo para outro
-- Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria
+- Despesas organizadas em **grupos** (ex.: *Cartão de crédito*) com as **despesas de dentro do grupo** (ex.: *Manutenção veicular*)
+- **Mover despesas**: arraste uma despesa para **qualquer outro grupo do mesmo mês**. O grupo de origem pode ficar vazio (ele continua na lista, pronto para receber novas despesas) e o destino pode ter o mesmo nome do grupo de origem
+- **Grupo dentro de grupo**: no lápis ✏️ da linha, use **"Dentro do grupo…"** (ex.: *Condomínio* dentro de *Aluguel*). O vínculo vale para o grupo inteiro e para os meses seguintes; no resumo, os totais do filho sobem para o grupo principal sem contar duas vezes. O app recusa vínculos circulares (veja [Grupos dentro de grupos](#-grupos-dentro-de-grupos))
+- **Valores negativos (abatimentos)**: estornos e descontos entram com valor negativo e **abatem do total da fatura**. Digite `-` antes do valor ou use o botão **±** ao lado do campo (útil no celular)
+- **Compras parceladas**: divida o total em parcelas mensais (inclusive negativas, para abatimentos parcelados) e acompanhe o valor pago em cada fatura
+- **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
+- **Busca com total**: ao usar a lupa, aparece o **total das despesas encontradas** no período (e em todo o histórico, quando for diferente), com os totais por item. A busca também encontra pela categoria do item e pelo nome do grupo
+- **Contas com logo**: cada conta pode ter um ícone, uma imagem sua (PNG, JPG, WebP ou SVG) ou um logo do **Banco de logos** (veja a seção *Banco de logos*)
+- Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
 - **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`grupo:` / `despesa dentro do grupo:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
 
@@ -117,7 +124,7 @@ Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (cami
 
 ## 📥 Formato da planilha
 
-O arquivo `.xlsx` tem até 5 abas de dados. Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
+O arquivo `.xlsx` tem as abas de dados `Control_Fynn`, `Extrato`, `Despesas`, `Resgates` e `Notas`, mais `Contas de despesas` e `Despesas por categoria` (opcionais, criadas pelo app quando necessárias). Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
 
 Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
 
@@ -154,9 +161,26 @@ Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessári
 | `DATA` | Mês da conta (use o dia 1) |
 | `VALOR` | Total do mês (o app recalcula como a soma dos itens) |
 | `TIPO_CONTA` | Ex.: `CONDOMÍNIO`, `INTERNET`, `CARTÃO DE CRÉDITO` |
-| `COTA_1`, `VALOR`, `COTA_2`, `VALOR`, … | Itens da conta (nome + valor) |
+| `COTA_1`, `VALOR`, `COTA_2`, `VALOR`, … | Itens da conta (nome + valor; o valor pode ser negativo para abatimentos) |
+| `PARCELAMENTO_1`, `PARCELAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com os dados das parcelas de cada item (não edite) |
+| `CATEGORIA_1`, `CATEGORIA_2`, … | Categoria do item correspondente (`COTA_1` ↔ `CATEGORIA_1`). Opcional; as colunas só aparecem quando existe alguma categoria |
+| `GRUPO_PAI` | Opcional. Nome do grupo em que este grupo está "dentro" (ex.: `ALUGUEL` para a conta `CONDOMÍNIO`) |
 
 A mesma conta pode aparecer em mais de uma linha no mesmo mês (por exemplo, dois cartões). Linhas sem nenhum valor são ignoradas.
+
+### Aba `Contas de despesas` (opcional)
+
+Guarda o ícone e o logo de cada conta da aba Despesas.
+
+| Coluna | Descrição |
+|---|---|
+| `NOME` | Nome da conta (igual ao `TIPO_CONTA`) |
+| `ICONE` | Emoji usado quando não há logo (padrão `🧾`) |
+| `LOGO` | `banco:<id>` (logo do *Banco de logos*) ou uma imagem enviada por você, guardada como texto (data URL) |
+
+### Aba `Despesas por categoria` (opcional)
+
+Relatório legível, criado na exportação quando existe alguma categoria: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA` e `VALOR`. Serve para consulta e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
 
 ### Aba `Resgates`
 
@@ -262,12 +286,69 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 
 ---
 
+## 🧩 Grupos dentro de grupos
+
+Um grupo pode ficar dentro de outro (ex.: *Condomínio* dentro de *Aluguel*):
+
+1. Na aba Despesas, clique no lápis ✏️ da linha do grupo (com a edição liberada).
+2. Em **"Dentro do grupo…"**, escolha o grupo principal e confirme com `Enter` ou saindo do campo. Deixe vazio para voltar a ser um grupo principal.
+
+Regras:
+
+- O vínculo vale para **todas as linhas com o mesmo nome de grupo**; linhas novas desse grupo (colar, Lançar mês, novo lançamento) já entram vinculadas
+- Nos resumos, o total do filho **sobe para o grupo principal** e aparece no detalhe como `FILHO › despesa`; o total geral não conta nada duas vezes
+- Pode haver mais de um nível. Um grupo não pode ficar dentro dele mesmo, nem formar ciclo (A dentro de B e B dentro de A)
+- Na matriz mensal cada grupo continua com a sua linha, mostrada com o caminho (`ALUGUEL › CONDOMÍNIO`)
+- Exportado na coluna `GRUPO_PAI` da aba `Despesas`
+
+---
+
+## 🏷️ Categorias por item
+
+Cada despesa pode ter uma categoria (opcional), preenchida no modal de edição do grupo (campo **Categoria**) ou em **＋ Novo lançamento** na página da conta. Se a descrição já foi categorizada antes, a categoria é sugerida sozinha.
+
+- Aparece ao lado do item na lista, como em *Amazon (Compras Online)*
+- No detalhe do grupo (resumo da aba), há **Por categoria** (subtotal e percentual) acima de **Por despesa**; itens sem categoria entram em *Sem categoria*
+- A lupa também filtra pela categoria
+- Exportado nas colunas `CATEGORIA_n` e na aba `Despesas por categoria`
+- A colagem de despesas ainda não lê categorias; os itens colados entram sem categoria
+
+---
+
+## 🖼️ Banco de logos
+
+Os logos das contas de despesas vêm da pasta `public/logos/`, publicada junto com o site. O app lê o `public/logos/index.json` e mostra uma grade com busca no botão **🖼️ Banco de logos** (ao criar uma conta e na página da conta, com a edição liberada).
+
+- O XLSX guarda só a referência `banco:<id>` (ex.: `banco:nubank`), o que mantém o arquivo leve. Ao importar, o app procura o `id` no `index.json`
+- **Sugestão automática:** uma conta sem logo recebe a sugestão pelo nome (palavra inteira, comparando com o nome e os apelidos do `index.json`; vence o apelido mais longo)
+- Se um logo for removido do banco, o card volta para o emoji, e a referência continua no XLSX
+- **Enviar imagem** (PNG, JPG, WebP ou SVG) continua disponível: o app reduz para até 512 px, converte para WebP e guarda a imagem dentro do XLSX. Imagens enviadas deixam o arquivo e o `localStorage` maiores, então prefira o banco para logos de uso frequente
+
+**Como adicionar ou trocar logos**
+
+1. Coloque o arquivo (SVG, PNG ou WebP, de preferência quadrado e com fundo transparente) em `public/logos/`.
+2. Inclua uma entrada em `logos` no `public/logos/index.json`:
+
+```json
+{ "id": "nubank", "nome": "Nubank", "apelidos": ["nu"], "arquivo": "nubank.svg" }
+```
+
+3. Para trocar um logo existente, substitua o arquivo mantendo o nome (ou ajuste `arquivo`). Evite renomear o `id` depois de usar, senão os XLSX já exportados deixam de achar o logo.
+
+No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entradas com `"provisorio": true` são monogramas (iniciais sobre a cor da marca) que podem ser trocados pelo logo oficial.
+
+> ℹ️ As marcas pertencem aos seus respectivos donos e são usadas apenas para identificar as contas. Os ícones de marcas incluídos vêm do pacote [simple-icons](https://simpleicons.org), cujos arquivos são de domínio público.
+
+---
+
 ## 🗂️ Estrutura do projeto
 
 ```
 .
 ├── .github/workflows/deploy.yml   # build + deploy no GitHub Pages
 ├── public/                        # favicon.svg, favicon-32.png, apple-touch-icon.png
+│   └── logos/                     # banco de logos: index.json + arquivos .svg
+
 ├── index.html
 ├── vite.config.js                 # base './' para o GitHub Pages
 ├── package.json
@@ -292,7 +373,9 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
     ├── PasteModal.jsx             # colagem interativa de lançamentos do Extrato
     ├── PasteDespesas.jsx          # colagem interativa de despesas
     ├── ProductSearch.jsx          # busca e detalhe de produtos
-    ├── DespesasView.jsx           # aba Despesas (lista e matriz mensal)
+    ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
+    ├── logos.js                   # carrega o banco de logos, resolve banco:<id> e sugere logo pelo nome
+    ├── LogoPicker.jsx             # janela de escolha do logo (grade com busca)
     ├── ResgatesView.jsx           # aba Resgates
     ├── NotesEditor.jsx            # editor de Notas com formatação
     ├── SearchField.jsx            # campo de busca com botão de limpar
@@ -311,7 +394,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
 - **CSV** exporta a aba atual. **XLSX** exporta as abas de dados e `Notas` no mesmo formato de entrada, então pode ser reimportado.
-- **PDF** traz o resumo, os gráficos e as tabelas. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
+- **PDF** traz o resumo, os gráficos e as tabelas, com **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 
 ---
 
@@ -319,6 +402,7 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 
 - **Segurança do `xlsx`:** a versão `0.18.x` publicada no npm (usada aqui) está desatualizada e o `npm audit` aponta vulnerabilidades. Como o app roda só no seu navegador e abre arquivos seus, o risco prático é baixo, mas evite importar planilhas de origem desconhecida.
 - A busca de produtos usa apenas os dados da sua planilha; o app **não consulta cotações** de ativos. A única consulta de mercado é o **CDI** (série 4389) e a **meta Selic** (série 432) na API pública do Banco Central. Se ela estiver fora do ar ou sem internet, o último valor salvo é exibido.
+- Os logos do Banco de logos são arquivos do próprio site: carregá-los não envia nenhum dado seu. Sem internet no primeiro acesso, o card mostra o emoji da conta no lugar do logo.
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
 
 ---
@@ -326,6 +410,8 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 ## 🗺️ TO DO
 
 - [ ] Pesquisar algum produto e ver detalhes e informações 
+- [ ] Mostrar categorias e logos no PDF e no Dashboard
+- [ ] Melhorar o campo de logos
 - [X] `v26.10.1` Gráficos no PDF
 - [X] `v26.10.2` Colagem de várias despesas de uma vez
 - [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
@@ -338,7 +424,15 @@ A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e 
 - [X] `v26.10.8` Em Extrato, retirar os itens predefinidos de CATEGORIA
 - [X] `v26.10.9` Metas de alocação e comparação com CDI/IPCA
 - [X] `v26.10.10` *Yield on cost* por papel, cruzando proventos e valor aplicado
-- [X] `v26.10.11` Atribuir abas de contas, com layout próprio, que ao ir inserindo, ir para os itens principais, respectivamente para o .xls
+- [X] `v26.11.1` Atribuir abas de contas, com layout próprio, que ao ir inserindo, ir para os itens principais, respectivamente para o .xls
+- [X] `v26.11.2` Despesas: valores negativos (abatimentos) em itens e parcelas, e mover qualquer item para qualquer grupo do mesmo mês
+- [X] `v26.11.3` Despesas: grupo dentro de grupo, com totais somados no grupo principal
+- [X] `v26.11.4` Despesas: lista sem rolagem horizontal e despesas do grupo com quebra de linha
+- [X] `v26.11.5` Banco de logos para as contas de despesas (`public/logos` + `index.json`), com sugestão automática e envio de PNG, JPG, WebP ou SVG
+- [X] `v26.11.6` Categorias por item (subitens) exportadas no XLSX e total apurado ao usar a lupa em Despesas
+- [X] `v26.11.7` PDF com linha de totais no fim das tabelas
+- [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
+- [X] `v26.11.9`  Ler categorias, valores negativos e grupo pai na colagem de despesas
 
 ---
 

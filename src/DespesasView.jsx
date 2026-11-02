@@ -61,13 +61,16 @@ function ParentField({ value, onCommit }) {
   const [v, setV] = useState(value || '')
   useEffect(() => setV(value || ''), [value])
   const commit = () => { if (v.trim() !== (value || '') && onCommit(v.trim()) === false) setV(value || '') }
-  return <input className="cell" list="dl-contas" placeholder="Dentro do grupo… (opcional)" title="Coloque este grupo dentro de outro grupo (deixe vazio para ser um grupo principal)" style={{ minWidth: 170, marginTop: 4 }} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+  return <input className="cell" list="dl-contas" placeholder="Dentro do grupo… (opcional)" title="Coloque este grupo dentro de outro grupo (deixe vazio para ser um grupo principal)" style={{ marginTop: 4 }} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
-function ItemsModal({ row, onSave, onClose }) {
+function ItemsModal({ row, onSave, onClose, catByName }) {
   const [items, setItems] = useState(row.ITENS.map((i) => ({ ...i })))
   const up = (j, p) => setItems((x) => x.map((it, k) => (k === j ? { ...it, ...p } : it)))
-  const clean = items.filter((i) => i.VALOR !== '' && !isNaN(Number(i.VALOR))).map((i) => ({ ...i, NOME: String(i.NOME).trim(), VALOR: round2(i.VALOR) }))
+  const clean = items.filter((i) => i.VALOR !== '' && !isNaN(Number(i.VALOR))).map(({ CATEGORIA, ...i }) => {
+    const categoria = String(CATEGORIA || '').trim()
+    return { ...i, NOME: String(i.NOME).trim(), VALOR: round2(i.VALOR), ...(categoria ? { CATEGORIA: categoria } : {}) }
+  })
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -75,7 +78,8 @@ function ItemsModal({ row, onSave, onClose }) {
         <div className="slot-items">
           {items.map((it, j) => (
             <div className="it" key={j}>
-              <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => up(j, { NOME: e.target.value })} />
+              <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => up(j, { NOME: e.target.value, ...(!it.CATEGORIA && catByName?.get(e.target.value.trim().toLowerCase()) ? { CATEGORIA: catByName.get(e.target.value.trim().toLowerCase()) } : {}) })} />
+              <input className="cell" list="dl-categorias" placeholder="Categoria (opcional)" style={{ minWidth: 150 }} value={it.CATEGORIA || ''} onChange={(e) => up(j, { CATEGORIA: e.target.value })} />
               <MoneyInput value={it.VALOR} onChange={(v) => up(j, { VALOR: v })} />
               {it.PARCELAMENTO && <label className="installment-paid-field">Pago nesta fatura<MoneyInput value={String(it.PARCELAMENTO.valorPago || 0)} onChange={(v) => up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Math.max(0, Math.min(Number(it.VALOR) || 0, Number(v) || 0))), dataPagamento: Number(v) > 0 ? hojeISO() : '' } })} />{it.PARCELAMENTO.dataPagamento && <small>Baixada em {dataCurta(it.PARCELAMENTO.dataPagamento)}</small>}<button type="button" className="sec sm" disabled={Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR)} onClick={() => confirmInstallmentPayment(it, row) && up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Number(it.VALOR) || 0), dataPagamento: hojeISO() } })}>✓ {Number(it.PARCELAMENTO.valorPago) > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></label>}
               {items.length > 1 && <button className="icon" onClick={() => setItems((x) => x.filter((_, k) => k !== j))}>✕</button>}
@@ -121,6 +125,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const bank = useLogoBank()
   const [picker, setPicker] = useState(null) // 'new' (criando conta) | 'current' (conta aberta)
   const [quickItem, setQuickItem] = useState('')
+  const [quickCat, setQuickCat] = useState('')
   const [quickValue, setQuickValue] = useState('')
   const [quickMonth, setQuickMonth] = useState(nowYM())
   const range = useMemo(() => rangeOf(period), [period])
@@ -131,6 +136,15 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   }, [rows])
 
   const parents = useMemo(() => groupParents(rows), [rows])
+  // categoria mais recente usada para cada descrição (sugestão automática) e lista de categorias
+  const { catByName, catList } = useMemo(() => {
+    const map = new Map(), all = new Set()
+    ;[...rows].sort((a, b) => String(a.DATA).localeCompare(String(b.DATA))).forEach((r) => r.ITENS.forEach((it) => {
+      const c = String(it.CATEGORIA || '').trim()
+      if (c) { all.add(c); map.set(String(it.NOME || '').trim().toLowerCase(), c) }
+    }))
+    return { catByName: map, catList: [...all].sort((a, b) => a.localeCompare(b)) }
+  }, [rows])
   const setParent = (group, parent) => {
     const name = String(group || '').trim(), p = String(parent || '').trim()
     if (p && p === name) { setMoveMessage('Um grupo não pode ficar dentro dele mesmo.'); return false }
@@ -151,12 +165,33 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         const groupMatches = !!s && groupPath(String(r.TIPO_CONTA || '').trim(), parents).join(' ').toLowerCase().includes(s)
         const items = r.ITENS
           .map((item, index) => ({ item, index }))
-          .filter(({ item }) => !s || groupMatches || String(item.NOME || '').toLowerCase().includes(s))
+          .filter(({ item }) => !s || groupMatches || String(item.NOME || '').toLowerCase().includes(s) || String(item.CATEGORIA || '').toLowerCase().includes(s))
         return { r, i, items, total: totalOf({ ITENS: items.map(({ item }) => item) }) }
       })
       .filter(({ r, items }) => items.length > 0 || (!s && r.ITENS.length === 0)) // mantém grupos vazios visíveis (alvo de arrastar)
       .sort((a, b) => b.r.DATA.localeCompare(a.r.DATA) || a.r.TIPO_CONTA.localeCompare(b.r.TIPO_CONTA) || a.i - b.i)
   }, [base, cats, q, parents])
+
+  // resultado da busca: total das despesas encontradas (no período e em todo o histórico)
+  const searchSummary = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    if (!s) return null
+    const summarize = (list) => {
+      const by = new Map(); let total = 0
+      list.forEach((it) => {
+        const v = Number(it.VALOR) || 0, nm = String(it.NOME || '').trim() || '(Sem descrição)'
+        total += v
+        const e = by.get(nm) || { name: nm, total: 0, count: 0 }
+        e.total += v; e.count++; by.set(nm, e)
+      })
+      return { total: round2(total), n: list.length, names: [...by.values()].map((e) => ({ ...e, total: round2(e.total) })).sort((a, b) => Math.abs(b.total) - Math.abs(a.total)) }
+    }
+    const hit = (r, it) => groupPath(String(r.TIPO_CONTA || '').trim(), parents).join(' ').toLowerCase().includes(s) || String(it.NOME || '').toLowerCase().includes(s) || String(it.CATEGORIA || '').toLowerCase().includes(s)
+    return {
+      period: summarize(filtered.flatMap(({ items }) => items.map(({ item }) => item))),
+      all: summarize(rows.filter((r) => !cats.length || cats.includes(r.TIPO_CONTA)).flatMap((r) => r.ITENS.filter((it) => hit(r, it)))),
+    }
+  }, [q, filtered, rows, cats, parents])
 
   const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => (k === 'TOTAL' ? x.total : x.r[k]), (k) => (k === 'DATA' ? 'date' : k === 'TOTAL' ? 'money' : 'text')), [filtered, sort])
 
@@ -283,23 +318,31 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const readLogo = async (file) => {
     if (!file) return
     if (!file.type.startsWith('image/')) { alert('Escolha um arquivo de imagem.'); return }
+    let svgUrl = ''
     try {
-      const bitmap = await createImageBitmap(file)
+      let bitmap
+      if (file.type === 'image/svg+xml') { // SVG é desenhado por <img> e convertido em imagem (WebP) como os demais
+        svgUrl = URL.createObjectURL(file)
+        const img = new Image(); img.src = svgUrl; await img.decode()
+        bitmap = { source: img, width: img.naturalWidth || 512, height: img.naturalHeight || 512 }
+        if (bitmap.width < 512 && bitmap.height < 512) { const k = 512 / Math.max(bitmap.width, bitmap.height); bitmap.width = Math.round(bitmap.width * k); bitmap.height = Math.round(bitmap.height * k) }
+      } else { const b = await createImageBitmap(file); bitmap = { source: b, width: b.width, height: b.height, close: () => b.close() } }
       const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height))
       const canvas = document.createElement('canvas')
       canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale))
-      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-      bitmap.close()
+      canvas.getContext('2d').drawImage(bitmap.source, 0, 0, canvas.width, canvas.height)
+      bitmap.close?.()
       const logo = canvas.toDataURL('image/webp', 0.82)
       if (accountPage && currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', logo })
       else setAccountLogo(logo)
-    } catch { alert('Não foi possível carregar essa imagem. Tente PNG, JPG ou WebP.') }
+    } catch { alert('Não foi possível carregar essa imagem. Tente PNG, JPG, WebP ou SVG.') }
+    finally { if (svgUrl) URL.revokeObjectURL(svgUrl) }
   }
   const addToAccount = () => {
     const value = Number(String(quickValue).replace(',', '.'))
     if (!quickItem.trim() || !Number.isFinite(value) || !quickMonth) return
-    onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value) }] }])
-    setQuickItem(''); setQuickValue('')
+    onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
+    setQuickItem(''); setQuickValue(''); setQuickCat('')
   }
   const markInstallmentPaid = (rowIndex, itemIndex) => {
     if (locked) return
@@ -323,7 +366,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
           <small>{currentAccount?.src ? 'Enviar outra imagem' : 'Enviar imagem'}</small>
         </button>
         <button type="button" className="sec sm" disabled={locked} title={locked ? 'Destrave a edição para alterar a logo' : 'Escolher no banco de logos'} onClick={() => setPicker('current')}>🖼️ Banco de logos</button>
-        <input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} />
+        <input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} />
         <div className="expense-account-title"><small className="muted">SUBPÁGINA DA CONTA</small><h2>{currentAccount?.name || accountPage}</h2><p className="muted">Acompanhe os lançamentos e valores desta conta em um só lugar.</p></div>
         <div className="expense-account-total"><small>Total histórico</small><b>{brl(currentAccount?.total || 0)}</b><small>{currentAccount?.count || 0} lançamentos</small></div>
       </div>
@@ -331,6 +374,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <div><h3>＋ Novo lançamento</h3><p className="muted">Adicione uma despesa diretamente nesta conta.</p></div>
         <label>Mês<input type="month" value={quickMonth} onChange={(e) => setQuickMonth(e.target.value)} /></label>
         <label>Descrição<input className="cell" placeholder="Ex.: Plano de internet" value={quickItem} onChange={(e) => setQuickItem(e.target.value)} /></label>
+        <label>Categoria<input className="cell" list="dl-categorias" placeholder="Ex.: Compras Online (opcional)" value={quickCat} onChange={(e) => setQuickCat(e.target.value)} /></label>
         <label>Valor<MoneyInput value={quickValue} onChange={setQuickValue} /></label>
         <button disabled={locked || !quickItem.trim() || quickValue === ''} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={addToAccount}>Adicionar à conta</button>
       </section>
@@ -360,8 +404,9 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
           {!accountCards.length && <div className="empty">Nenhuma conta criada ainda. Crie uma subpágina para começar.</div>}
         </div>
       </section>
+      <datalist id="dl-categorias">{catList.map((c) => <option key={c} value={c} />)}</datalist>
       {picker && <LogoPicker bank={bank} onClose={() => setPicker(null)} onPick={(ref) => { if (picker === 'new') setAccountLogo(ref); else if (currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', logo: ref }); setPicker(null) }} />}
-      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}>{resolveLogo(accountLogo, bank) ? <img src={resolveLogo(accountLogo, bank)} alt="Prévia da logo" /> : <span>{accountIcon}</span>}<small>{accountLogo ? 'Trocar imagem' : '＋ Enviar imagem'}</small></button><button type="button" className="sec sm" onClick={() => setPicker('new')}>🖼️ Banco de logos</button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
+      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}>{resolveLogo(accountLogo, bank) ? <img src={resolveLogo(accountLogo, bank)} alt="Prévia da logo" /> : <span>{accountIcon}</span>}<small>{accountLogo ? 'Trocar imagem' : '＋ Enviar imagem'}</small></button><button type="button" className="sec sm" onClick={() => setPicker('new')}>🖼️ Banco de logos</button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
       <section className="hero">
         <div className="hero-main">
           <small>{q.trim() ? 'Total encontrado' : stat.futureCount ? 'Período + despesas futuras' : 'Despesas no período'}</small>
@@ -412,6 +457,17 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                 </div>
               ) : detailGroup ? (
                 <div className="hero-breakdown-list">
+                  {detailGroup.categories?.length > 0 && <>
+                    <small>Por categoria</small>
+                    {detailGroup.categories.map((c) => (
+                      <div key={'cat-' + c.name}>
+                        <span>{c.name}</span>
+                        <b>{detailGroup.total ? pct((c.total / detailGroup.total) * 100) : '—'}</b>
+                        <em>{brl(c.total)}</em>
+                      </div>
+                    ))}
+                    <small>Por despesa</small>
+                  </>}
                   {detailGroup.items.map((item) => (
                     <div key={item.name}>
                       <span>{item.name}</span>
@@ -439,6 +495,15 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <button className="sec" disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setPasting('')}>📋 Colar despesas</button>
         <button disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setLancar(nextYM)}>📅 Lançar mês</button>
       </div>
+      {searchSummary && <div className="search-summary">
+        <span>🔎 “{q.trim()}”</span>
+        <span><b className="big">{brl(searchSummary.period.total)}</b> <small>em {searchSummary.period.n.toLocaleString('pt-BR')} {searchSummary.period.n === 1 ? 'lançamento' : 'lançamentos'} no período</small></span>
+        {searchSummary.all.n !== searchSummary.period.n && <span><b>{brl(searchSummary.all.total)}</b> <small>em todo o histórico ({searchSummary.all.n.toLocaleString('pt-BR')})</small></span>}
+        {searchSummary.period.names.length > 1 && <div className="search-summary-names">
+          {searchSummary.period.names.slice(0, 8).map((e) => <span key={e.name} className="chip na">{e.name} · {brl(e.total)}{e.count > 1 ? ` (${e.count}×)` : ''}</span>)}
+          {searchSummary.period.names.length > 8 && <span className="chip na">+{searchSummary.period.names.length - 8}</span>}
+        </div>}
+      </div>}
       <div className="chips">
         {types.filter((t) => stat.cnt[t]).map((c) => (
           <button key={c} className={'chip-btn' + (cats.includes(c) ? ' on' : '')} onClick={() => toggle(c)}>{c}<em>{stat.cnt[c]}</em></button>
@@ -487,7 +552,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                             }}
                             onDragEnd={() => { setDragSource(null); setDragOver(null) }}
                           >
-                            {it.NOME || '—'} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
+                            {it.NOME || '—'}{it.CATEGORIA && <em className="chip-cat"> ({it.CATEGORIA})</em>} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
                           </span>
                         ))}
                         {!items.length && <span className="muted">Sem despesas · arraste uma aqui</span>}
@@ -508,7 +573,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                           ? <input className="cell" type="month" value={monthOf(r.DATA)} onChange={(e) => e.target.value && onUpdate(i, { DATA: e.target.value + '-01' })} />
                           : monthOf(r.DATA).split('-').reverse().join('/')}</td>
                         <td className={ed ? '' : 'ro'} data-label="Grupo">{ed
-                          ? <><input className="cell" list="dl-contas" style={{ minWidth: 170 }} value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} /><ParentField value={parents.get(String(r.TIPO_CONTA || '').trim()) || ''} onCommit={(p) => setParent(r.TIPO_CONTA, p)} /></>
+                          ? <><input className="cell" list="dl-contas" value={r.TIPO_CONTA} onChange={(e) => onUpdate(i, { TIPO_CONTA: e.target.value })} /><ParentField value={parents.get(String(r.TIPO_CONTA || '').trim()) || ''} onCommit={(p) => setParent(r.TIPO_CONTA, p)} /></>
                           : <>{r.TIPO_CONTA}{parents.get(String(r.TIPO_CONTA || '').trim()) && <small className="muted" style={{ display: 'block' }}>↳ dentro de {groupPath(String(r.TIPO_CONTA || '').trim(), parents).slice(0, -1).join(' › ')}</small>}</>}</td>
                         <td className={ed ? '' : 'ro'} data-label="Despesas do grupo">{ed
                           ? <button className="items-btn" title="Editar despesas do grupo" onClick={() => setEditing(i)}>{chips}</button>
@@ -557,7 +622,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
 
       {pasting !== null && <PasteDespesas initial={pasting} rows={rows} onClose={() => setPasting(null)} onSave={(novas) => { onAddRows(novas); setPasting(null) }} />}
       {lancar && <LancarMes rows={rows} initialYM={lancar} onClose={() => setLancar(null)} onSave={(ym, novas) => { onSaveMonth(ym, novas); setLancar(null) }} />}
-      {editing != null && <ItemsModal row={rows[editing]} onClose={() => setEditing(null)} onSave={(itens) => { onUpdate(editing, { ITENS: itens }); setEditing(null) }} />}
+      {editing != null && <ItemsModal row={rows[editing]} catByName={catByName} onClose={() => setEditing(null)} onSave={(itens) => { onUpdate(editing, { ITENS: itens }); setEditing(null) }} />}
     </>
   )
 }

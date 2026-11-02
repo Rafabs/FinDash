@@ -56,7 +56,7 @@ export default function App() {
   // Ctrl+K (ou "/" fora de um campo) abre a busca de produtos
   useEffect(() => {
     const h = (e) => {
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable // inclui o editor de Notas
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(true) }
       else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setSearchOpen(true) }
     }

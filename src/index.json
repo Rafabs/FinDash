@@ -1,6 +1,330 @@
 {
-  "_aviso": "Monogramas provisórios. Substitua cada arquivo pelo logo oficial mantendo o mesmo nome (ou ajuste 'arquivo'). Para adicionar: coloque o arquivo nesta pasta e inclua uma entrada em 'logos'.",
+  "_aviso": "Logos gerados a partir do pacote simple-icons (SVG em domínio público; as marcas pertencem aos seus donos). Entradas com \"provisorio\": true são monogramas — substitua o arquivo pelo logo oficial mantendo o nome. Para adicionar: coloque o arquivo nesta pasta e inclua uma entrada em 'logos'.",
   "logos": [
+    {
+      "id": "adidas",
+      "nome": "Adidas",
+      "apelidos": [],
+      "arquivo": "adidas.svg"
+    },
+    {
+      "id": "airbnb",
+      "nome": "Airbnb",
+      "apelidos": [],
+      "arquivo": "airbnb.svg"
+    },
+    {
+      "id": "aliexpress",
+      "nome": "AliExpress",
+      "apelidos": [
+        "ali express"
+      ],
+      "arquivo": "aliexpress.svg"
+    },
+    {
+      "id": "amazon",
+      "nome": "Amazon",
+      "apelidos": [
+        "amazon prime",
+        "prime video"
+      ],
+      "arquivo": "amazon.svg",
+      "provisorio": true
+    },
+    {
+      "id": "american-express",
+      "nome": "American Express",
+      "apelidos": [
+        "amex"
+      ],
+      "arquivo": "american-express.svg"
+    },
+    {
+      "id": "apple",
+      "nome": "Apple",
+      "apelidos": [
+        "apple com bill",
+        "itunes",
+        "icloud"
+      ],
+      "arquivo": "apple.svg"
+    },
+    {
+      "id": "banco-do-brasil",
+      "nome": "Banco do Brasil",
+      "apelidos": [
+        "bb",
+        "ourocard"
+      ],
+      "arquivo": "banco-do-brasil.svg",
+      "provisorio": true
+    },
+    {
+      "id": "binance",
+      "nome": "Binance",
+      "apelidos": [],
+      "arquivo": "binance.svg"
+    },
+    {
+      "id": "bmw",
+      "nome": "BMW",
+      "apelidos": [],
+      "arquivo": "bmw.svg"
+    },
+    {
+      "id": "bradesco",
+      "nome": "Bradesco",
+      "apelidos": [
+        "bradescard"
+      ],
+      "arquivo": "bradesco.svg",
+      "provisorio": true
+    },
+    {
+      "id": "btg",
+      "nome": "BTG Pactual",
+      "apelidos": [
+        "btg"
+      ],
+      "arquivo": "btg.svg",
+      "provisorio": true
+    },
+    {
+      "id": "burger-king",
+      "nome": "Burger King",
+      "apelidos": [],
+      "arquivo": "burger-king.svg"
+    },
+    {
+      "id": "c6",
+      "nome": "C6 Bank",
+      "apelidos": [
+        "c6"
+      ],
+      "arquivo": "c6.svg",
+      "provisorio": true
+    },
+    {
+      "id": "caixa",
+      "nome": "Caixa",
+      "apelidos": [
+        "caixa economica",
+        "cef"
+      ],
+      "arquivo": "caixa.svg",
+      "provisorio": true
+    },
+    {
+      "id": "carrefour",
+      "nome": "Carrefour",
+      "apelidos": [],
+      "arquivo": "carrefour.svg"
+    },
+    {
+      "id": "chevrolet",
+      "nome": "Chevrolet",
+      "apelidos": [
+        "gm"
+      ],
+      "arquivo": "chevrolet.svg"
+    },
+    {
+      "id": "claro",
+      "nome": "Claro",
+      "apelidos": [
+        "net claro"
+      ],
+      "arquivo": "claro.svg",
+      "provisorio": true
+    },
+    {
+      "id": "deezer",
+      "nome": "Deezer",
+      "apelidos": [],
+      "arquivo": "deezer.svg"
+    },
+    {
+      "id": "dropbox",
+      "nome": "Dropbox",
+      "apelidos": [],
+      "arquivo": "dropbox.svg"
+    },
+    {
+      "id": "facebook",
+      "nome": "Facebook",
+      "apelidos": [
+        "meta"
+      ],
+      "arquivo": "facebook.svg"
+    },
+    {
+      "id": "fiat",
+      "nome": "Fiat",
+      "apelidos": [],
+      "arquivo": "fiat.svg"
+    },
+    {
+      "id": "ford",
+      "nome": "Ford",
+      "apelidos": [],
+      "arquivo": "ford.svg"
+    },
+    {
+      "id": "google",
+      "nome": "Google",
+      "apelidos": [
+        "google one",
+        "google workspace"
+      ],
+      "arquivo": "google.svg"
+    },
+    {
+      "id": "google-play",
+      "nome": "Google Play",
+      "apelidos": [
+        "play store"
+      ],
+      "arquivo": "google-play.svg"
+    },
+    {
+      "id": "honda",
+      "nome": "Honda",
+      "apelidos": [],
+      "arquivo": "honda.svg"
+    },
+    {
+      "id": "hyundai",
+      "nome": "Hyundai",
+      "apelidos": [],
+      "arquivo": "hyundai.svg"
+    },
+    {
+      "id": "ifood",
+      "nome": "iFood",
+      "apelidos": [],
+      "arquivo": "ifood.svg"
+    },
+    {
+      "id": "ikea",
+      "nome": "IKEA",
+      "apelidos": [],
+      "arquivo": "ikea.svg"
+    },
+    {
+      "id": "instagram",
+      "nome": "Instagram",
+      "apelidos": [],
+      "arquivo": "instagram.svg"
+    },
+    {
+      "id": "inter",
+      "nome": "Inter",
+      "apelidos": [
+        "banco inter"
+      ],
+      "arquivo": "inter.svg",
+      "provisorio": true
+    },
+    {
+      "id": "itau",
+      "nome": "Itaú",
+      "apelidos": [
+        "itau",
+        "itaucard",
+        "itau unibanco"
+      ],
+      "arquivo": "itau.svg",
+      "provisorio": true
+    },
+    {
+      "id": "jeep",
+      "nome": "Jeep",
+      "apelidos": [],
+      "arquivo": "jeep.svg"
+    },
+    {
+      "id": "kfc",
+      "nome": "KFC",
+      "apelidos": [],
+      "arquivo": "kfc.svg"
+    },
+    {
+      "id": "magalu",
+      "nome": "Magalu",
+      "apelidos": [
+        "magazine luiza"
+      ],
+      "arquivo": "magalu.svg",
+      "provisorio": true
+    },
+    {
+      "id": "mastercard",
+      "nome": "Mastercard",
+      "apelidos": [
+        "master card"
+      ],
+      "arquivo": "mastercard.svg"
+    },
+    {
+      "id": "max",
+      "nome": "Max (HBO)",
+      "apelidos": [
+        "hbo max",
+        "hbo"
+      ],
+      "arquivo": "max.svg"
+    },
+    {
+      "id": "mcdonalds",
+      "nome": "McDonald’s",
+      "apelidos": [
+        "mc donalds",
+        "mcdonald s",
+        "mc"
+      ],
+      "arquivo": "mcdonalds.svg"
+    },
+    {
+      "id": "mercado-livre",
+      "nome": "Mercado Livre",
+      "apelidos": [
+        "meli"
+      ],
+      "arquivo": "mercado-livre.svg",
+      "provisorio": true
+    },
+    {
+      "id": "mercado-pago",
+      "nome": "Mercado Pago",
+      "apelidos": [],
+      "arquivo": "mercado-pago.svg"
+    },
+    {
+      "id": "neon",
+      "nome": "Neon",
+      "apelidos": [
+        "banco neon"
+      ],
+      "arquivo": "neon.svg"
+    },
+    {
+      "id": "netflix",
+      "nome": "Netflix",
+      "apelidos": [],
+      "arquivo": "netflix.svg"
+    },
+    {
+      "id": "nike",
+      "nome": "Nike",
+      "apelidos": [],
+      "arquivo": "nike.svg"
+    },
+    {
+      "id": "nissan",
+      "nome": "Nissan",
+      "apelidos": [],
+      "arquivo": "nissan.svg"
+    },
     {
       "id": "nubank",
       "nome": "Nubank",
@@ -11,79 +335,19 @@
       "arquivo": "nubank.svg"
     },
     {
-      "id": "itau",
-      "nome": "Itaú",
+      "id": "pagseguro",
+      "nome": "PagSeguro",
       "apelidos": [
-        "itau",
-        "itaucard",
-        "itau unibanco"
+        "pagbank",
+        "pag seguro"
       ],
-      "arquivo": "itau.svg"
+      "arquivo": "pagseguro.svg"
     },
     {
-      "id": "bradesco",
-      "nome": "Bradesco",
-      "apelidos": [
-        "bradescard"
-      ],
-      "arquivo": "bradesco.svg"
-    },
-    {
-      "id": "santander",
-      "nome": "Santander",
+      "id": "paypal",
+      "nome": "PayPal",
       "apelidos": [],
-      "arquivo": "santander.svg"
-    },
-    {
-      "id": "banco-do-brasil",
-      "nome": "Banco do Brasil",
-      "apelidos": [
-        "bb",
-        "ourocard"
-      ],
-      "arquivo": "banco-do-brasil.svg"
-    },
-    {
-      "id": "caixa",
-      "nome": "Caixa",
-      "apelidos": [
-        "caixa economica",
-        "cef"
-      ],
-      "arquivo": "caixa.svg"
-    },
-    {
-      "id": "inter",
-      "nome": "Inter",
-      "apelidos": [
-        "banco inter"
-      ],
-      "arquivo": "inter.svg"
-    },
-    {
-      "id": "c6",
-      "nome": "C6 Bank",
-      "apelidos": [
-        "c6"
-      ],
-      "arquivo": "c6.svg"
-    },
-    {
-      "id": "xp",
-      "nome": "XP",
-      "apelidos": [
-        "xp investimentos",
-        "xp visa"
-      ],
-      "arquivo": "xp.svg"
-    },
-    {
-      "id": "btg",
-      "nome": "BTG Pactual",
-      "apelidos": [
-        "btg"
-      ],
-      "arquivo": "btg.svg"
+      "arquivo": "paypal.svg"
     },
     {
       "id": "picpay",
@@ -92,39 +356,59 @@
       "arquivo": "picpay.svg"
     },
     {
-      "id": "mercado-pago",
-      "nome": "Mercado Pago",
+      "id": "pix",
+      "nome": "Pix",
       "apelidos": [],
-      "arquivo": "mercado-pago.svg"
+      "arquivo": "pix.svg"
     },
     {
-      "id": "mercado-livre",
-      "nome": "Mercado Livre",
+      "id": "playstation",
+      "nome": "PlayStation",
       "apelidos": [
-        "meli"
+        "psn",
+        "ps plus"
       ],
-      "arquivo": "mercado-livre.svg"
+      "arquivo": "playstation.svg"
     },
     {
-      "id": "ifood",
-      "nome": "iFood",
+      "id": "renault",
+      "nome": "Renault",
       "apelidos": [],
-      "arquivo": "ifood.svg"
+      "arquivo": "renault.svg"
     },
     {
-      "id": "amazon",
-      "nome": "Amazon",
+      "id": "revolut",
+      "nome": "Revolut",
+      "apelidos": [],
+      "arquivo": "revolut.svg"
+    },
+    {
+      "id": "santander",
+      "nome": "Santander",
+      "apelidos": [],
+      "arquivo": "santander.svg",
+      "provisorio": true
+    },
+    {
+      "id": "shell",
+      "nome": "Shell",
       "apelidos": [
-        "amazon prime",
-        "prime video"
+        "shell box",
+        "posto shell"
       ],
-      "arquivo": "amazon.svg"
+      "arquivo": "shell.svg"
     },
     {
-      "id": "netflix",
-      "nome": "Netflix",
+      "id": "shopee",
+      "nome": "Shopee",
       "apelidos": [],
-      "arquivo": "netflix.svg"
+      "arquivo": "shopee.svg"
+    },
+    {
+      "id": "sky",
+      "nome": "Sky",
+      "apelidos": [],
+      "arquivo": "sky.svg"
     },
     {
       "id": "spotify",
@@ -133,13 +417,67 @@
       "arquivo": "spotify.svg"
     },
     {
+      "id": "starbucks",
+      "nome": "Starbucks",
+      "apelidos": [],
+      "arquivo": "starbucks.svg"
+    },
+    {
+      "id": "steam",
+      "nome": "Steam",
+      "apelidos": [],
+      "arquivo": "steam.svg"
+    },
+    {
+      "id": "sumup",
+      "nome": "SumUp",
+      "apelidos": [],
+      "arquivo": "sumup.svg"
+    },
+    {
+      "id": "telegram",
+      "nome": "Telegram",
+      "apelidos": [],
+      "arquivo": "telegram.svg"
+    },
+    {
+      "id": "tiktok",
+      "nome": "TikTok",
+      "apelidos": [],
+      "arquivo": "tiktok.svg"
+    },
+    {
+      "id": "tim",
+      "nome": "TIM",
+      "apelidos": [],
+      "arquivo": "tim.svg",
+      "provisorio": true
+    },
+    {
+      "id": "toyota",
+      "nome": "Toyota",
+      "apelidos": [],
+      "arquivo": "toyota.svg"
+    },
+    {
       "id": "uber",
       "nome": "Uber",
-      "apelidos": [
-        "99",
-        "99 pop"
-      ],
+      "apelidos": [],
       "arquivo": "uber.svg"
+    },
+    {
+      "id": "uber-eats",
+      "nome": "Uber Eats",
+      "apelidos": [
+        "ubereats"
+      ],
+      "arquivo": "uber-eats.svg"
+    },
+    {
+      "id": "visa",
+      "nome": "Visa",
+      "apelidos": [],
+      "arquivo": "visa.svg"
     },
     {
       "id": "vivo",
@@ -150,26 +488,48 @@
       "arquivo": "vivo.svg"
     },
     {
-      "id": "claro",
-      "nome": "Claro",
+      "id": "volkswagen",
+      "nome": "Volkswagen",
       "apelidos": [
-        "net claro"
+        "vw"
       ],
-      "arquivo": "claro.svg"
+      "arquivo": "volkswagen.svg"
     },
     {
-      "id": "tim",
-      "nome": "TIM",
+      "id": "whatsapp",
+      "nome": "WhatsApp",
       "apelidos": [],
-      "arquivo": "tim.svg"
+      "arquivo": "whatsapp.svg"
     },
     {
-      "id": "magalu",
-      "nome": "Magalu",
+      "id": "wise",
+      "nome": "Wise",
+      "apelidos": [],
+      "arquivo": "wise.svg"
+    },
+    {
+      "id": "xp",
+      "nome": "XP",
       "apelidos": [
-        "magazine luiza"
+        "xp investimentos",
+        "xp visa"
       ],
-      "arquivo": "magalu.svg"
+      "arquivo": "xp.svg",
+      "provisorio": true
+    },
+    {
+      "id": "youtube",
+      "nome": "YouTube",
+      "apelidos": [
+        "youtube premium"
+      ],
+      "arquivo": "youtube.svg"
+    },
+    {
+      "id": "zara",
+      "nome": "Zara",
+      "apelidos": [],
+      "arquivo": "zara.svg"
     }
   ]
 }
