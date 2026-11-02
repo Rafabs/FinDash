@@ -215,7 +215,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.10.9</footer>
+      <footer className="app-version">v26.11.9</footer>
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}
