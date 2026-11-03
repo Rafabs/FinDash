@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
+import { MarkSvg } from './AccountMark.jsx'
 import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 
@@ -9,6 +10,14 @@ const CAT_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#22c55e', '#c084fc', '#94a
 const DESP_COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#ec4899', '#22c55e', '#94a3b8']
 const TT = { contentStyle: { background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx)' }, cursor: { fill: 'var(--hover)' } }
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
+// eixo do gráfico "Despesas por grupo": ícone da conta (sobre a cor escolhida) + nome
+function GroupTick({ x, y, payload, markOf }) {
+  const name = String(payload.value)
+  return <g transform={`translate(${x},${y})`}>
+    <MarkSvg {...markOf(name)} x={-138} y={-8} size={16} />
+    <text x={-116} y={4} fontSize={11} fill="var(--tx)">{name.length > 16 ? name.slice(0, 15) + '…' : name}</text>
+  </g>
+}
 function formatBcbDate(value) {
   const [day, month, year] = String(value || '').split('/')
   return day && month && year ? `${day}/${month}/${year}` : value
@@ -99,6 +108,16 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
   const totDesp = dsp.reduce((t, r) => t + totalOf(r), 0)
   const mesesDesp = new Set(dsp.map((r) => monthOf(r.DATA))).size
   const porConta = group(dsp.map((r) => ({ c: r.TIPO_CONTA, v: totalOf(r) })), 'c', 'v')
+  const markOf = (name) => ({ ...((data.contasDespesas || []).find((a) => String(a.name || '').toLocaleLowerCase() === name.toLocaleLowerCase()) || {}), name })
+  // despesas por categoria do item (só aparece quando existe alguma categoria no período)
+  const porCategoria = useMemo(() => {
+    const map = new Map(); let any = false
+    dsp.forEach((r) => r.ITENS.forEach((it) => {
+      const c = String(it.CATEGORIA || '').trim(); if (c) any = true
+      const k = c || 'Sem categoria'; map.set(k, (map.get(k) || 0) + (Number(it.VALOR) || 0))
+    }))
+    return any ? [...map].map(([name, value]) => ({ name, value: +value.toFixed(2) })).sort((a, b) => b.value - a.value) : []
+  }, [dsp])
   const entradas = ext.filter((r) => r.CATEGORIA !== 'Venda de Patrimônio')
   const totEntr = sum(entradas, V) + totRes
   const saldo = totEntr - totDesp
@@ -204,8 +223,12 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
           </ResponsiveContainer></div>
         <div className="card"><h3>Despesas por grupo</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porConta.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={120} fontSize={11} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]} /></BarChart>
+            <BarChart data={porConta.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} interval={0} tick={<GroupTick markOf={markOf} />} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]} /></BarChart>
           </ResponsiveContainer></div>
+        {porCategoria.length > 0 && <div className="card"><h3>Despesas por categoria</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porCategoria.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} tickFormatter={(v) => (String(v).length > 20 ? String(v).slice(0, 19) + '…' : v)} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#f59e0b" radius={[0, 6, 6, 0]} /></BarChart>
+          </ResponsiveContainer></div>}
         <div className="card"><h3>Despesas por mês (principais grupos)</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} />

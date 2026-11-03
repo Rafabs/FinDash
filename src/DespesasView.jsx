@@ -9,8 +9,9 @@ import MoneyInput from './MoneyInput.jsx'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
 import SearchField from './SearchField.jsx'
-import LogoPicker from './LogoPicker.jsx'
-import { useLogoBank, resolveLogo, suggestLogo, LOGO_PREFIX } from './logos.js'
+import IconPicker from './IconPicker.jsx'
+import AccountMark from './AccountMark.jsx'
+import { ICON_PREFIX, suggestIcon } from './icons.js'
 
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
@@ -122,7 +123,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const [accountIcon, setAccountIcon] = useState('🧾')
   const [accountLogo, setAccountLogo] = useState('')
   const logoInput = useRef(null)
-  const bank = useLogoBank()
+  const [accountColor, setAccountColor] = useState('')
   const [picker, setPicker] = useState(null) // 'new' (criando conta) | 'current' (conta aberta)
   const [quickItem, setQuickItem] = useState('')
   const [quickCat, setQuickCat] = useState('')
@@ -298,22 +299,20 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     rows.forEach((r) => { const name = String(r.TIPO_CONTA || '').trim(); if (name && !known.has(name.toLocaleLowerCase())) known.set(name.toLocaleLowerCase(), { name, icon: '🧾' }) })
     return [...known.values()].map((a) => {
       const accountRows = rows.filter((r) => String(r.TIPO_CONTA || '').toLocaleLowerCase() === a.name.toLocaleLowerCase())
-      // logo salvo (banco:id ou imagem própria); sem logo, sugere pelo nome da conta
-      const src = resolveLogo(a.logo, bank) || (a.logo ? '' : suggestLogo(a.name, bank)?.src || '')
-      return { ...a, src, count: accountRows.length, total: accountRows.reduce((s, r) => s + totalOf(r), 0) }
+      return { ...a, count: accountRows.length, total: accountRows.reduce((s, r) => s + totalOf(r), 0) }
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [accounts, rows, bank])
+  }, [accounts, rows])
   const currentAccount = accountCards.find((a) => a.name.toLocaleLowerCase() === accountPage?.toLocaleLowerCase())
   const currentRows = currentAccount ? rows.map((r, i) => ({ r, i })).filter(({ r }) => String(r.TIPO_CONTA || '').toLocaleLowerCase() === currentAccount.name.toLocaleLowerCase()).sort((a, b) => b.r.DATA.localeCompare(a.r.DATA)) : []
   const createAccount = () => {
     const name = accountName.trim()
     if (!name) return
     if (accountCards.some((a) => a.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      if (accountLogo) onUpdateAccount({ name, icon: accountIcon || '🧾', logo: accountLogo })
+      if (accountLogo || accountColor) onUpdateAccount({ name, icon: accountIcon || '🧾', ...(accountLogo ? { logo: accountLogo } : {}), ...(accountColor ? { color: accountColor } : {}) })
       setAccountPage(name); setNewAccount(false); return
     }
-    onAddAccount({ name, icon: accountIcon || '🧾', logo: accountLogo || (suggestLogo(name, bank) ? LOGO_PREFIX + suggestLogo(name, bank).id : '') })
-    setAccountName(''); setAccountIcon('🧾'); setAccountLogo(''); setNewAccount(false); setAccountPage(name)
+    onAddAccount({ name, icon: accountIcon || '🧾', logo: accountLogo || (suggestIcon(name) ? ICON_PREFIX + suggestIcon(name).id : ''), ...(accountColor ? { color: accountColor } : {}) })
+    setAccountName(''); setAccountIcon('🧾'); setAccountLogo(''); setAccountColor(''); setNewAccount(false); setAccountPage(name)
   }
   const readLogo = async (file) => {
     if (!file) return
@@ -357,15 +356,26 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     onUpdate(rowIndex, { ITENS })
   }
 
+  // o mesmo seletor aparece na tela da conta e na lista de contas (sempre por cima do que estiver aberto)
+  const iconPicker = picker && <IconPicker
+    logo={picker === 'new' ? accountLogo : currentAccount?.logo} color={picker === 'new' ? accountColor : currentAccount?.color}
+    name={picker === 'new' ? accountName : currentAccount?.name} icon={picker === 'new' ? accountIcon : currentAccount?.icon}
+    onClose={() => setPicker(null)}
+    onChange={(patch) => {
+      if (picker === 'new') { if (patch.logo !== undefined) setAccountLogo(patch.logo); if (patch.color !== undefined) setAccountColor(patch.color) }
+      else if (currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', ...patch })
+    }} />
+  const categoryDatalist = <datalist id="dl-categorias">{catList.map((c) => <option key={c} value={c} />)}</datalist>
+
   if (accountPage) return (
     <section className="expense-account-page">
       <div className="expense-account-page-nav"><button className="sec" onClick={() => setAccountPage(null)}>← Todas as contas</button><button className={'sec lock' + (locked ? '' : ' open')} onClick={toggleLock}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button></div>
       <div className="expense-account-hero card">
         <button type="button" className="expense-account-brand" onClick={() => !locked && logoInput.current?.click()} title={locked ? 'Destrave a edição para alterar a logo' : 'Adicionar ou trocar logo'} disabled={locked}>
-          {currentAccount?.src ? <img src={currentAccount.src} alt={`Logo de ${currentAccount.name}`} /> : <span>{currentAccount?.icon || '🧾'}</span>}
-          <small>{currentAccount?.src ? 'Enviar outra imagem' : 'Enviar imagem'}</small>
+          <AccountMark logo={currentAccount?.logo} icon={currentAccount?.icon} color={currentAccount?.color} name={currentAccount?.name} />
+          <small>Enviar imagem</small>
         </button>
-        <button type="button" className="sec sm" disabled={locked} title={locked ? 'Destrave a edição para alterar a logo' : 'Escolher no banco de logos'} onClick={() => setPicker('current')}>🖼️ Banco de logos</button>
+        <button type="button" className="sec sm" disabled={locked} title={locked ? 'Destrave a edição para alterar o ícone' : 'Escolher o ícone e a cor de fundo'} onClick={() => setPicker('current')}>🎨 Ícone e cor</button>
         <input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} />
         <div className="expense-account-title"><small className="muted">SUBPÁGINA DA CONTA</small><h2>{currentAccount?.name || accountPage}</h2><p className="muted">Acompanhe os lançamentos e valores desta conta em um só lugar.</p></div>
         <div className="expense-account-total"><small>Total histórico</small><b>{brl(currentAccount?.total || 0)}</b><small>{currentAccount?.count || 0} lançamentos</small></div>
@@ -392,6 +402,8 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         </tbody></table></div>
       </section>
       {installmentModal && <InstallmentModal accounts={accountCards} initialYM={nextYM} initialAccount={currentAccount?.name} onClose={() => setInstallmentModal(false)} onSave={(novas) => { onAddRows(novas); setInstallmentModal(false) }} />}
+      {categoryDatalist}
+      {iconPicker}
     </section>
   )
 
@@ -400,13 +412,13 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       <section className="expense-accounts-section">
         <div className="expense-accounts-heading"><div><h2>Contas</h2><p className="muted">Abra uma subpágina para acompanhar cada conta. Os lançamentos ficam integrados às Despesas.</p></div><button disabled={locked} title={locked ? 'Destrave a edição para criar uma conta' : ''} onClick={() => setNewAccount(true)}>＋ Criar subpágina</button></div>
         <div className="expense-account-grid">
-          {accountCards.map((a) => <button type="button" className="expense-account-card card" key={a.name} onClick={() => setAccountPage(a.name)}><span className="expense-account-icon">{a.src ? <img src={a.src} alt="" /> : a.icon || '🧾'}</span><span className="expense-account-card-info"><b>{a.name}</b><small>{a.count} lançamentos</small></span><strong>{brl(a.total)}</strong><span className="expense-account-arrow">→</span></button>)}
+          {accountCards.map((a) => <button type="button" className="expense-account-card card" key={a.name} onClick={() => setAccountPage(a.name)}><span className="expense-account-icon"><AccountMark logo={a.logo} icon={a.icon} color={a.color} name={a.name} /></span><span className="expense-account-card-info"><b>{a.name}</b><small>{a.count} lançamentos</small></span><strong>{brl(a.total)}</strong><span className="expense-account-arrow">→</span></button>)}
           {!accountCards.length && <div className="empty">Nenhuma conta criada ainda. Crie uma subpágina para começar.</div>}
         </div>
       </section>
-      <datalist id="dl-categorias">{catList.map((c) => <option key={c} value={c} />)}</datalist>
-      {picker && <LogoPicker bank={bank} onClose={() => setPicker(null)} onPick={(ref) => { if (picker === 'new') setAccountLogo(ref); else if (currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', logo: ref }); setPicker(null) }} />}
-      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}>{resolveLogo(accountLogo, bank) ? <img src={resolveLogo(accountLogo, bank)} alt="Prévia da logo" /> : <span>{accountIcon}</span>}<small>{accountLogo ? 'Trocar imagem' : '＋ Enviar imagem'}</small></button><button type="button" className="sec sm" onClick={() => setPicker('new')}>🖼️ Banco de logos</button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
+      {categoryDatalist}
+      {newAccount && <div className="overlay" onClick={() => setNewAccount(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h3>Criar subpágina de conta</h3><p className="muted">Personalize a conta com um ícone ou uma imagem e adicione os lançamentos quando quiser.</p><div className="account-create-fields"><button type="button" className="account-logo-picker" onClick={() => logoInput.current?.click()}><AccountMark logo={accountLogo} icon={accountIcon} color={accountColor} name={accountName} /><small>{accountLogo ? 'Trocar imagem' : '＋ Enviar imagem'}</small></button><button type="button" className="sec sm" onClick={() => setPicker('new')}>🎨 Ícone e cor</button><input ref={logoInput} className="expense-logo-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => { readLogo(e.target.files?.[0]); e.target.value = '' }} /><div className="account-name-field"><label>Nome da conta</label><input className="cell" autoFocus placeholder="Ex.: VIVO (INTERNET)" value={accountName} onChange={(e) => setAccountName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAccount()} /><label>Ícone alternativo</label><input className="cell" aria-label="Ícone da conta" value={accountIcon} maxLength={4} onChange={(e) => setAccountIcon(e.target.value)} /></div></div><div className="actions"><button className="sec" onClick={() => setNewAccount(false)}>Cancelar</button><button disabled={!accountName.trim()} onClick={createAccount}>Criar subpágina</button></div></div></div>}
+      {iconPicker}
       <section className="hero">
         <div className="hero-main">
           <small>{q.trim() ? 'Total encontrado' : stat.futureCount ? 'Período + despesas futuras' : 'Despesas no período'}</small>

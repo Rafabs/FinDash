@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown } from './data.js'
+import { markPng } from './markImage.js'
 import { nowYM } from './period.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -54,7 +55,22 @@ const aggregate = (rows, key, val) => {
   return [...out].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
 }
 
-function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241]) {
+// ícones das contas (um PNG por grupo), usados nos gráficos e tabelas de despesas
+const accountOf = (contas, name) => (contas || []).find((a) => String(a.name || '').toLocaleLowerCase() === String(name || '').toLocaleLowerCase()) || {}
+async function buildMarks(data) {
+  const names = new Set((data.despesas || []).map((r) => r.TIPO_CONTA))
+  expenseBreakdown(data.despesas || []).forEach((g) => names.add(g.name))
+  const marks = new Map()
+  await Promise.all([...names].filter(Boolean).map(async (name) => {
+    try { const png = await markPng({ ...accountOf(data.contasDespesas, name), name }, 96); if (png) marks.set(name, png) } catch { /* sem ícone */ }
+  }))
+  return marks
+}
+const drawMark = (doc, marks, name, x, y, size) => { const png = marks?.get(String(name)); if (png) doc.addImage(png, 'PNG', x, y, size, size, 'mark:' + name) }
+const hasMark = (marks, name) => !!marks?.get(String(name))
+const pctText = (v, total) => (total ? (v / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—')
+
+function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241], marks = null) {
   doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line); doc.setLineWidth(0.35)
   doc.roundedRect(x, y, w, h, 3, 3, 'FD')
   doc.setFillColor(...color); doc.roundedRect(x + 5, y + 5, 2, 5, 1, 1, 'F')
@@ -69,8 +85,11 @@ function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241]) {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
   items.forEach((r, i) => {
     const yy = y + 16 + i * rowH
-    const label = String(r.name).length > 22 ? String(r.name).slice(0, 20) + '…' : String(r.name)
-    doc.setTextColor(...PDF_COLORS.muted); doc.text(label, x + 5, yy + 3)
+    const mark = hasMark(marks, r.name)
+    const limit = mark ? 17 : 22
+    const label = String(r.name).length > limit ? String(r.name).slice(0, limit - 2) + '…' : String(r.name)
+    if (mark) drawMark(doc, marks, r.name, x + 5, yy - 0.3, 3.8)
+    doc.setTextColor(...PDF_COLORS.muted); doc.text(label, x + 5 + (mark ? 5 : 0), yy + 3)
     doc.setFillColor(237, 240, 245); doc.roundedRect(x + 5 + labelW, yy, barW, 3.2, 1, 1, 'F')
     doc.setFillColor(...color); doc.roundedRect(x + 5 + labelW, yy, Math.max(0.8, barW * Math.abs(r.value) / max), 3.2, 1, 1, 'F')
     doc.setFont('helvetica', 'bold'); doc.setTextColor(...PDF_COLORS.ink); doc.text(money(r.value), x + w - 5, yy + 3, { align: 'right' }); doc.setFont('helvetica', 'normal')
@@ -79,7 +98,7 @@ function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241]) {
 
 const SUM_KEYS = { carteira: ['VLR_APLICACAO', 'TOTAL_ATUAL', 'REND_BRUTO'], extrato: ['VALOR DA APLICAÇÃO'] }
 
-function addCharts(doc, data, periodo) {
+function addCharts(doc, data, periodo, marks) {
   const carteira = data.carteira || [], ext = data.extrato || [], dsp = data.despesas || [], res = data.resgates || []
   const valor = 'VALOR DA APLICAÇÃO'
   const months = new Map()
@@ -113,11 +132,12 @@ function addCharts(doc, data, periodo) {
     doc.addPage()
     sectionHeading(doc, `Análise visual · ${p + 1}/2`, 'Indicadores do período', `Período: ${periodo || 'Todo o período'}`)
     const positions = [[14, 32], [155, 32], [14, 112], [155, 112]]
-    charts.slice(p * 4, p * 4 + 4).forEach(([title, rows], i) => drawChart(doc, title, rows, ...positions[i], 128, 80, title.includes('Despesa') ? [239, 68, 68] : [99, 102, 241]))
+    charts.slice(p * 4, p * 4 + 4).forEach(([title, rows], i) => drawChart(doc, title, rows, ...positions[i], 128, 80, title.includes('Despesa') ? [239, 68, 68] : [99, 102, 241], title === 'Despesas por grupo' ? marks : null))
   }
 }
 
-export function exportPdf(data, resumo, periodo, indicadores = {}) {
+export async function exportPdf(data, resumo, periodo, indicadores = {}) {
+  const marks = await buildMarks(data)
   const doc = new jsPDF({ orientation: 'landscape' })
   const pageWidth = doc.internal.pageSize.getWidth()
   doc.setFillColor(35, 40, 62); doc.rect(0, 0, pageWidth, 62, 'F')
@@ -170,7 +190,7 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
   doc.text(cdi ? `${cdi.date} · BCB SGS 4389` : 'Sem cotação', cdiX + 6, cdiY + 41)
   doc.text(selic ? `${selic.date} · BCB SGS 432` : 'Sem cotação', cdiX + 60, cdiY + 41)
   doc.text('Taxas anuais; datas correspondem às últimas observações disponíveis.', cdiX + 6, cdiY + 46)
-  addCharts(doc, data, periodo)
+  addCharts(doc, data, periodo, marks)
   for (const k of ['carteira', 'extrato']) {
     const cols = SHEETS[k].cols.map(([c]) => c)
     const labels = SHEETS[k].cols.map(([c, , l]) => l ?? c)
@@ -219,7 +239,7 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
           const parcela = item.PARCELAMENTO
           const baixadaEm = parcela?.dataPagamento ? `; baixada em ${datePt(parcela.dataPagamento)}` : ''
           const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : ''
-          return `${item.NOME || '-'}: ${money(item.VALOR)}${sufixo}`
+          return `${item.NOME || '-'}${item.CATEGORIA ? ` (${item.CATEGORIA})` : ''}: ${money(item.VALOR)}${sufixo}`
         }).join(' · ')
         return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(pendente)]
       }),
@@ -229,13 +249,17 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
       ],
       columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 38 }, 3: { halign: 'right', cellWidth: 31 }, 4: { halign: 'right', cellWidth: 29 }, 5: { halign: 'right', cellWidth: 31, fontStyle: 'bold' } },
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
+      didParseCell: (h) => { if (h.section === 'body' && h.column.index === 1 && hasMark(marks, h.cell.raw)) h.cell.styles.cellPadding = { top: 2.5, bottom: 2.5, right: 2.5, left: 8.5 } },
+      didDrawCell: (h) => { if (h.section === 'body' && h.column.index === 1) drawMark(doc, marks, h.cell.raw, h.cell.x + 2, h.cell.y + 2.2, 4.2) },
     })
     const grupos = expenseBreakdown(data.despesas)
     const totalDespesas = grupos.reduce((s, group) => s + group.total, 0)
     const groupHeaderRows = new Set()
+    const groupAtRow = new Map()
     let rowIndex = 0
     grupos.forEach((group) => {
       groupHeaderRows.add(rowIndex)
+      groupAtRow.set(rowIndex, group.name)
       rowIndex += group.items.length + 1
     })
     let breakdownStart = doc.lastAutoTable.finalY + 10
@@ -273,9 +297,57 @@ export function exportPdf(data, resumo, periodo, indicadores = {}) {
       headStyles: tableStyles.headStyles,
       styles: { ...tableStyles.styles, fontSize: 8 },
       didParseCell: (data) => {
-        if (data.section === 'body' && groupHeaderRows.has(data.row.index)) data.cell.styles.fontStyle = 'bold'
+        if (data.section === 'body' && groupHeaderRows.has(data.row.index)) {
+          data.cell.styles.fontStyle = 'bold'
+          if (data.column.index === 0 && hasMark(marks, groupAtRow.get(data.row.index))) data.cell.styles.cellPadding = { top: 2, bottom: 2, right: 2, left: 9 }
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0 && groupAtRow.has(data.row.index)) drawMark(doc, marks, groupAtRow.get(data.row.index), data.cell.x + 2, data.cell.y + (data.cell.height - 4.4) / 2, 4.4)
       },
     })
+    // subtotal por categoria dentro de cada grupo (só grupos com itens categorizados)
+    const comCategorias = grupos.filter((group) => group.categories?.length)
+    if (comCategorias.length) {
+      let catStart = doc.lastAutoTable.finalY + 10
+      if (catStart > doc.internal.pageSize.getHeight() - 45) {
+        doc.addPage()
+        sectionHeading(doc, 'Despesas', 'Categorias dos itens', 'Subtotal por categoria dentro de cada grupo')
+        catStart = 34
+      } else {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_COLORS.ink)
+        doc.text('Subtotal por categoria dentro de cada grupo', 14, catStart)
+        catStart += 4
+      }
+      const catGroupAtRow = new Map()
+      let catRow = 0
+      const catBody = comCategorias.flatMap((group) => {
+        catGroupAtRow.set(catRow, group.name)
+        catRow += group.categories.length + 1
+        return [
+          [group.name, money(group.total), '100,00%'],
+          ...group.categories.map((cat) => [`   ${cat.name}`, money(cat.total), pctText(cat.total, group.total)]),
+        ]
+      })
+      autoTable(doc, {
+        startY: catStart,
+        head: [['Grupo / categoria', 'Total', '% do grupo']],
+        body: catBody,
+        ...tableStyles,
+        headStyles: tableStyles.headStyles,
+        styles: { ...tableStyles.styles, fontSize: 8 },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+        didParseCell: (data) => {
+          if (data.section === 'body' && catGroupAtRow.has(data.row.index)) {
+            data.cell.styles.fontStyle = 'bold'
+            if (data.column.index === 0 && hasMark(marks, catGroupAtRow.get(data.row.index))) data.cell.styles.cellPadding = { top: 2, bottom: 2, right: 2, left: 9 }
+          }
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 0 && catGroupAtRow.has(data.row.index)) drawMark(doc, marks, catGroupAtRow.get(data.row.index), data.cell.x + 2, data.cell.y + (data.cell.height - 4.4) / 2, 4.4)
+        },
+      })
+    }
   }
   if (data.resgates?.length) {
     doc.addPage()

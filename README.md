@@ -58,7 +58,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Compras parceladas**: divida o total em parcelas mensais (inclusive negativas, para abatimentos parcelados) e acompanhe o valor pago em cada fatura
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Busca com total**: ao usar a lupa, aparece o **total das despesas encontradas** no período (e em todo o histórico, quando for diferente), com os totais por item. A busca também encontra pela categoria do item e pelo nome do grupo
-- **Contas com logo**: cada conta pode ter um ícone, uma imagem sua (PNG, JPG, WebP ou SVG) ou um logo do **Banco de logos** (veja a seção *Banco de logos*)
+- **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
 - **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`grupo:` / `despesa dentro do grupo:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
@@ -176,7 +176,8 @@ Guarda o ícone e o logo de cada conta da aba Despesas.
 |---|---|
 | `NOME` | Nome da conta (igual ao `TIPO_CONTA`) |
 | `ICONE` | Emoji usado quando não há logo (padrão `🧾`) |
-| `LOGO` | `banco:<id>` (logo do *Banco de logos*) ou uma imagem enviada por você, guardada como texto (data URL) |
+| `LOGO` | `icone:<id>` (ícone genérico, ex.: `icone:casa`), `icone:` (sem ícone, usa o emoji) ou uma imagem enviada por você, guardada como texto (data URL) |
+| `COR` | Cor de fundo do ícone, em hexadecimal (ex.: `#ea580c`); vazio usa a cor padrão |
 
 ### Aba `Despesas por categoria` (opcional)
 
@@ -310,34 +311,26 @@ Cada despesa pode ter uma categoria (opcional), preenchida no modal de edição 
 - Aparece ao lado do item na lista, como em *Amazon (Compras Online)*
 - No detalhe do grupo (resumo da aba), há **Por categoria** (subtotal e percentual) acima de **Por despesa**; itens sem categoria entram em *Sem categoria*
 - A lupa também filtra pela categoria
+- No **Dashboard**, o card **Despesas por categoria** mostra as principais categorias do período (só aparece quando há alguma categoria). No **PDF**, a lista de despesas mostra a categoria ao lado de cada item e há a tabela **Subtotal por categoria dentro de cada grupo**
 - Exportado nas colunas `CATEGORIA_n` e na aba `Despesas por categoria`
 - A colagem de despesas ainda não lê categorias; os itens colados entram sem categoria
 
 ---
 
-## 🖼️ Banco de logos
+## 🎨 Ícones das contas
 
-Os logos das contas de despesas vêm da pasta `public/logos/`, publicada junto com o site. O app lê o `public/logos/index.json` e mostra uma grade com busca no botão **🖼️ Banco de logos** (ao criar uma conta e na página da conta, com a edição liberada).
+As contas de despesas usam **ícones genéricos** (sem marcas), desenhados direto no app, sem arquivos externos: funcionam offline e não dependem de nada publicado no site.
 
-- O XLSX guarda só a referência `banco:<id>` (ex.: `banco:nubank`), o que mantém o arquivo leve. Ao importar, o app procura o `id` no `index.json`
-- **Sugestão automática:** uma conta sem logo recebe a sugestão pelo nome (palavra inteira, comparando com o nome e os apelidos do `index.json`; vence o apelido mais longo)
-- Se um logo for removido do banco, o card volta para o emoji, e a referência continua no XLSX
-- **Enviar imagem** (PNG, JPG, WebP ou SVG) continua disponível: o app reduz para até 512 px, converte para WebP e guarda a imagem dentro do XLSX. Imagens enviadas deixam o arquivo e o `localStorage` maiores, então prefira o banco para logos de uso frequente
+- Em **🎨 Ícone e cor** (ao criar uma conta e na página da conta, com a edição liberada) escolha o ícone numa grade com busca e a **cor de fundo** entre as cores prontas ou numa cor personalizada. O texto do ícone fica claro ou escuro conforme a cor, para manter a leitura
+- **Sugestão automática:** uma conta sem ícone recebe um pelo nome (palavra inteira, vence o termo mais longo), por exemplo *Aluguel* → casa, *Internet* → wifi, *Cartão de crédito* → cartão
+- **Usar emoji** volta ao emoji da conta (a cor escolhida continua como fundo). **Cor padrão** limpa a cor
+- **Enviar imagem** (PNG, JPG, WebP ou SVG) continua disponível: o app reduz para até 512 px, converte para WebP e guarda a imagem dentro do XLSX. Imagens enviadas deixam o arquivo e o `localStorage` maiores, então prefira os ícones
+- O ícone e a cor aparecem também no gráfico **Despesas por grupo** do Dashboard e, no PDF, nos gráficos, na lista de despesas e na composição por grupo
+- No XLSX o ícone fica em `LOGO` (`icone:<id>`) e a cor em `COR`, na aba `Contas de despesas`
 
-**Como adicionar ou trocar logos**
+Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença ISC) e estão em `src/icons.js`. Para adicionar um ícone, acrescente uma entrada em `ICONS` com `id`, `nome`, `apelidos` (usados na sugestão) e o miolo do SVG 24×24. Evite renomear um `id` depois de usar, senão os XLSX já exportados deixam de achar o ícone.
 
-1. Coloque o arquivo (SVG, PNG ou WebP, de preferência quadrado e com fundo transparente) em `public/logos/`.
-2. Inclua uma entrada em `logos` no `public/logos/index.json`:
-
-```json
-{ "id": "nubank", "nome": "Nubank", "apelidos": ["nu"], "arquivo": "nubank.svg" }
-```
-
-3. Para trocar um logo existente, substitua o arquivo mantendo o nome (ou ajuste `arquivo`). Evite renomear o `id` depois de usar, senão os XLSX já exportados deixam de achar o logo.
-
-No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entradas com `"provisorio": true` são monogramas (iniciais sobre a cor da marca) que podem ser trocados pelo logo oficial.
-
-> ℹ️ As marcas pertencem aos seus respectivos donos e são usadas apenas para identificar as contas. Os ícones de marcas incluídos vêm do pacote [simple-icons](https://simpleicons.org), cujos arquivos são de domínio público.
+> ℹ️ XLSX exportados antes desta versão com logos do banco antigo (`banco:<id>`) continuam abrindo: a conta passa a mostrar o ícone sugerido pelo nome ou o emoji.
 
 ---
 
@@ -347,7 +340,6 @@ No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entrada
 .
 ├── .github/workflows/deploy.yml   # build + deploy no GitHub Pages
 ├── public/                        # favicon.svg, favicon-32.png, apple-touch-icon.png
-│   └── logos/                     # banco de logos: index.json + arquivos .svg
 
 ├── index.html
 ├── vite.config.js                 # base './' para o GitHub Pages
@@ -374,8 +366,9 @@ No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entrada
     ├── PasteDespesas.jsx          # colagem interativa de despesas
     ├── ProductSearch.jsx          # busca e detalhe de produtos
     ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
-    ├── logos.js                   # carrega o banco de logos, resolve banco:<id> e sugere logo pelo nome
-    ├── LogoPicker.jsx             # janela de escolha do logo (grade com busca)
+    ├── icons.js                   # ícones genéricos (Lucide), cores prontas e sugestão de ícone pelo nome
+    ├── AccountMark.jsx            # desenha o ícone/imagem/emoji da conta sobre a cor de fundo
+    ├── IconPicker.jsx             # janela de escolha do ícone e da cor
     ├── ResgatesView.jsx           # aba Resgates
     ├── NotesEditor.jsx            # editor de Notas com formatação
     ├── SearchField.jsx            # campo de busca com botão de limpar
@@ -402,16 +395,12 @@ No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entrada
 
 - **Segurança do `xlsx`:** a versão `0.18.x` publicada no npm (usada aqui) está desatualizada e o `npm audit` aponta vulnerabilidades. Como o app roda só no seu navegador e abre arquivos seus, o risco prático é baixo, mas evite importar planilhas de origem desconhecida.
 - A busca de produtos usa apenas os dados da sua planilha; o app **não consulta cotações** de ativos. A única consulta de mercado é o **CDI** (série 4389) e a **meta Selic** (série 432) na API pública do Banco Central. Se ela estiver fora do ar ou sem internet, o último valor salvo é exibido.
-- Os logos do Banco de logos são arquivos do próprio site: carregá-los não envia nenhum dado seu. Sem internet no primeiro acesso, o card mostra o emoji da conta no lugar do logo.
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
 
 ---
 
 ## 🗺️ TO DO
 
-- [ ] Pesquisar algum produto e ver detalhes e informações 
-- [ ] Mostrar categorias e logos no PDF e no Dashboard
-- [ ] Melhorar o campo de logos
 - [X] `v26.10.1` Gráficos no PDF
 - [X] `v26.10.2` Colagem de várias despesas de uma vez
 - [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
@@ -428,11 +417,12 @@ No GitHub Pages as maiúsculas importam (`Nubank.png` ≠ `nubank.png`). Entrada
 - [X] `v26.11.2` Despesas: valores negativos (abatimentos) em itens e parcelas, e mover qualquer item para qualquer grupo do mesmo mês
 - [X] `v26.11.3` Despesas: grupo dentro de grupo, com totais somados no grupo principal
 - [X] `v26.11.4` Despesas: lista sem rolagem horizontal e despesas do grupo com quebra de linha
-- [X] `v26.11.5` Banco de logos para as contas de despesas (`public/logos` + `index.json`), com sugestão automática e envio de PNG, JPG, WebP ou SVG
+- [X] `v26.11.5` Ícones genéricos para as contas de despesas, com cor de fundo editável, sugestão automática pelo nome e envio de PNG, JPG, WebP ou SVG
 - [X] `v26.11.6` Categorias por item (subitens) exportadas no XLSX e total apurado ao usar a lupa em Despesas
 - [X] `v26.11.7` PDF com linha de totais no fim das tabelas
 - [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
-- [X] `v26.11.9`  Ler categorias, valores negativos e grupo pai na colagem de despesas
+- [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
+- [ ] Pesquisar algum produto e ver detalhes e informações 
 
 ---
 

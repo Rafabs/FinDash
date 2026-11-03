@@ -322,7 +322,7 @@ export async function importFile(file) {
   if (dd) out.despesas = dd
   const accountsSheet = wb.Sheets['Contas de despesas']
   if (accountsSheet) out.contasDespesas = XLSX.utils.sheet_to_json(accountsSheet, { defval: '' })
-    .map((r) => ({ name: String(r.NOME || '').trim(), icon: String(r.ICONE || '🧾').trim() || '🧾', logo: String(r.LOGO || '') }))
+    .map((r) => ({ name: String(r.NOME || '').trim(), icon: String(r.ICONE || '🧾').trim() || '🧾', logo: String(r.LOGO || ''), ...(String(r.COR || '').trim() ? { color: String(r.COR).trim() } : {}) }))
     .filter((r) => r.name)
   const rs = wb.Sheets[SHEETS.resgates.name] || (wb.SheetNames[3] ? wb.Sheets[wb.SheetNames[3]] : null)
   if (rs && hasHdr(rs, 'DATA_RESGATE')) out.resgates = toRows(rs, RES)
@@ -348,7 +348,7 @@ export function exportXlsx(data) {
   for (const k of ['carteira', 'extrato'])
     XLSX.utils.book_append_sheet(wb, sheetOf(data[k], SHEETS[k].cols), SHEETS[k].name)
   if (data.despesas?.length) XLSX.utils.book_append_sheet(wb, despSheet(data.despesas, true), SHEETS.despesas.name)
-  if (data.contasDespesas?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.contasDespesas.map((a) => ({ NOME: a.name, ICONE: a.icon || '🧾', LOGO: a.logo || '' })), [['NOME'], ['ICONE'], ['LOGO']]), 'Contas de despesas')
+  if (data.contasDespesas?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.contasDespesas.map((a) => ({ NOME: a.name, ICONE: a.icon || '🧾', LOGO: a.logo || '', COR: a.color || '' })), [['NOME'], ['ICONE'], ['LOGO'], ['COR']]), 'Contas de despesas')
   if (data.resgates?.length) XLSX.utils.book_append_sheet(wb, sheetOf(data.resgates, RES), SHEETS.resgates.name)
   const noteSheet = XLSX.utils.aoa_to_sheet([
     ['NOTAS', NOTES_FORMAT_MARKER],
