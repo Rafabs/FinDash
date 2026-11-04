@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { useMemo, useState } from 'react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
 import { MarkSvg } from './AccountMark.jsx'
 import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems } from './data.js'
@@ -15,9 +15,19 @@ function GroupTick({ x, y, payload, markOf }) {
   const name = String(payload.value)
   return <g transform={`translate(${x},${y})`}>
     <MarkSvg {...markOf(name)} x={-138} y={-8} size={16} />
-    <text x={-116} y={4} fontSize={11} fill="var(--tx)">{name.length > 16 ? name.slice(0, 15) + '…' : name}</text>
+    <text x={-116} y={4} fontSize={11} style={{ fill: 'var(--tx)' }}>{name.length > 16 ? name.slice(0, 15) + '…' : name}</text>
   </g>
 }
+// percentuais dos gráficos
+const pctOf = (v, total) => (total ? ((Number(v) || 0) / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '')
+const sumOfNumbers = (p) => Object.entries(p || {}).filter(([k, v]) => k !== 'name' && typeof v === 'number').reduce((t, [, v]) => t + v, 0)
+const pieLabel = ({ cx, cy, midAngle, outerRadius, percent }) => {
+  if (!(percent >= 0.03)) return null
+  const a = -midAngle * Math.PI / 180, r = outerRadius + 14
+  return <text x={cx + r * Math.cos(a)} y={cy + r * Math.sin(a)} style={{ fill: 'var(--tx)' }} fontSize={11} textAnchor={Math.cos(a) >= 0 ? 'start' : 'end'} dominantBaseline="central">{(percent * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</text>
+}
+const pieTip = (total) => (v, n) => [`${brl(v)} · ${pctOf(v, total)}`, n]
+const pieLegend = (total) => (value, entry) => <span style={{ color: 'var(--tx)' }}>{value} · {pctOf(entry?.payload?.value, total)}</span>
 function formatBcbDate(value) {
   const [day, month, year] = String(value || '').split('/')
   return day && month && year ? `${day}/${month}/${year}` : value
@@ -75,6 +85,7 @@ export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas 
 }
 
 export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, selic, selicStatus }) {
+  const [catSel, setCatSel] = useState(null) 
   const { carteira, extrato } = data
   const range = useMemo(() => rangeOf(period), [period])
   const ext = useMemo(() => extrato.filter((r) => r[D] && inRange(r[D], range)), [extrato, range])
@@ -118,6 +129,19 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
     }))
     return any ? [...map].map(([name, value]) => ({ name, value: +value.toFixed(2) })).sort((a, b) => b.value - a.value) : []
   }, [dsp])
+  const catItems = useMemo(() => {
+    if (!catSel) return []
+    const out = []
+    dsp.forEach((r) => r.ITENS.forEach((it) => {
+      if ((String(it.CATEGORIA || '').trim() || 'Sem categoria') !== catSel) return
+      out.push({ date: r.DATA, grupo: r.TIPO_CONTA, nome: it.NOME || '—', valor: Number(it.VALOR) || 0, parcela: it.PARCELAMENTO ? `${it.PARCELAMENTO.numero}/${it.PARCELAMENTO.quantidade}` : '' })
+    }))
+    return out.sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.valor - a.valor)
+  }, [catSel, dsp])
+  const totCatSel = catItems.reduce((t, x) => t + x.valor, 0)
+  // totais para os percentuais (sempre sobre o conjunto inteiro, não só os itens exibidos)
+  const totTipo = sum(porTipo, 'value'), totBanco = sum(porBanco, 'value'), totPorCat = sum(porCat, 'value')
+  const totProvPapel = sum(prov, V), totConta = sum(porConta, 'value'), totCategoria = sum(porCategoria, 'value')
   const entradas = ext.filter((r) => r.CATEGORIA !== 'Venda de Patrimônio')
   const totEntr = sum(entradas, V) + totRes
   const saldo = totEntr - totDesp
@@ -170,11 +194,11 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
       <div className="grid">
         <div className="card"><h3>Alocação (RF x RV)</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <PieChart><Pie data={porTipo} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none">{porTipo.map((_, i) => <Cell key={i} fill={COLORS[i % 7]} />)}</Pie><Tooltip formatter={tip} {...TT} /><Legend /></PieChart>
+            <PieChart><Pie data={porTipo} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none" label={pieLabel} labelLine={false}>{porTipo.map((_, i) => <Cell key={i} fill={COLORS[i % 7]} />)}</Pie><Tooltip formatter={pieTip(totTipo)} {...TT} /><Legend formatter={pieLegend(totTipo)} /></PieChart>
           </ResponsiveContainer></div>
         <div className="card"><h3>Patrimônio por banco</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porBanco} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} fontSize={11} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#6366f1" radius={[0, 6, 6, 0]} /></BarChart>
+            <BarChart data={porBanco} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} fontSize={11} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totBanco)}`, n]} {...TT} /><Bar dataKey="value" fill="#6366f1" radius={[0, 6, 6, 0]}><LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totBanco)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
           </ResponsiveContainer></div>
       </div>
       {parcelasFuturas.length > 0 && <section className="panel expense-history-panel"><div className="panel-head"><div><h3>Previsão de parcelas</h3><small className="muted">Compromissos futuros no cartão · dê baixa antecipada na edição da fatura em Despesas</small></div><span className="expense-history-count">{parcelasFuturas.length} meses</span></div><div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Parcelas</th><th>Previsto</th><th>Pago</th><th>Pago antecipado</th><th>Pendente</th></tr></thead><tbody>{parcelasFuturas.map((x) => <tr key={x.mes}><td className="ro">{x.mes.slice(5)}/{x.mes.slice(2, 4)}</td><td className="ro">{x.quantidade}</td><td className="ro">{brl(x.previsto)}</td><td className="ro">{brl(x.pago)}</td><td className="ro">{brl(x.pagoAntecipado)}</td><td className="ro"><b>{brl(x.pendente)}</b></td></tr>)}</tbody></table></div></section>}
@@ -193,16 +217,16 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
       <div className="grid">
         <div className="card"><h3>Proventos por mês</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porMes}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} /><Legend />
+            <BarChart data={porMes}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={(v, n, e) => [`${brl(v)} · ${pctOf(v, sumOfNumbers(e?.payload))}`, n]} labelFormatter={mesTick} {...TT} /><Legend />
               <Bar dataKey="Proventos" stackId="a" fill="#6366f1" /><Bar dataKey="Rendimentos" stackId="a" fill="#14b8a6" radius={[6, 6, 0, 0]} /></BarChart>
           </ResponsiveContainer></div>
         <div className="card"><h3>Proventos por papel (top 10)</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porPapel}><CartesianGrid vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis fontSize={11} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#f59e0b" radius={[6, 6, 0, 0]} /></BarChart>
+            <BarChart data={porPapel} margin={{ top: 18 }}><CartesianGrid vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis fontSize={11} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totProvPapel)}`, n]} {...TT} /><Bar dataKey="value" fill="#f59e0b" radius={[6, 6, 0, 0]}><LabelList dataKey="value" position="top" formatter={(v) => pctOf(v, totProvPapel)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
           </ResponsiveContainer></div>
         <div className="card"><h3>Entradas por categoria</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <PieChart><Pie data={porCat} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none">{porCat.map((d, i) => <Cell key={i} fill={(d.name === 'Resgates' ? '#0ea5e9' : CAT_COLORS[CATS.indexOf(d.name)]) || '#94a3b8'} />)}</Pie><Tooltip formatter={tip} {...TT} /><Legend /></PieChart>
+            <PieChart><Pie data={porCat} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} stroke="none" label={pieLabel} labelLine={false}>{porCat.map((d, i) => <Cell key={i} fill={(d.name === 'Resgates' ? '#0ea5e9' : CAT_COLORS[CATS.indexOf(d.name)]) || '#94a3b8'} />)}</Pie><Tooltip formatter={pieTip(totPorCat)} {...TT} /><Legend formatter={pieLegend(totPorCat)} /></PieChart>
           </ResponsiveContainer></div>
       </div>
 
@@ -218,20 +242,26 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
       <div className="grid">
         <div className="card"><h3>Entradas x Despesas por mês</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={fluxo}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} /><Legend />
+            <BarChart data={fluxo}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={(v, n, e) => [n === 'Despesas' && e?.payload?.Entradas > 0 ? `${brl(v)} · ${pctOf(v, e.payload.Entradas)} das entradas` : brl(v), n]} labelFormatter={mesTick} {...TT} /><Legend />
               <Bar dataKey="Entradas" fill="#14b8a6" radius={[6, 6, 0, 0]} /><Bar dataKey="Despesas" fill="#ef4444" radius={[6, 6, 0, 0]} /></BarChart>
           </ResponsiveContainer></div>
         <div className="card"><h3>Despesas por grupo</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porConta.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} interval={0} tick={<GroupTick markOf={markOf} />} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]} /></BarChart>
+            <BarChart data={porConta.slice(0, 8)} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} interval={0} tick={<GroupTick markOf={markOf} />} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totConta)}`, n]} {...TT} /><Bar dataKey="value" fill="#ef4444" radius={[0, 6, 6, 0]}><LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totConta)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
           </ResponsiveContainer></div>
-        {porCategoria.length > 0 && <div className="card"><h3>Despesas por categoria</h3>
+        {porCategoria.length > 0 && <div className="card"><h3>Despesas por categoria</h3><small className="muted">Clique numa barra para ver todas as despesas da categoria</small>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porCategoria.slice(0, 8)} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} tickFormatter={(v) => (String(v).length > 20 ? String(v).slice(0, 19) + '…' : v)} /><Tooltip formatter={tip} {...TT} /><Bar dataKey="value" fill="#f59e0b" radius={[0, 6, 6, 0]} /></BarChart>
+            <BarChart data={porCategoria.slice(0, 8)} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} tickFormatter={(v) => (String(v).length > 20 ? String(v).slice(0, 19) + '…' : v)} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totCategoria)}`, n]} {...TT} /><Bar dataKey="value" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d) => setCatSel((cur) => (cur === d?.name ? null : d?.name))}>{porCategoria.slice(0, 8).map((d) => <Cell key={d.name} fill={d.name === catSel ? '#d97706' : '#f59e0b'} />)}<LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totCategoria)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
           </ResponsiveContainer></div>}
+        {catSel && catItems.length > 0 && <section className="panel expense-history-panel" style={{ gridColumn: '1 / -1' }}>
+          <div className="panel-head"><div><h3>{catSel}</h3><small className="muted">{catItems.length} {catItems.length === 1 ? 'despesa' : 'despesas'} · {pctOf(totCatSel, totDesp)} das despesas do período · {labelOf(period)}</small></div><button type="button" className="sec sm" onClick={() => setCatSel(null)}>Fechar ✕</button></div>
+          <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Grupo</th><th>Despesa</th><th>Valor</th></tr></thead>
+            <tbody>{catItems.map((x, i) => <tr key={i}><td className="ro">{mesTick(monthOf(x.date))}</td><td className="ro"><svg width="16" height="16" style={{ verticalAlign: 'middle', marginRight: 6 }}><MarkSvg {...markOf(String(x.grupo))} size={16} /></svg>{x.grupo}</td><td className="ro">{x.nome}{x.parcela ? ` (${x.parcela})` : ''}</td><td className="ro">{brl(x.valor)}</td></tr>)}</tbody>
+            <tfoot><tr><td className="ro" colSpan={3}><b>Total</b></td><td className="ro"><b>{brl(totCatSel)}</b></td></tr></tfoot></table></div>
+        </section>}
         <div className="card"><h3>Despesas por mês (principais grupos)</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={tip} labelFormatter={mesTick} {...TT} />
+            <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={(v, n, e) => [`${brl(v)} · ${pctOf(v, sumOfNumbers(e?.payload))} do mês`, n]} labelFormatter={mesTick} {...TT} />
               {empCats.map((c, i) => <Bar key={c} dataKey={c} stackId="d" fill={DESP_COLORS[i % 6]} />)}</BarChart>
           </ResponsiveContainer></div>
       </div>

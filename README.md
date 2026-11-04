@@ -1,14 +1,14 @@
 # 📊 Fynn Control
-
+ 
 Painel pessoal de **investimentos, proventos e despesas** que roda inteiro no navegador.
 Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela, acompanha o dashboard por período e exporta quando quiser.
-
+ 
 > **Privacidade:** não existe servidor nem banco de dados. Os seus dados ficam apenas no `localStorage` do navegador e nunca são enviados para lugar nenhum. A única consulta externa é pública e não leva nada seu: o **CDI** e a **meta Selic** vêm da API do Banco Central.
-
+ 
 ---
-
+ 
 ## ✨ Funcionalidades
-
+ 
 **Geral**
 - Importação de `.xlsx` (dados e notas) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
 - Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas, todas com linha de **totais** no fim)
@@ -23,7 +23,6 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Landing page com explicação, modelos para download e dados de exemplo
 - Dados salvos automaticamente no navegador
 - **Notas pessoais formatadas**: fonte, tamanho, negrito, itálico, sublinhado e cores; salvas automaticamente e preservadas no XLSX
-
 **Carteira**
 - Itens de renda fixa (RF) e variável (RV) com cálculos automáticos
 - Colunas travadas conforme o tipo (veja [Regras da Carteira](#-regras-da-carteira))
@@ -31,25 +30,21 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Lotes do mesmo papel mesclados: editar o preço de um atualiza todos
 - Rendimento e variação coloridos (▲ verde / ▼ vermelho) e linhas alternadas
 - Painel no topo com patrimônio, total investido, rendimento e alocação RF x RV
-
 **Extrato (entradas)**
 - Categorias automáticas: Proventos, Rendimentos, Aluguel, Salário e Outros (mais "Venda de Patrimônio", escolhida manualmente)
 - Filtro por **período**, categoria e busca em texto (com botão para limpar)
 - **Categorias personalizadas**: crie as suas com **＋ Categoria**; elas aparecem nos filtros, na tabela, no painel e ficam salvas no XLSX
 - Tabela paginada e editável
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
-
 **Renda por papel** (*yield on cost*)
 - Mostra quanto cada papel de renda variável rendeu em proventos nos **últimos 12 meses** em relação ao valor aplicado
 - Indicadores: proventos em 12 meses, valor aplicado, *yield on cost* ponderado da carteira e média mensal
 - Gráfico com os 8 maiores yields e tabela ordenável (valor aplicado, proventos, média mensal e yield), com filtro por ticker
 - Veja a explicação do indicador em [Renda por papel](#-renda-por-papel)
-
 **Resgates**
 - Resgates de investimentos com a **rentabilidade** obtida até a data do resgate (lucro, pode ser negativo)
 - Esse valor **soma-se às entradas** (Extrato, fluxo de caixa e saldo do dashboard)
 - Filtros por período, produto e busca, com tabela editável e paginada
-
 **Despesas**
 - Despesas organizadas em **grupos** (ex.: *Cartão de crédito*) com as **despesas de dentro do grupo** (ex.: *Manutenção veicular*)
 - **Mover despesas**: arraste uma despesa para **qualquer outro grupo do mesmo mês**. O grupo de origem pode ficar vazio (ele continua na lista, pronto para receber novas despesas) e o destino pode ter o mesmo nome do grupo de origem
@@ -62,19 +57,19 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
 - **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`grupo:` / `despesa dentro do grupo:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
-
 **Dashboard**
 - Patrimônio, alocação e patrimônio por banco
 - **CDI anualizado** e **meta Selic** (Banco Central), com a data de referência; sem internet, mostra o último valor salvo
 - Proventos por mês e por papel, média mensal e maior pagador
 - Despesas por grupo e por mês, entradas (com resgates) × despesas e saldo do período
+- **Percentuais nos gráficos**: as pizzas mostram o percentual em cada fatia e na legenda; as barras por grupo, categoria, banco e papel mostram o percentual do total na ponta da barra; nos gráficos mensais, o balão mostra o percentual de cada parte no mês (nas despesas do fluxo de caixa, o percentual em relação às entradas)
+- **Despesas por categoria**: clique numa barra para abrir a lista com **todas as despesas daquela categoria** (mês, grupo, despesa, valor e total). Clique de novo na barra, ou em **Fechar**, para recolher
 - Resgates do período como indicador próprio e como fatia em "Entradas por categoria"
 - Os mesmos gráficos saem no **PDF**, respeitando o período escolhido
-
 ---
-
+ 
 ## 🧰 Tecnologias
-
+ 
 | Uso | Biblioteca |
 |---|---|
 | Interface | [React 18](https://react.dev) + [Vite](https://vitejs.dev) |
@@ -82,54 +77,53 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 | Gráficos | [Recharts](https://recharts.org) |
 | PDF | [jsPDF](https://github.com/parallax/jsPDF) + [jspdf-autotable](https://github.com/simonbengtsson/jsPDF-AutoTable) |
 | Deploy | GitHub Actions + GitHub Pages |
-
+ 
 ---
-
+ 
 ## 🚀 Como rodar localmente
-
+ 
 Pré-requisito: [Node.js](https://nodejs.org) 18 ou superior.
-
+ 
 ```bash
 # 1. instalar as dependências (só na primeira vez)
 npm install
-
+ 
 # 2. iniciar o servidor de desenvolvimento
 npm run dev
 ```
-
+ 
 Abra o endereço exibido no terminal (normalmente `http://localhost:5173`).
-
+ 
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Servidor de desenvolvimento com atualização automática |
 | `npm run build` | Gera a versão final na pasta `dist/` |
 | `npm run preview` | Serve a pasta `dist/` localmente para testar como ficará publicado |
-
+ 
 > 💡 Se o projeto estiver numa pasta sincronizada pelo OneDrive, mova-o para outro lugar (ex.: `C:\dev\`). A pasta `node_modules` tem milhares de arquivos e deixa a sincronização lenta.
-
+ 
 ---
-
+ 
 ## 🌐 Publicar no GitHub Pages
-
+ 
 O repositório já inclui o workflow `.github/workflows/deploy.yml`.
-
+ 
 1. Crie um repositório no GitHub e envie o projeto (incluindo a pasta `.github`).
 2. No repositório, vá em **Settings → Pages → Build and deployment → Source** e escolha **GitHub Actions**.
 3. A cada `push` na branch `main`, o site é compilado e publicado em:
    `https://rafabs.github.io/FinDash/`
-
 Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (caminhos relativos) e o app não usa rotas por URL, apenas abas internas. Por isso não há erro 404 ao recarregar a página.
-
+ 
 ---
-
+ 
 ## 📥 Formato da planilha
-
+ 
 O arquivo `.xlsx` tem as abas de dados `Control_Fynn`, `Extrato`, `Despesas`, `Resgates` e `Notas`, mais `Contas de despesas` e `Despesas por categoria` (opcionais, criadas pelo app quando necessárias). Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
-
+ 
 Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
-
+ 
 ### Aba `Control_Fynn` (carteira)
-
+ 
 | Coluna | Descrição |
 |---|---|
 | `DATA_APLICACAO` | Data da compra |
@@ -142,20 +136,20 @@ Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
 | `TOTAL_ATUAL` | Valor hoje |
 | `ULTIMA_ATUAL` | Data da última atualização |
 | `PERIODO`, `REND_BRUTO`, `VAR_PP`, `IOF` | **Calculadas pelo app** (podem ficar em branco) |
-
+ 
 ### Aba `Extrato` (entradas)
-
+ 
 | Coluna | Descrição |
 |---|---|
 | `DATA DE RECEBIMENTO` | Data da entrada |
 | `VALOR DA APLICAÇÃO` | Valor recebido |
 | `CATEGORIA` | Opcional. Se vazia, o app classifica sozinho |
 | `ORIGEM`, `INSTITUIÇÃO`, `CNPJ / CPF`, `TIPO` | Texto livre |
-
+ 
 ### Aba `Despesas` (contas do mês)
-
+ 
 Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessários:
-
+ 
 | Coluna | Descrição |
 |---|---|
 | `DATA` | Mês da conta (use o dia 1) |
@@ -165,61 +159,60 @@ Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessári
 | `PARCELAMENTO_1`, `PARCELAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com os dados das parcelas de cada item (não edite) |
 | `CATEGORIA_1`, `CATEGORIA_2`, … | Categoria do item correspondente (`COTA_1` ↔ `CATEGORIA_1`). Opcional; as colunas só aparecem quando existe alguma categoria |
 | `GRUPO_PAI` | Opcional. Nome do grupo em que este grupo está "dentro" (ex.: `ALUGUEL` para a conta `CONDOMÍNIO`) |
-
+ 
 A mesma conta pode aparecer em mais de uma linha no mesmo mês (por exemplo, dois cartões). Linhas sem nenhum valor são ignoradas.
-
+ 
 ### Aba `Contas de despesas` (opcional)
-
+ 
 Guarda o ícone e o logo de cada conta da aba Despesas.
-
+ 
 | Coluna | Descrição |
 |---|---|
 | `NOME` | Nome da conta (igual ao `TIPO_CONTA`) |
 | `ICONE` | Emoji usado quando não há logo (padrão `🧾`) |
 | `LOGO` | `icone:<id>` (ícone genérico, ex.: `icone:casa`), `icone:` (sem ícone, usa o emoji) ou uma imagem enviada por você, guardada como texto (data URL) |
 | `COR` | Cor de fundo do ícone, em hexadecimal (ex.: `#ea580c`); vazio usa a cor padrão |
-
+ 
 ### Aba `Despesas por categoria` (opcional)
-
+ 
 Relatório legível, criado na exportação quando existe alguma categoria: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA` e `VALOR`. Serve para consulta e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
-
+ 
 ### Aba `Resgates`
-
+ 
 | Coluna | Descrição |
 |---|---|
 | `DATA_RESGATE` | Data do resgate |
 | `PRODUTO` | Produto resgatado (ex.: `RDB APLICAÇÃO`, `TESOURO SELIC 2029`) |
 | `RENTABILIDADE ATÉ DATA RESGATE` | Lucro obtido até o resgate (negativo em caso de prejuízo). É este valor que soma às entradas |
-
+ 
 ### Aba `Notas`
-
+ 
 A aba `Notas` guarda o texto escrito no editor do app. O texto legível fica na célula `A2`; a formatação é armazenada em metadados na coluna oculta `B` para ser restaurada ao importar o arquivo. Arquivos antigos sem essa aba ou sem formatação continuam sendo aceitos.
-
+ 
 ---
-
+ 
 ## 📐 Regras da Carteira
-
+ 
 | Campo | RF | RV |
 |---|---|---|
 | **Total Aplicado** (`VLR_APLICACAO`) | Calculado: Qtd. × Preço (travado) | Informado na criação (travado depois) |
 | **Preço Unitário** (`PRC_UNIT`) | Travado | **Editável** (preço atual do papel) |
 | **Valor Hoje** (`TOTAL_ATUAL`) | **Editável** | Calculado: Qtd. × Preço (travado) |
 | **IOF** | `SIM` se a duração for menor que 31 dias, senão `NÃO` | `N/A` |
-
+ 
 Também ficam sempre travados: data de aplicação, quantidade, papel, banco, categoria, produto, tipo, duração, rendimento e variação. Só **Atualizado** é editável nos dois tipos. Novos itens entram pelo botão **+ Novo item**.
-
+ 
 - **Duração** = Atualizado − Data de Aplicação (em dias)
 - **Rendimento** = Valor Hoje − Total Aplicado
 - **Variação** = Rendimento ÷ Total Aplicado
-
 Os lotes de RV com o mesmo `PAPEL` compartilham **Preço Unitário** e **Atualizado**. Editar um deles atualiza todos e recalcula o Valor Hoje de cada lote.
-
+ 
 ---
-
+ 
 ## 🏷️ Categorias do Extrato
-
+ 
 Atribuídas automaticamente na importação (a partir de `TIPO` e `ORIGEM`) e editáveis na tabela:
-
+ 
 | Categoria | Reconhece |
 |---|---|
 | Proventos | dividendos, FIIs, JCP / juros sobre capital |
@@ -228,119 +221,112 @@ Atribuídas automaticamente na importação (a partir de `TIPO` e `ORIGEM`) e ed
 | Salário | salário, 13º, PLR/PPLR, bônus, rescisão |
 | Venda de Patrimônio | **manual** (não é atribuída automaticamente) |
 | Outros | todo o resto |
-
+ 
 No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
-
+ 
 **Entradas** = lançamentos do Extrato + rentabilidade dos **Resgates**. É esse total que aparece no painel do Extrato e no fluxo de caixa. No saldo (entradas − despesas), a categoria *Venda de Patrimônio* fica de fora.
-
+ 
 ---
-
+ 
 ## 🔍 Busca de produtos
-
+ 
 Abra com o botão **🔍 Buscar**, `Ctrl+K` ou `/`. Digite parte do código, nome, banco ou tipo (ex.: `mxrf`, `tesouro`, `rdb`, `banco xp`, `fii`). Use ↑↓ para navegar, `Enter` para abrir e `Esc` para voltar ou fechar.
-
+ 
 A lista separa o que está na **carteira** do que está **fora dela** (papéis vendidos que ainda têm proventos no Extrato e produtos que só aparecem nos Resgates).
-
+ 
 O detalhe do produto mostra:
-
+ 
 - **Posição:** valor hoje, total aplicado, rendimento, participação na carteira, quantidade, preço atual e preço médio pago
 - **Proventos:** total, últimos 12 meses, *yield on cost* (proventos dos últimos 12 meses ÷ valor aplicado), maior pagamento e média, com gráfico mensal
 - **Resgates** ligados ao produto e a rentabilidade resgatada
 - **Retorno total:** rendimento + proventos + resgates
 - Tabela com todos os **lotes**
-
 O cruzamento entre abas é tolerante a nomes diferentes: proventos são ligados pelo código do papel (`MXRF11`) e resgates pelo nome do produto (ex.: "FII XP MALLS" é associado ao papel `XPML11`).
-
+ 
 ---
-
+ 
 ## 💹 Renda por papel
-
+ 
 Na aba **Renda por papel**, o *yield on cost* de cada papel de renda variável é:
-
+ 
 ```text
 yield on cost = proventos recebidos nos últimos 12 meses ÷ valor aplicado no papel
 ```
-
+ 
 - Os proventos vêm da categoria **Proventos** do Extrato, ligados ao papel pelo código (ex.: `MXRF11`)
 - O cálculo usa o valor aplicado **atual** da carteira e uma janela móvel de 12 meses; ele compara a renda histórica entre posições e não estima pagamentos futuros
 - Aportes recentes ainda não completaram 12 meses de proventos, então tendem a aparecer com yield menor
 - A mesma métrica aparece no detalhe de cada produto na busca (🔍)
-
 ---
-
+ 
 ## 📋 Colar despesas
-
+ 
 Na aba Despesas, use **📋 Colar despesas** ou `Ctrl+V` fora de qualquer campo. Formatos aceitos:
-
+ 
 ```text
 grupo: Cartão de crédito           despesa: Internet
 despesa dentro do grupo: Manutenção veicular   preço: R$ 119,90
 valor: R$ 1.200,00                 pagamento: 15/05/2020
 pago em: 15/05/2020
 ```
-
+ 
 - **Blocos "rótulo: valor"**: grupo/conta (`grupo`, `despesa`, `custo`, `conta`, `gasto`, `tipo`, `categoria`), valor (`valor`, `preço`, `total`), data (`pago em`, `pagamento`, `data`, `vencimento`) e a despesa de dentro do grupo (`despesa dentro do grupo`, `descrição`, `item`, `obs`)
 - **Tabela copiada do Excel/Sheets**, com ou sem cabeçalho
 - **Uma despesa por linha**, em ordem livre: `Energia elétrica - R$ 150,00 - 15/05/2020`
-
 A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e permite editar antes de adicionar. Grupos parecidos com os existentes são unificados (`energia` → `ENERGIA ELÉTRICA`), registros sem data vão para um mês padrão à sua escolha e registros do mesmo mês e grupo viram uma linha com várias despesas dentro. Só o **mês** é guardado, já que a aba Despesas é mensal.
-
+ 
 ---
-
+ 
 ## 🧩 Grupos dentro de grupos
-
+ 
 Um grupo pode ficar dentro de outro (ex.: *Condomínio* dentro de *Aluguel*):
-
+ 
 1. Na aba Despesas, clique no lápis ✏️ da linha do grupo (com a edição liberada).
 2. Em **"Dentro do grupo…"**, escolha o grupo principal e confirme com `Enter` ou saindo do campo. Deixe vazio para voltar a ser um grupo principal.
-
 Regras:
-
+ 
 - O vínculo vale para **todas as linhas com o mesmo nome de grupo**; linhas novas desse grupo (colar, Lançar mês, novo lançamento) já entram vinculadas
 - Nos resumos, o total do filho **sobe para o grupo principal** e aparece no detalhe como `FILHO › despesa`; o total geral não conta nada duas vezes
 - Pode haver mais de um nível. Um grupo não pode ficar dentro dele mesmo, nem formar ciclo (A dentro de B e B dentro de A)
 - Na matriz mensal cada grupo continua com a sua linha, mostrada com o caminho (`ALUGUEL › CONDOMÍNIO`)
 - Exportado na coluna `GRUPO_PAI` da aba `Despesas`
-
 ---
-
+ 
 ## 🏷️ Categorias por item
-
+ 
 Cada despesa pode ter uma categoria (opcional), preenchida no modal de edição do grupo (campo **Categoria**) ou em **＋ Novo lançamento** na página da conta. Se a descrição já foi categorizada antes, a categoria é sugerida sozinha.
-
+ 
 - Aparece ao lado do item na lista, como em *Amazon (Compras Online)*
 - No detalhe do grupo (resumo da aba), há **Por categoria** (subtotal e percentual) acima de **Por despesa**; itens sem categoria entram em *Sem categoria*
 - A lupa também filtra pela categoria
-- No **Dashboard**, o card **Despesas por categoria** mostra as principais categorias do período (só aparece quando há alguma categoria). No **PDF**, a lista de despesas mostra a categoria ao lado de cada item e há a tabela **Subtotal por categoria dentro de cada grupo**
+- No **Dashboard**, o card **Despesas por categoria** mostra as principais categorias do período (só aparece quando há alguma categoria) e, ao clicar numa barra, lista todas as despesas dela. No **PDF**, a lista de despesas mostra a categoria ao lado de cada item e há a tabela **Subtotal por categoria dentro de cada grupo**
 - Exportado nas colunas `CATEGORIA_n` e na aba `Despesas por categoria`
 - A colagem de despesas ainda não lê categorias; os itens colados entram sem categoria
-
 ---
-
+ 
 ## 🎨 Ícones das contas
-
+ 
 As contas de despesas usam **ícones genéricos** (sem marcas), desenhados direto no app, sem arquivos externos: funcionam offline e não dependem de nada publicado no site.
-
+ 
 - Em **🎨 Ícone e cor** (ao criar uma conta e na página da conta, com a edição liberada) escolha o ícone numa grade com busca e a **cor de fundo** entre as cores prontas ou numa cor personalizada. O texto do ícone fica claro ou escuro conforme a cor, para manter a leitura
 - **Sugestão automática:** uma conta sem ícone recebe um pelo nome (palavra inteira, vence o termo mais longo), por exemplo *Aluguel* → casa, *Internet* → wifi, *Cartão de crédito* → cartão
 - **Usar emoji** volta ao emoji da conta (a cor escolhida continua como fundo). **Cor padrão** limpa a cor
 - **Enviar imagem** (PNG, JPG, WebP ou SVG) continua disponível: o app reduz para até 512 px, converte para WebP e guarda a imagem dentro do XLSX. Imagens enviadas deixam o arquivo e o `localStorage` maiores, então prefira os ícones
 - O ícone e a cor aparecem também no gráfico **Despesas por grupo** do Dashboard e, no PDF, nos gráficos, na lista de despesas e na composição por grupo
 - No XLSX o ícone fica em `LOGO` (`icone:<id>`) e a cor em `COR`, na aba `Contas de despesas`
-
 Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença ISC) e estão em `src/icons.js`. Para adicionar um ícone, acrescente uma entrada em `ICONS` com `id`, `nome`, `apelidos` (usados na sugestão) e o miolo do SVG 24×24. Evite renomear um `id` depois de usar, senão os XLSX já exportados deixam de achar o ícone.
-
+ 
 > ℹ️ XLSX exportados antes desta versão com logos do banco antigo (`banco:<id>`) continuam abrindo: a conta passa a mostrar o ícone sugerido pelo nome ou o emoji.
-
+ 
 ---
-
+ 
 ## 🗂️ Estrutura do projeto
-
+ 
 ```
 .
 ├── .github/workflows/deploy.yml   # build + deploy no GitHub Pages
 ├── public/                        # favicon.svg, favicon-32.png, apple-touch-icon.png
-
+ 
 ├── index.html
 ├── vite.config.js                 # base './' para o GitHub Pages
 ├── package.json
@@ -379,26 +365,24 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── Pager.jsx                  # paginação e itens por página
     └── styles.css                 # estilos e temas claro/escuro
 ```
-
+ 
 ---
-
+ 
 ## 💾 Dados e exportação
-
+ 
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
 - **CSV** exporta a aba atual. **XLSX** exporta as abas de dados e `Notas` no mesmo formato de entrada, então pode ser reimportado.
 - **PDF** traz o resumo, os gráficos e as tabelas, com **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
-
 ---
-
+ 
 ## ⚠️ Observações
-
+ 
 - **Segurança do `xlsx`:** a versão `0.18.x` publicada no npm (usada aqui) está desatualizada e o `npm audit` aponta vulnerabilidades. Como o app roda só no seu navegador e abre arquivos seus, o risco prático é baixo, mas evite importar planilhas de origem desconhecida.
 - A busca de produtos usa apenas os dados da sua planilha; o app **não consulta cotações** de ativos. A única consulta de mercado é o **CDI** (série 4389) e a **meta Selic** (série 432) na API pública do Banco Central. Se ela estiver fora do ar ou sem internet, o último valor salvo é exibido.
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
-
 ---
-
+ 
 ## 🗺️ TO DO
 
 - [X] `v26.10.1` Gráficos no PDF
@@ -422,6 +406,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - [X] `v26.11.7` PDF com linha de totais no fim das tabelas
 - [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
 - [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
+- [X] `v26.11.10` Exibir percentual dos itens em Dashboard
 - [ ] Pesquisar algum produto e ver detalhes e informações 
 
 ---
