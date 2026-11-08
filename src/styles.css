@@ -1,5 +1,5 @@
-:root{color-scheme:light;--bg:#f3f4f9;--card:#fff;--bd:#e3e6ef;--tx:#1b2033;--mut:#6b7390;--ac:#6366f1;--ac2:#4f46e5;--hover:#e4e8fb;--zebra:#f3f4fb;--grp:#e9ecfa;--inp:#f7f8fc;--pos:#15a34a;--neg:#e11d48;--sh:0 1px 2px #1b20330d,0 6px 20px #1b20330a}
-[data-theme=dark]{color-scheme:dark;--bg:#0e1118;--card:#171b26;--bd:#272d3d;--tx:#e8ebf5;--mut:#8b93ad;--ac:#818cf8;--ac2:#6366f1;--hover:#252c42;--zebra:#1c2131;--grp:#222a44;--inp:#11141d;--pos:#34d399;--neg:#fb7185;--sh:0 1px 2px #0006,0 8px 24px #0004}
+:root{color-scheme:light;--bg:#e8ebee;--card:#f6f7f8;--bd:#cbd1d7;--tx:#0e1215;--mut:#586270;--ac:#00a99d;--ac2:#007c73;--on-ac:#ffffff;--hover:#dde3e8;--zebra:#eceff2;--grp:#dfe5ea;--inp:#eff2f4;--pos:#00765e;--neg:#d41f3f;--sh:0 1px 2px #0e121510,0 8px 22px #0e12150d}
+[data-theme=dark]{color-scheme:dark;--bg:#06080a;--card:#0e1216;--bd:#1f262d;--tx:#e6eaee;--mut:#8995a2;--ac:#00d2be;--ac2:#00bfae;--on-ac:#021311;--hover:#16202a;--zebra:#0b0f12;--grp:#111a1e;--inp:#090c0f;--pos:#2ee6b5;--neg:#ff4d6a;--sh:0 1px 0 #ffffff08 inset,0 10px 30px #000000b0}
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx);transition:background .2s,color .2s}
 .app-version{padding:0 24px 16px;text-align:right;color:var(--mut);font-size:11px;opacity:.7}
@@ -567,3 +567,55 @@ button:disabled.icon{opacity:.35;cursor:not-allowed}
 .icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin:12px 0;max-height:44vh;overflow-y:auto}
 .icon-grid button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px}
 .icon-grid small{text-align:center;overflow-wrap:anywhere}
+
+/* ================= Tema Mercedes-AMG Petronas: carbono, prata e verde Petronas ================= */
+::selection{background:var(--ac);color:var(--on-ac)}
+*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--mut) 45%,transparent) transparent}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--mut) 40%,transparent);border-radius:8px}::-webkit-scrollbar-track{background:transparent}
+body{font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+[data-theme=dark] body{background-color:var(--bg);background-attachment:fixed;background-size:100% 100%,12px 12px,12px 12px,12px 12px,12px 12px;background-position:0 0,6px 0,6px 0,0 0,0 0;background-image:radial-gradient(ellipse at 50% -12%,#00d2be16,transparent 55%),linear-gradient(135deg,#ffffff07 25%,transparent 25%),linear-gradient(225deg,#ffffff07 25%,transparent 25%),linear-gradient(45deg,#ffffff07 25%,transparent 25%),linear-gradient(315deg,#ffffff07 25%,transparent 25%)}
+header{border-bottom:1px solid var(--bd)}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--ac) 30%,#c4cad1 70%,transparent);opacity:.75}
+.brand h1{text-transform:uppercase;letter-spacing:.14em;font-size:15px;font-weight:800}
+.brand small{text-transform:uppercase;letter-spacing:.1em;font-size:10px}
+.logo,.lp-up{border-radius:6px;background:linear-gradient(135deg,#00d2be 0%,#00d2be 45%,#c4cad1 100%);color:#03120f;clip-path:polygon(0 0,100% 0,100% 72%,72% 100%,0 100%)}
+button,.tabs button.on,.seg button.on,button.icon.ok{background:var(--ac2);color:var(--on-ac);border-radius:6px;letter-spacing:.02em}
+button:hover{filter:none;box-shadow:0 0 0 1px color-mix(in srgb,var(--ac) 45%,transparent),0 0 18px -4px color-mix(in srgb,var(--ac) 60%,transparent)}
+button.sec,button.icon{background:transparent;color:var(--tx);border-color:var(--bd)}
+button.sec:hover,button.icon:hover{background:var(--hover);border-color:var(--ac);box-shadow:none}
+.lp-step span{color:var(--on-ac)}
+.tabs{border-radius:8px}
+.tabs button{border-radius:5px;text-transform:uppercase;font-size:12px;letter-spacing:.07em}
+.tabs button.on{box-shadow:0 0 0 1px color-mix(in srgb,var(--ac) 45%,transparent),0 0 18px -4px color-mix(in srgb,var(--ac) 60%,transparent)}
+.card,.panel{border-radius:8px;transition:border-color .2s,box-shadow .2s}
+[data-theme=dark] .card,[data-theme=dark] .panel{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff 3%),var(--card))}
+.card:hover,.panel:hover{border-color:color-mix(in srgb,var(--ac) 40%,var(--bd))}
+.card h3,.panel-head h3{display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--mut)}
+.card h3::before,.panel-head h3::before{content:"";width:3px;height:12px;background:var(--ac);flex:none}
+.kpi::before{width:3px;background:linear-gradient(var(--ac),#c4cad1)}
+.kpi small{text-transform:uppercase;letter-spacing:.09em;font-size:10.5px}
+.kpi b,.hero strong{font-family:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;font-weight:700;letter-spacing:-.02em}
+th{border-bottom:1px solid color-mix(in srgb,var(--ac) 35%,var(--bd))}
+input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 25%,transparent)}
+.recharts-cartesian-grid line{stroke-dasharray:2 5}
+.hero{border-radius:10px;color:#e9fffc;border:1px solid #00d2be33;background:radial-gradient(circle at 92% 0,#00d2be33,transparent 52%),linear-gradient(135deg,#0d1518,#090d10 60%,#061a18);box-shadow:0 12px 32px #00000066,inset 0 1px 0 #ffffff0f}
+.bar .c0,.dot.c0{background:#00d2be}.bar .c1,.dot.c1{background:#c4cad1}.bar .c2,.dot.c2{background:#ffb020}.bar .c3,.dot.c3{background:#5ba7ff}.bar .c4,.dot.c4{background:#7b8794}
+.lp-hero{background:radial-gradient(circle at 85% 10%,#00d2be26,transparent 45%),radial-gradient(circle at 5% 100%,#c4cad122,transparent 45%),var(--card)}
+.grad{background:linear-gradient(90deg,#00d2be,#c4cad1,#00d2be);-webkit-background-clip:text;background-clip:text;color:transparent}
+.m-bars i{background:linear-gradient(#00d2be,#00897f)}
+.m-ring{background:conic-gradient(#00d2be 0 62%,#c4cad1 62% 100%)}
+.pbadge.rv{background:#00d2be22;color:#00a99d}.pbadge.rf{background:#c4cad133;color:#7b8794}
+.tour{width:min(560px,100%)}
+.tour-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.tour-count{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.tour-head{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.tour-head h3{margin:0}.tour-head p{margin:2px 0 0}
+.tour-ic{display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:10px;font-size:26px;background:color-mix(in srgb,var(--ac) 16%,transparent);border:1px solid color-mix(in srgb,var(--ac) 40%,var(--bd))}
+.tour-list{margin:0 0 14px;padding-left:20px;display:grid;gap:8px;font-size:14px;line-height:1.5;min-height:190px;align-content:start}
+.tour-list li::marker{color:var(--ac)}
+.tour-list code{font-size:12px;padding:1px 6px;border-radius:5px;background:var(--hover);border:1px solid var(--bd)}
+.tour-dots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 14px}
+.tour-dots button{width:9px;height:9px;padding:0;border:0;border-radius:50%;background:var(--bd)}
+.tour-dots button:hover{box-shadow:none;background:var(--mut)}
+.tour-dots button.on{background:var(--ac);box-shadow:0 0 10px color-mix(in srgb,var(--ac) 70%,transparent)}
+.modal.tour .actions{justify-content:space-between}

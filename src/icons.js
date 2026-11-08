@@ -2,8 +2,8 @@
 // Desenhos do projeto Lucide (https://lucide.dev), licença ISC. Cada um é o miolo de um SVG 24x24 (traço, sem preenchimento).
 export const ICON_PREFIX = 'icone:'
 export const NO_ICON = 'icone:' // "sem ícone": mostra o emoji da conta
-export const DEFAULT_COLOR = '#5b5fc7'
-export const COLOR_PRESETS = ['#5b5fc7', '#2563eb', '#0891b2', '#059669', '#65a30d', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed', '#475569', '#111827']
+export const DEFAULT_COLOR = '#00897f'
+export const COLOR_PRESETS = ['#00897f', '#00bfae', '#c4cad1', '#7b8794', '#374151', '#111827', '#2563eb', '#ffb020', '#ea580c', '#dc2626', '#db2777', '#7c3aed']
 
 export const ICONS = [
   { id: 'casa', nome: 'Casa', apelidos: ["casa","aluguel","condominio","moradia","imovel","iptu","apartamento","financiamento"], svg: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },

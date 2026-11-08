@@ -12,6 +12,7 @@ import Landing from './Landing.jsx'
 import ProductSearch from './ProductSearch.jsx'
 import RendaPorPapel from './RendaPorPapel.jsx'
 import NotesEditor from './NotesEditor.jsx'
+import Tour, { tourSeen, markTourSeen } from './Tour.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
@@ -33,6 +34,9 @@ export default function App() {
   const [modal, setModal] = useState(false)
   const [paste, setPaste] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  // guia rápido: abre no primeiro acesso (ou com ?tour=1 na URL) e pelo botão ❓
+  const [tour, setTour] = useState(() => !tourSeen() || /[?&]tour=1\b/.test(location.search))
+  const closeTour = () => { markTourSeen(); setTour(false) }
   const [cartLocked, setCartLocked] = useState(true) // Carteira começa travada (evita digitação indevida)
   const [cdi, setCdi] = useState(readCachedCdi)
   const [cdiStatus, setCdiStatus] = useState('loading')
@@ -174,6 +178,7 @@ export default function App() {
           {hasFinancialData && <button className="sec" onClick={doPdf}>PDF</button>}
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
           </>}
+          <button className="icon" title="Guia rápido: como usar cada aba" aria-label="Guia rápido" onClick={() => setTour(true)}>❓</button>
           <button className="icon" title="Alternar tema" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
         </div>
       </header>
@@ -215,7 +220,8 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.9</footer>
+      <footer className="app-version">v26.11.11</footer>
+      {tour && <Tour onClose={closeTour} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}

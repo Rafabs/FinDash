@@ -6,18 +6,18 @@ import { nowYM } from './period.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const PDF_COLORS = {
-  ink: [31, 41, 55],
+  ink: [17, 24, 28],
   muted: [107, 114, 128],
-  brand: [79, 70, 229],
+  brand: [0, 137, 127],
   line: [229, 231, 235],
   stripe: [248, 250, 252],
 }
 const tableStyles = {
   theme: 'plain',
   styles: { font: 'helvetica', fontSize: 8, textColor: PDF_COLORS.ink, lineColor: PDF_COLORS.line, lineWidth: 0.2, cellPadding: 3.5, overflow: 'linebreak', valign: 'middle' },
-  headStyles: { fillColor: [35, 40, 62], textColor: [255, 255, 255], fontStyle: 'bold', lineColor: [35, 40, 62], cellPadding: 4.5 },
+  headStyles: { fillColor: [14, 18, 22], textColor: [255, 255, 255], fontStyle: 'bold', lineColor: [14, 18, 22], cellPadding: 4.5 },
   alternateRowStyles: { fillColor: PDF_COLORS.stripe },
-  footStyles: { fillColor: [232, 235, 252], textColor: PDF_COLORS.ink, fontStyle: 'bold', lineColor: PDF_COLORS.line },
+  footStyles: { fillColor: [220, 244, 241], textColor: PDF_COLORS.ink, fontStyle: 'bold', lineColor: PDF_COLORS.line },
   showFoot: 'lastPage',
   margin: { left: 14, right: 14, bottom: 16 },
 }
@@ -70,7 +70,7 @@ const drawMark = (doc, marks, name, x, y, size) => { const png = marks?.get(Stri
 const hasMark = (marks, name) => !!marks?.get(String(name))
 const pctText = (v, total) => (total ? (v / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%' : '—')
 
-function drawChart(doc, title, rows, x, y, w, h, color = [99, 102, 241], marks = null) {
+function drawChart(doc, title, rows, x, y, w, h, color = [0, 169, 157], marks = null) {
   doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line); doc.setLineWidth(0.35)
   doc.roundedRect(x, y, w, h, 3, 3, 'FD')
   doc.setFillColor(...color); doc.roundedRect(x + 5, y + 5, 2, 5, 1, 1, 'F')
@@ -132,7 +132,7 @@ function addCharts(doc, data, periodo, marks) {
     doc.addPage()
     sectionHeading(doc, `Análise visual · ${p + 1}/2`, 'Indicadores do período', `Período: ${periodo || 'Todo o período'}`)
     const positions = [[14, 32], [155, 32], [14, 112], [155, 112]]
-    charts.slice(p * 4, p * 4 + 4).forEach(([title, rows], i) => drawChart(doc, title, rows, ...positions[i], 128, 80, title.includes('Despesa') ? [239, 68, 68] : [99, 102, 241], title === 'Despesas por grupo' ? marks : null))
+    charts.slice(p * 4, p * 4 + 4).forEach(([title, rows], i) => drawChart(doc, title, rows, ...positions[i], 128, 80, title.includes('Despesa') ? [255, 77, 106] : [0, 169, 157], title === 'Despesas por grupo' ? marks : null))
   }
 }
 

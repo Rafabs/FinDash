@@ -21,6 +21,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Versão para celular**: abas viram barra inferior, tabelas viram cartões e janelas sobem de baixo da tela
 - Abas: **Dashboard**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e dados de exemplo
+- **Guia rápido** no primeiro acesso, explicando cada aba para quem está começando; o botão **❓** do topo abre o guia de novo (veja [Guia rápido e limpeza de dados](#-guia-rápido-e-limpeza-de-dados))
 - Dados salvos automaticamente no navegador
 - **Notas pessoais formatadas**: fonte, tamanho, negrito, itálico, sublinhado e cores; salvas automaticamente e preservadas no XLSX
 **Carteira**
@@ -320,6 +321,23 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 ---
  
+## 🧭 Guia rápido e limpeza de dados
+ 
+**Guia rápido.** No primeiro acesso, uma janela com 11 passos explica a barra superior e cada aba (Dashboard, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
+ 
+- Ao fechar, o app grava `fynn-tour-v1` no `localStorage` e não mostra o guia sozinho de novo
+- O botão **❓** do topo reabre o guia quando quiser
+- Para testar sem apagar nada, acrescente `?tour=1` ao endereço (ex.: `https://usuario.github.io/FinDash/?tour=1`)
+**O que o navegador guarda** (`localStorage` do site): `fynn-control-v1` (seus dados), `fynn-theme` (tema), `fynn-tour-v1` (guia visto) e o cache do CDI e da Selic.
+ 
+**Como limpar**
+- **Só os dados do app:** botão **Limpar** do topo (pede confirmação)
+- **Tudo do site (para ver o guia como um usuário novo):** no Chrome ou Edge, `F12` → **Application** (Aplicativo) → **Storage** → **Clear site data**. Ou, no console, `localStorage.clear(); location.reload()`
+- **Versão antiga do site (GitHub Pages):** recarregue sem cache com `Ctrl+F5` (ou `Ctrl+Shift+R`)
+> ⚠️ Limpar os dados do site apaga o que não foi exportado. Exporte o XLSX antes.
+ 
+---
+ 
 ## 🗂️ Estrutura do projeto
  
 ```
@@ -352,6 +370,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── PasteDespesas.jsx          # colagem interativa de despesas
     ├── ProductSearch.jsx          # busca e detalhe de produtos
     ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
+    ├── Tour.jsx                   # guia rápido do primeiro acesso (um passo por aba)
     ├── icons.js                   # ícones genéricos (Lucide), cores prontas e sugestão de ícone pelo nome
     ├── AccountMark.jsx            # desenha o ícone/imagem/emoji da conta sobre a cor de fundo
     ├── IconPicker.jsx             # janela de escolha do ícone e da cor
@@ -407,6 +426,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
 - [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
 - [X] `v26.11.10` Exibir percentual dos itens em Dashboard
+- [X] `v26.11.11` Exibir Guia de Uso ao acessar pela primeira vez + Remolde layout
 - [ ] Pesquisar algum produto e ver detalhes e informações 
 
 ---
