@@ -20,11 +20,12 @@ const dataCurta = (s) => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)
 const confirmInstallmentPayment = (item, row) => {
   const paid = Math.min(Number(item.VALOR) || 0, Number(item.PARCELAMENTO?.valorPago) || 0)
   const remaining = Math.max(0, (Number(item.VALOR) || 0) - paid)
-  return confirm(`Confirmar a baixa da parcela ${item.PARCELAMENTO?.numero}/${item.PARCELAMENTO?.quantidade}?\n${item.NOME || 'Fatura'} · ${mesCurto(monthOf(row.DATA))}\nValor a quitar: ${brl(remaining)}\nO pagamento será registrado hoje.`)
+  return confirm(`Confirmar a baixa da parcela ${item.PARCELAMENTO?.numero}/${item.PARCELAMENTO?.quantidade}?\n${item.NOME || 'Parcela'} · ${mesCurto(monthOf(row.DATA))}\nValor a quitar: ${brl(remaining)}\nO pagamento será registrado hoje.`)
 }
 
-function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CRÉDITO', onClose, onSave }) {
+function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CRÉDITO', catByName, onClose, onSave }) {
   const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
   const [account, setAccount] = useState(initialAccount)
   const [total, setTotal] = useState('')
   const [count, setCount] = useState('2')
@@ -39,18 +40,19 @@ function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CR
       const date = new Date(Number(firstMonth.slice(0, 4)), Number(firstMonth.slice(5, 7)) - 1 + i, 1)
       const ym = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       const value = (base + (i < remainder ? 1 : 0)) / 100
-      return { DATA: `${ym}-01`, TIPO_CONTA: account.trim(), ITENS: [{ NOME: `${description.trim()} (${i + 1}/${n})`, VALOR: value, PARCELAMENTO: { id, numero: i + 1, quantidade: n, valorPago: 0 } }] }
+      return { DATA: `${ym}-01`, TIPO_CONTA: account.trim(), ITENS: [{ NOME: `${description.trim()} (${i + 1}/${n})`, VALOR: value, ...(category.trim() ? { CATEGORIA: category.trim() } : {}), PARCELAMENTO: { id, numero: i + 1, quantidade: n, valorPago: 0 } }] }
     })
     onSave(rows)
   }
   return <div className="overlay" onClick={onClose}><div className="modal installment-modal" onClick={(e) => e.stopPropagation()}>
-    <h3>＋ Nova compra parcelada</h3><p className="muted">O valor total será dividido entre as faturas mensais. Use valor negativo para um abatimento parcelado (estorno, desconto).</p>
+    <h3>＋ Nova despesa parcelada</h3><p className="muted">O valor total será dividido entre os meses (faturas do cartão, parcelas de financiamento, mensalidades, seguros…) na conta que você escolher. Use valor negativo para um abatimento parcelado (estorno, desconto).</p>
     <div className="account-name-field">
-      <label>Descrição da compra</label><input className="cell" autoFocus placeholder="Ex.: Notebook" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <label>Conta / cartão</label><input className="cell" list="installment-accounts" value={account} onChange={(e) => setAccount(e.target.value)} /><datalist id="installment-accounts">{accounts.map((a) => <option key={a.name} value={a.name} />)}</datalist>
+      <label>Descrição da compra</label><input className="cell" autoFocus placeholder="Ex.: Notebook, Seguro do carro, IPTU" value={description} onChange={(e) => { const v = e.target.value; setDescription(v); if (!category && catByName?.get(v.trim().toLowerCase())) setCategory(catByName.get(v.trim().toLowerCase())) }} />
+      <label>Categoria (opcional)</label><input className="cell" list="dl-categorias" placeholder="Ex.: Compras Online" value={category} onChange={(e) => setCategory(e.target.value)} />
+      <label>Conta (grupo)</label><input className="cell" list="installment-accounts" value={account} onChange={(e) => setAccount(e.target.value)} /><datalist id="installment-accounts">{accounts.map((a) => <option key={a.name} value={a.name} />)}</datalist>
       <label>Valor total</label><MoneyInput value={total} onChange={setTotal} />
       <label>Quantidade de parcelas</label><input className="cell" type="number" min="2" max="120" value={count} onChange={(e) => setCount(e.target.value)} />
-      <label>Mês da primeira fatura</label><input className="cell" type="month" value={firstMonth} onChange={(e) => setFirstMonth(e.target.value)} />
+      <label>Mês da primeira parcela</label><input className="cell" type="month" value={firstMonth} onChange={(e) => setFirstMonth(e.target.value)} />
     </div>
     {amount !== 0 && Number.isFinite(amount) && n >= 2 && <p className="hint">{n} parcelas · {amount < 0 ? 'abatimento de ' : ''}aproximadamente {brl(round2(amount / n))} por mês · total {brl(amount)}</p>}
     <div className="actions"><button className="sec" onClick={onClose}>Cancelar</button><button disabled={!description.trim() || !account.trim() || total === '' || !Number.isFinite(amount) || amount === 0 || n < 2 || !firstMonth} onClick={save}>Criar parcelas</button></div>
@@ -82,7 +84,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
               <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => up(j, { NOME: e.target.value, ...(!it.CATEGORIA && catByName?.get(e.target.value.trim().toLowerCase()) ? { CATEGORIA: catByName.get(e.target.value.trim().toLowerCase()) } : {}) })} />
               <input className="cell" list="dl-categorias" placeholder="Categoria (opcional)" style={{ minWidth: 150 }} value={it.CATEGORIA || ''} onChange={(e) => up(j, { CATEGORIA: e.target.value })} />
               <MoneyInput value={it.VALOR} onChange={(v) => up(j, { VALOR: v })} />
-              {it.PARCELAMENTO && <label className="installment-paid-field">Pago nesta fatura<MoneyInput value={String(it.PARCELAMENTO.valorPago || 0)} onChange={(v) => up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Math.max(0, Math.min(Number(it.VALOR) || 0, Number(v) || 0))), dataPagamento: Number(v) > 0 ? hojeISO() : '' } })} />{it.PARCELAMENTO.dataPagamento && <small>Baixada em {dataCurta(it.PARCELAMENTO.dataPagamento)}</small>}<button type="button" className="sec sm" disabled={Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR)} onClick={() => confirmInstallmentPayment(it, row) && up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Number(it.VALOR) || 0), dataPagamento: hojeISO() } })}>✓ {Number(it.PARCELAMENTO.valorPago) > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></label>}
+              {it.PARCELAMENTO && <label className="installment-paid-field">Pago neste mês<MoneyInput value={String(it.PARCELAMENTO.valorPago || 0)} onChange={(v) => up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Math.max(0, Math.min(Number(it.VALOR) || 0, Number(v) || 0))), dataPagamento: Number(v) > 0 ? hojeISO() : '' } })} />{it.PARCELAMENTO.dataPagamento && <small>Baixada em {dataCurta(it.PARCELAMENTO.dataPagamento)}</small>}<button type="button" className="sec sm" disabled={Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR)} onClick={() => confirmInstallmentPayment(it, row) && up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Number(it.VALOR) || 0), dataPagamento: hojeISO() } })}>✓ {Number(it.PARCELAMENTO.valorPago) > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></label>}
               {items.length > 1 && <button className="icon" onClick={() => setItems((x) => x.filter((_, k) => k !== j))}>✕</button>}
             </div>
           ))}
@@ -142,7 +144,13 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     const map = new Map(), all = new Set()
     ;[...rows].sort((a, b) => String(a.DATA).localeCompare(String(b.DATA))).forEach((r) => r.ITENS.forEach((it) => {
       const c = String(it.CATEGORIA || '').trim()
-      if (c) { all.add(c); map.set(String(it.NOME || '').trim().toLowerCase(), c) }
+      if (c) {
+        all.add(c)
+        const nm = String(it.NOME || '').trim().toLowerCase()
+        map.set(nm, c)
+        const base = nm.replace(/\s*\(\d+\/\d+\)$/, '') // "notebook (3/6)" também sugere para "notebook"
+        if (base && base !== nm) map.set(base, c)
+      }
     }))
     return { catByName: map, catList: [...all].sort((a, b) => a.localeCompare(b)) }
   }, [rows])
@@ -356,6 +364,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     onUpdate(rowIndex, { ITENS })
   }
 
+  const isCardAccount = /cart[aã]o|cr[eé]dit/i.test(currentAccount?.name || '')
   // o mesmo seletor aparece na tela da conta e na lista de contas (sempre por cima do que estiver aberto)
   const iconPicker = picker && <IconPicker
     logo={picker === 'new' ? accountLogo : currentAccount?.logo} color={picker === 'new' ? accountColor : currentAccount?.color}
@@ -388,7 +397,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <label>Valor<MoneyInput value={quickValue} onChange={setQuickValue} /></label>
         <button disabled={locked || !quickItem.trim() || quickValue === ''} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={addToAccount}>Adicionar à conta</button>
       </section>
-      {/cart[aã]o|cr[eé]dit/i.test(currentAccount?.name || '') && <section className="card expense-quick-add"><div><h3>💳 Compra parcelada</h3><p className="muted">Distribua uma compra entre as faturas mensais deste cartão.</p></div><button disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setInstallmentModal(true)}>＋ Nova compra parcelada</button></section>}
+      <section className="card expense-quick-add"><div><h3>{isCardAccount ? '💳 Compra parcelada' : '🗓️ Despesa parcelada'}</h3><p className="muted">{isCardAccount ? 'Distribua uma compra entre as faturas mensais deste cartão.' : 'Divida uma despesa em parcelas mensais nesta conta (financiamento, mensalidade, seguro, IPTU…).'}</p></div><button disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setInstallmentModal(true)}>{isCardAccount ? '＋ Nova compra parcelada' : '＋ Nova despesa parcelada'}</button></section>
       <section className="panel expense-history-panel">
         <div className="panel-head"><div><h3>Histórico</h3><small className="muted">Todos os lançamentos de {currentAccount?.name || accountPage}</small></div><span className="expense-history-count">{currentRows.length} registro{currentRows.length === 1 ? '' : 's'}</span></div>
         <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Despesas</th><th>Total</th></tr></thead><tbody>
@@ -401,7 +410,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
         </tbody></table></div>
       </section>
-      {installmentModal && <InstallmentModal accounts={accountCards} initialYM={nextYM} initialAccount={currentAccount?.name} onClose={() => setInstallmentModal(false)} onSave={(novas) => { onAddRows(novas); setInstallmentModal(false) }} />}
+      {installmentModal && <InstallmentModal accounts={accountCards} catByName={catByName} initialYM={nextYM} initialAccount={currentAccount?.name} onClose={() => setInstallmentModal(false)} onSave={(novas) => { onAddRows(novas); setInstallmentModal(false) }} />}
       {categoryDatalist}
       {iconPicker}
     </section>

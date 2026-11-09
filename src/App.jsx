@@ -13,11 +13,12 @@ import ProductSearch from './ProductSearch.jsx'
 import RendaPorPapel from './RendaPorPapel.jsx'
 import NotesEditor from './NotesEditor.jsx'
 import Tour, { tourSeen, markTourSeen } from './Tour.jsx'
+import Projecao from './Projecao.jsx'
 import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
-const TAB_ICONS = { dash: '📊', renda: '💹', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
+const TAB_ICONS = { dash: '📊', projecao: '🔮', renda: '💹', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
 const KEY = 'fynn-control-v1'
 const load = () => {
   try {
@@ -184,12 +185,13 @@ export default function App() {
       </header>
       {empty && tab !== 'notas' ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} onNotes={() => setTab('notas')} /> : (<>
       <nav className="tabs">
-        {[['dash', 'Dashboard', null], ['renda', 'Renda por papel', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length], ['notas', 'Notas', null]].map(([k, l, c]) => (
+        {[['dash', 'Dashboard', null], ['projecao', 'Projeção', null], ['renda', 'Renda por papel', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length], ['notas', 'Notas', null]].map(([k, l, c]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl">{l}</span>{c != null && <em>{c}</em>}</button>
         ))}
       </nav>
       <main>
         {tab === 'dash' && <Dashboard data={data} period={period} setPeriod={setPeriod} cdi={cdi} cdiStatus={cdiStatus} selic={selic} selicStatus={selicStatus} />}
+        {tab === 'projecao' && <Projecao data={data} cdi={cdi} />}
         {tab === 'renda' && <RendaPorPapel data={data} />}
         {tab === 'carteira' && (
           <>
@@ -220,7 +222,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.11</footer>
+      <footer className="app-version">v26.11.9</footer>
       {tour && <Tour onClose={closeTour} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (

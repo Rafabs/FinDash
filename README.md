@@ -19,7 +19,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - **Versão para celular**: abas viram barra inferior, tabelas viram cartões e janelas sobem de baixo da tela
-- Abas: **Dashboard**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
+- Abas: **Dashboard**, **Projeção**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e dados de exemplo
 - **Guia rápido** no primeiro acesso, explicando cada aba para quem está começando; o botão **❓** do topo abre o guia de novo (veja [Guia rápido e limpeza de dados](#-guia-rápido-e-limpeza-de-dados))
 - Dados salvos automaticamente no navegador
@@ -37,6 +37,13 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Categorias personalizadas**: crie as suas com **＋ Categoria**; elas aparecem nos filtros, na tabela, no painel e ficam salvas no XLSX
 - Tabela paginada e editável
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
+**Projeção**
+- Estima, mês a mês, **entradas, despesas, sobra e acumulado**, e a **evolução do patrimônio**, em 6, 12, 24 ou 36 meses
+- Base: **média dos últimos 3, 6 ou 12 meses completos** de entradas (Extrato mais a rentabilidade dos resgates, sem *Venda de Patrimônio*) e de despesas
+- **Despesas** = variáveis (média sem as parcelas) + **parcelas já lançadas** em cada mês futuro; quando uma compra parcelada termina, a despesa cai sozinha. Opcionalmente, despesas já lançadas nos meses futuros valem se forem maiores que a média
+- **Premissas:** ajuste das entradas e das despesas (%), horizonte e **rendimento do patrimônio** (% a.a., com atalho para o CDI atual). Ficam salvas no navegador
+- **Patrimônio** = patrimônio atual da Carteira rendendo à taxa informada + a sobra de cada mês; a linha tracejada mostra só as sobras. O padrão é 0% a.a., para não contar duas vezes o que já entra como proventos e rendimentos no Extrato
+- Mostra indicadores (médias da base, sobra média, patrimônio final, meses no vermelho), dois gráficos e a tabela mês a mês. É uma estimativa: não considera impostos, inflação nem mudança de renda
 **Renda por papel** (*yield on cost*)
 - Mostra quanto cada papel de renda variável rendeu em proventos nos **últimos 12 meses** em relação ao valor aplicado
 - Indicadores: proventos em 12 meses, valor aplicado, *yield on cost* ponderado da carteira e média mensal
@@ -51,7 +58,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Mover despesas**: arraste uma despesa para **qualquer outro grupo do mesmo mês**. O grupo de origem pode ficar vazio (ele continua na lista, pronto para receber novas despesas) e o destino pode ter o mesmo nome do grupo de origem
 - **Grupo dentro de grupo**: no lápis ✏️ da linha, use **"Dentro do grupo…"** (ex.: *Condomínio* dentro de *Aluguel*). O vínculo vale para o grupo inteiro e para os meses seguintes; no resumo, os totais do filho sobem para o grupo principal sem contar duas vezes. O app recusa vínculos circulares (veja [Grupos dentro de grupos](#-grupos-dentro-de-grupos))
 - **Valores negativos (abatimentos)**: estornos e descontos entram com valor negativo e **abatem do total da fatura**. Digite `-` antes do valor ou use o botão **±** ao lado do campo (útil no celular)
-- **Compras parceladas**: divida o total em parcelas mensais (inclusive negativas, para abatimentos parcelados) e acompanhe o valor pago em cada fatura
+- **Despesas parceladas em qualquer conta**: na página de cada conta (cartão, financiamento, mensalidades, seguros, IPTU…), divida o total em parcelas mensais, com **categoria** opcional (inclusive valor negativo, para abatimentos parcelados), e acompanhe o valor pago em cada parcela. As parcelas entram na Projeção, no Dashboard e no PDF
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Busca com total**: ao usar a lupa, aparece o **total das despesas encontradas** no período (e em todo o histórico, quando for diferente), com os totais por item. A busca também encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
@@ -323,7 +330,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 ## 🧭 Guia rápido e limpeza de dados
  
-**Guia rápido.** No primeiro acesso, uma janela com 11 passos explica a barra superior e cada aba (Dashboard, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
+**Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
  
 - Ao fechar, o app grava `fynn-tour-v1` no `localStorage` e não mostra o guia sozinho de novo
 - O botão **❓** do topo reabre o guia quando quiser
@@ -370,6 +377,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── PasteDespesas.jsx          # colagem interativa de despesas
     ├── ProductSearch.jsx          # busca e detalhe de produtos
     ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
+    ├── Projecao.jsx               # aba Projeção (fluxo de caixa e patrimônio)
     ├── Tour.jsx                   # guia rápido do primeiro acesso (um passo por aba)
     ├── icons.js                   # ícones genéricos (Lucide), cores prontas e sugestão de ícone pelo nome
     ├── AccountMark.jsx            # desenha o ícone/imagem/emoji da conta sobre a cor de fundo
