@@ -39,10 +39,11 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
 **Projeção**
 - Estima, mês a mês, **entradas, despesas, sobra e acumulado**, e a **evolução do patrimônio**, em 6, 12, 24 ou 36 meses
-- Base: **média dos últimos 3, 6 ou 12 meses completos** de entradas (Extrato mais a rentabilidade dos resgates, sem *Venda de Patrimônio*) e de despesas
-- **Despesas** = variáveis (média sem as parcelas) + **parcelas já lançadas** em cada mês futuro; quando uma compra parcelada termina, a despesa cai sozinha. Opcionalmente, despesas já lançadas nos meses futuros valem se forem maiores que a média
+- Base: **média dos últimos 3, 6 ou 12 meses completos** de entradas (Extrato, **incluindo as vendas de patrimônio**, mais a rentabilidade dos resgates) e de despesas
+- **Despesas** = variáveis (média sem as parcelas) + **parcelas em aberto** de cada mês; **parcelas com baixa (total ou parcial) não entram**, só o saldo ainda não pago, e quando uma compra parcelada termina, a despesa cai sozinha. Opcionalmente, despesas já lançadas nos meses futuros valem se forem maiores que a média
 - **Premissas:** ajuste das entradas e das despesas (%), horizonte e **rendimento do patrimônio** (% a.a., com atalho para o CDI atual). Ficam salvas no navegador
 - **Patrimônio** = patrimônio atual da Carteira rendendo à taxa informada + a sobra de cada mês; a linha tracejada mostra só as sobras. O padrão é 0% a.a., para não contar duas vezes o que já entra como proventos e rendimentos no Extrato
+- **PDF:** a Projeção sai na **última página** do relatório (indicadores, gráficos e tabela mês a mês, com totais), usando as premissas que estão salvas na aba
 - Mostra indicadores (médias da base, sobra média, patrimônio final, meses no vermelho), dois gráficos e a tabela mês a mês. É uma estimativa: não considera impostos, inflação nem mudança de renda
 **Renda por papel** (*yield on cost*)
 - Mostra quanto cada papel de renda variável rendeu em proventos nos **últimos 12 meses** em relação ao valor aplicado
@@ -60,7 +61,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Valores negativos (abatimentos)**: estornos e descontos entram com valor negativo e **abatem do total da fatura**. Digite `-` antes do valor ou use o botão **±** ao lado do campo (útil no celular)
 - **Despesas parceladas em qualquer conta**: na página de cada conta (cartão, financiamento, mensalidades, seguros, IPTU…), divida o total em parcelas mensais, com **categoria** opcional (inclusive valor negativo, para abatimentos parcelados), e acompanhe o valor pago em cada parcela. As parcelas entram na Projeção, no Dashboard e no PDF
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
-- **Busca com total**: ao usar a lupa, aparece o **total das despesas encontradas** no período (e em todo o histórico, quando for diferente), com os totais por item. A busca também encontra pela categoria do item e pelo nome do grupo
+- **Busca com total**: ao usar a lupa, aparecem o **valor total** das despesas encontradas, o **pago**, o **a pagar**, o **futuro** (meses seguintes) e as **parcelas em aberto**, com os totais por item; quando o resultado difere do período, também o total de todo o histórico. A busca também encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
@@ -400,7 +401,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
 - **CSV** exporta a aba atual. **XLSX** exporta as abas de dados e `Notas` no mesmo formato de entrada, então pode ser reimportado.
-- **PDF** traz o resumo, os gráficos e as tabelas, com **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
+- **PDF** traz o resumo, os gráficos e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 ---
  
 ## ⚠️ Observações

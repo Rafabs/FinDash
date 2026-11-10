@@ -185,22 +185,28 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const searchSummary = useMemo(() => {
     const s = q.trim().toLowerCase()
     if (!s) return null
+    // cada item vem com o mês da linha; pago = parcela: valor já baixado / demais: pago se o mês já chegou
     const summarize = (list) => {
-      const by = new Map(); let total = 0
-      list.forEach((it) => {
+      const by = new Map(); let total = 0, pago = 0, pend = 0, fut = 0, abertas = 0
+      list.forEach(({ it, ym }) => {
         const v = Number(it.VALOR) || 0, nm = String(it.NOME || '').trim() || '(Sem descrição)'
-        total += v
+        const futuro = ym > currentMonth
+        const pg = it.PARCELAMENTO ? Math.min(v, Number(it.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : v
+        const pd = Math.max(0, v - pg)
+        total += v; pago += pg; pend += pd
+        if (futuro) fut += pd
+        if (it.PARCELAMENTO && pd > 0) abertas++
         const e = by.get(nm) || { name: nm, total: 0, count: 0 }
         e.total += v; e.count++; by.set(nm, e)
       })
-      return { total: round2(total), n: list.length, names: [...by.values()].map((e) => ({ ...e, total: round2(e.total) })).sort((a, b) => Math.abs(b.total) - Math.abs(a.total)) }
+      return { total: round2(total), pago: round2(pago), pend: round2(pend), fut: round2(fut), abertas, n: list.length, names: [...by.values()].map((e) => ({ ...e, total: round2(e.total) })).sort((a, b) => Math.abs(b.total) - Math.abs(a.total)) }
     }
     const hit = (r, it) => groupPath(String(r.TIPO_CONTA || '').trim(), parents).join(' ').toLowerCase().includes(s) || String(it.NOME || '').toLowerCase().includes(s) || String(it.CATEGORIA || '').toLowerCase().includes(s)
     return {
-      period: summarize(filtered.flatMap(({ items }) => items.map(({ item }) => item))),
-      all: summarize(rows.filter((r) => !cats.length || cats.includes(r.TIPO_CONTA)).flatMap((r) => r.ITENS.filter((it) => hit(r, it)))),
+      period: summarize(filtered.flatMap(({ r, items }) => items.map(({ item }) => ({ it: item, ym: monthOf(r.DATA) })))),
+      all: summarize(rows.filter((r) => !cats.length || cats.includes(r.TIPO_CONTA)).flatMap((r) => r.ITENS.filter((it) => hit(r, it)).map((it) => ({ it, ym: monthOf(r.DATA) })))),
     }
-  }, [q, filtered, rows, cats, parents])
+  }, [q, filtered, rows, cats, parents, currentMonth])
 
   const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => (k === 'TOTAL' ? x.total : x.r[k]), (k) => (k === 'DATA' ? 'date' : k === 'TOTAL' ? 'money' : 'text')), [filtered, sort])
 
@@ -519,6 +525,13 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       {searchSummary && <div className="search-summary">
         <span>🔎 “{q.trim()}”</span>
         <span><b className="big">{brl(searchSummary.period.total)}</b> <small>em {searchSummary.period.n.toLocaleString('pt-BR')} {searchSummary.period.n === 1 ? 'lançamento' : 'lançamentos'} no período</small></span>
+        <div className="search-summary-kpis">
+          <span className="ss-kpi"><small>Valor total</small><b>{brl(searchSummary.period.total)}</b></span>
+          <span className="ss-kpi pos"><small>Pago</small><b>{brl(searchSummary.period.pago)}</b></span>
+          <span className="ss-kpi"><small>A pagar</small><b>{brl(searchSummary.period.pend)}</b></span>
+          <span className="ss-kpi"><small>Futuro (meses seguintes)</small><b>{brl(searchSummary.period.fut)}</b></span>
+          {searchSummary.period.abertas > 0 && <span className="ss-kpi"><small>Parcelas em aberto</small><b>{searchSummary.period.abertas.toLocaleString('pt-BR')}</b></span>}
+        </div>
         {searchSummary.all.n !== searchSummary.period.n && <span><b>{brl(searchSummary.all.total)}</b> <small>em todo o histórico ({searchSummary.all.n.toLocaleString('pt-BR')})</small></span>}
         {searchSummary.period.names.length > 1 && <div className="search-summary-names">
           {searchSummary.period.names.slice(0, 8).map((e) => <span key={e.name} className="chip na">{e.name} · {brl(e.total)}{e.count > 1 ? ` (${e.count}×)` : ''}</span>)}

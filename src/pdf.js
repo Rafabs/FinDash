@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown } from './data.js'
 import { markPng } from './markImage.js'
+import { buildProjection, loadProjectionSettings } from './projection.js'
 import { nowYM } from './period.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -97,6 +98,119 @@ function drawChart(doc, title, rows, x, y, w, h, color = [0, 169, 157], marks = 
 }
 
 const SUM_KEYS = { carteira: ['VLR_APLICACAO', 'TOTAL_ATUAL', 'REND_BRUTO'], extrato: ['VALOR DA APLICAÇÃO'] }
+
+// ---------- Projeção (última página) ----------
+const compactBrl = (v) => (Math.abs(v) >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : String(Math.round(v)))
+const mesCurto = (ym) => ym.slice(5) + '/' + ym.slice(2, 4)
+function chartFrame(doc, title, x, y, w, h, legend = []) {
+  doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line); doc.setLineWidth(0.25)
+  doc.roundedRect(x, y, w, h, 2, 2, 'FD')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_COLORS.ink)
+  doc.text(title, x + 5, y + 7)
+  let lx = x + w - 5
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+  ;[...legend].reverse().forEach(([label, color]) => {
+    const tw = doc.getTextWidth(label)
+    doc.setTextColor(...PDF_COLORS.muted); doc.text(label, lx - tw, y + 7)
+    doc.setFillColor(...color); doc.rect(lx - tw - 4, y + 4.6, 2.6, 2.6, 'F')
+    lx -= tw + 9
+  })
+}
+function drawProjectionFlow(doc, rows, x, y, w, h) {
+  const teal = [0, 169, 157], red = [255, 77, 106]
+  chartFrame(doc, 'Fluxo de caixa projetado', x, y, w, h, [['Entradas', teal], ['Despesas', red]])
+  const px = x + 17, py = y + 13, pw = w - 23, ph = h - 25
+  const max = Math.max(1, ...rows.map((r) => Math.max(r.Entradas, r.Despesas)))
+  doc.setFontSize(6.5); doc.setLineWidth(0.15)
+  for (let i = 0; i <= 4; i++) {
+    const yy = py + ph - (ph * i) / 4
+    doc.setDrawColor(...PDF_COLORS.line); doc.line(px, yy, px + pw, yy)
+    doc.setTextColor(...PDF_COLORS.muted); doc.text(compactBrl((max * i) / 4), px - 2, yy + 1.2, { align: 'right' })
+  }
+  const gw = pw / rows.length, bw = Math.min(6, gw * 0.36), step = Math.max(1, Math.ceil(rows.length / 12))
+  rows.forEach((r, i) => {
+    const cx = px + gw * i + gw / 2
+    doc.setFillColor(...teal); doc.rect(cx - bw - 0.3, py + ph - (ph * r.Entradas) / max, bw, (ph * r.Entradas) / max, 'F')
+    doc.setFillColor(...red); doc.rect(cx + 0.3, py + ph - (ph * Math.max(r.Despesas, 0)) / max, bw, (ph * Math.max(r.Despesas, 0)) / max, 'F')
+    if (i % step === 0) { doc.setTextColor(...PDF_COLORS.muted); doc.text(mesCurto(r.ym), cx, py + ph + 5, { align: 'center' }) }
+  })
+}
+function drawProjectionPatrimony(doc, rows, x, y, w, h) {
+  const teal = [0, 169, 157], silver = [150, 158, 168]
+  chartFrame(doc, 'Patrimônio projetado', x, y, w, h, [['Com rendimento', teal], ['Só com as sobras', silver]])
+  const px = x + 17, py = y + 13, pw = w - 23, ph = h - 25
+  const vals = rows.flatMap((r) => [r.Patrimonio, r.SemRendimento])
+  let min = Math.min(...vals), max = Math.max(...vals)
+  if (max === min) { max += 1; min -= 1 }
+  const pad = (max - min) * 0.08; min -= pad; max += pad
+  doc.setFontSize(6.5); doc.setLineWidth(0.15)
+  for (let i = 0; i <= 4; i++) {
+    const yy = py + ph - (ph * i) / 4
+    doc.setDrawColor(...PDF_COLORS.line); doc.line(px, yy, px + pw, yy)
+    doc.setTextColor(...PDF_COLORS.muted); doc.text(compactBrl(min + ((max - min) * i) / 4), px - 2, yy + 1.2, { align: 'right' })
+  }
+  const at = (i, v) => [px + (rows.length > 1 ? (pw * i) / (rows.length - 1) : pw / 2), py + ph - (ph * (v - min)) / (max - min)]
+  const line = (key, color, dash) => {
+    doc.setDrawColor(...color); doc.setLineWidth(dash ? 0.4 : 0.7); doc.setLineDashPattern(dash ? [2, 1.5] : [], 0)
+    for (let i = 1; i < rows.length; i++) { const [x1, y1] = at(i - 1, rows[i - 1][key]), [x2, y2] = at(i, rows[i][key]); doc.line(x1, y1, x2, y2) }
+    doc.setLineDashPattern([], 0)
+  }
+  line('SemRendimento', silver, true); line('Patrimonio', teal, false)
+  const step = Math.max(1, Math.ceil(rows.length / 12))
+  rows.forEach((r, i) => { if (i % step === 0) { const [cx] = at(i, 0); doc.setTextColor(...PDF_COLORS.muted); doc.text(mesCurto(r.ym), cx, py + ph + 5, { align: 'center' }) } })
+}
+function addProjection(doc, data, settings) {
+  const p = buildProjection(data, settings)
+  if (!p.n) return
+  const rows = p.rows, last = rows[rows.length - 1], sum = (k) => rows.reduce((t, r) => t + r[k], 0)
+  const sobraMedia = sum('Sobra') / rows.length, negativos = rows.filter((r) => r.Sobra < 0)
+  doc.addPage()
+  const sign = (v) => `${Number(v) > 0 ? '+' : ''}${Number(v) || 0}%`
+  sectionHeading(doc, 'Projeção', 'Projeção de entradas, despesas e patrimônio',
+    `Base: média dos últimos ${p.n} ${p.n === 1 ? 'mês completo' : 'meses completos'} · ajuste de entradas ${sign(settings.adjEnt)} e de despesas ${sign(settings.adjDesp)} · rendimento ${Number(settings.rate) || 0}% a.a.${settings.useKnown ? ' · inclui parcelas em aberto e despesas já lançadas' : ''}`)
+  // indicadores
+  const kpis = [
+    ['Entradas médias (base)', money(p.avgEnt), 'por mês'],
+    ['Despesas médias (base)', money(p.avgDesp), `${money(p.avgParc)} em parcelas`],
+    ['Sobra média projetada', money(sobraMedia), 'por mês'],
+    [`Patrimônio em ${rows.length} meses`, money(last.Patrimonio), `${last.Patrimonio - p.start >= 0 ? '+' : ''}${money(last.Patrimonio - p.start)} sobre hoje`],
+    ['Meses no vermelho', String(negativos.length), negativos.length ? `1º em ${mesCurto(negativos[0].ym)}` : 'nenhum no período'],
+  ]
+  const gap = 4, kw = (doc.internal.pageSize.getWidth() - 28 - gap * 4) / 5
+  kpis.forEach(([label, value, note], i) => {
+    const kx = 14 + i * (kw + gap)
+    doc.setFillColor(...PDF_COLORS.stripe); doc.setDrawColor(...PDF_COLORS.line); doc.setLineWidth(0.25)
+    doc.roundedRect(kx, 34, kw, 19, 2, 2, 'FD')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted); doc.text(label, kx + 4, 39.5)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
+    doc.setTextColor(...((i === 2 && sobraMedia < 0) || (i === 4 && negativos.length) ? [214, 32, 63] : PDF_COLORS.ink)); doc.text(value, kx + 4, 46)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...PDF_COLORS.muted); doc.text(note, kx + 4, 50.5)
+  })
+  // gráficos
+  const cw = (doc.internal.pageSize.getWidth() - 28 - 6) / 2
+  drawProjectionFlow(doc, rows, 14, 57, cw, 46)
+  drawProjectionPatrimony(doc, rows, 14 + cw + 6, 57, cw, 46)
+  // tabela mês a mês
+  autoTable(doc, {
+    ...tableStyles,
+    startY: 108,
+    head: [['Mês', 'Entradas', 'Despesas variáveis', 'Parcelas em aberto', 'Despesas', 'Sobra', 'Acumulado', 'Patrimônio']],
+    body: rows.map((r) => [mesCurto(r.ym), money(r.Entradas), money(r.Variaveis), money(r.Parcelas), money(r.Despesas), money(r.Sobra), money(r.Acumulado), money(r.Patrimonio)]),
+    foot: [['Total', money(sum('Entradas')), money(sum('Variaveis')), money(sum('Parcelas')), money(sum('Despesas')), money(sum('Sobra')), money(last.Acumulado), money(last.Patrimonio)]],
+    columnStyles: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((c) => [c, { halign: 'right' }])),
+    styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 1.4 },
+    didParseCell: (h) => {
+      if (h.section !== 'body' && h.column.index >= 1) h.cell.styles.halign = 'right'
+      if (h.section === 'body' && h.column.index === 5 && rows[h.row.index]?.Sobra < 0) h.cell.styles.textColor = [214, 32, 63]
+      if (h.section === 'body' && h.column.index === 6 && rows[h.row.index]?.Acumulado < 0) h.cell.styles.textColor = [214, 32, 63]
+    },
+  })
+  const noteY = doc.lastAutoTable.finalY + 6
+  if (noteY < doc.internal.pageSize.getHeight() - 16) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted)
+    doc.text('Estimativa baseada no histórico. Parcelas já pagas (com baixa) não entram; não considera impostos, inflação nem mudanças de renda.', 14, noteY)
+  }
+}
 
 function addCharts(doc, data, periodo, marks) {
   const carteira = data.carteira || [], ext = data.extrato || [], dsp = data.despesas || [], res = data.resgates || []
@@ -362,6 +476,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
   }
+  addProjection(doc, data, loadProjectionSettings()) // projeção na última página
   const pageCount = doc.internal.getNumberOfPages()
   for (let page = 1; page <= pageCount; page++) {
     doc.setPage(page)

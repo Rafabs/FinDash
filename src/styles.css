@@ -633,3 +633,8 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
 .proj-how{margin-top:14px;font-size:13px;color:var(--mut)}
 .proj-how summary{cursor:pointer;color:var(--tx)}
 .proj-how ul{margin:8px 0 0;padding-left:20px;display:grid;gap:6px;line-height:1.5}
+.search-summary-kpis{display:flex;flex-wrap:wrap;gap:10px;width:100%}
+.ss-kpi{display:grid;gap:2px;min-width:132px;padding:8px 14px;border:1px solid var(--bd);border-radius:8px}
+.ss-kpi small{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.ss-kpi b{font-family:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;font-size:15px}
+.ss-kpi.pos b{color:var(--pos)}

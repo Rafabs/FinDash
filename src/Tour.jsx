@@ -27,9 +27,9 @@ const STEPS = [
   ] },
   { icon: '🔮', title: 'Projeção', sub: 'O que deve acontecer nos próximos meses.', items: [
     'Estima as **entradas, despesas e a sobra de cada mês** a partir da **média dos últimos 3, 6 ou 12 meses**.',
-    'As **parcelas e despesas já lançadas** nos meses futuros entram nos meses certos. Quando uma compra termina de ser paga, a despesa cai sozinha.',
+    'As **parcelas em aberto** e as despesas já lançadas nos meses futuros entram nos meses certos. Parcelas que já tiveram **baixa** não entram.',
     'Ajuste as **premissas**: reajuste das entradas e das despesas (%), meses a projetar e o **rendimento do patrimônio** (dá para usar o CDI atual).',
-    'Veja o **fluxo de caixa**, a **evolução do patrimônio** e os **meses no vermelho**. É uma estimativa, sem impostos nem inflação.',
+    'Veja o **fluxo de caixa**, a **evolução do patrimônio** e os **meses no vermelho**. No **PDF**, a projeção sai na última página. É uma estimativa, sem impostos nem inflação.',
   ] },
   { icon: '💹', title: 'Renda por papel', sub: 'Quanto cada ativo de renda variável rendeu.', items: [
     'Mostra, para cada papel, quanto ele pagou em **proventos nos últimos 12 meses** em relação ao valor aplicado (o *yield on cost*).',
@@ -60,7 +60,7 @@ const STEPS = [
     '**Despesas parceladas**: em qualquer conta (cartão, financiamento, mensalidade…), o total é dividido em parcelas mensais, com categoria se quiser, e você acompanha o que já foi pago.',
     '**Categorias por item**: classifique cada despesa (ex.: *Amazon — Compras Online*). O sistema sugere a categoria quando a descrição já foi usada.',
     '**Grupo dentro de grupo**: no lápis ✏️, use *Dentro do grupo* (ex.: *Condomínio* dentro de *Aluguel*). O total sobe para o grupo principal.',
-    'A **lupa** mostra o **total** das despesas encontradas na busca.',
+    'A **lupa** mostra o **valor total, o pago, o a pagar e o futuro** das despesas encontradas na busca.',
   ] },
   { icon: '🏁', title: 'Resgates', sub: 'O lucro dos investimentos que você resgatou.', items: [
     'Registra os resgates com a **rentabilidade** obtida até a data (o lucro, que pode ser negativo).',
