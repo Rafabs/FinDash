@@ -638,3 +638,8 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
 .ss-kpi small{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
 .ss-kpi b{font-family:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;font-size:15px}
 .ss-kpi.pos b{color:var(--pos)}
+.chart-opts{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 10px}
+.chart-opts label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}
+.chart-opts select{font:inherit;font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--inp);color:var(--tx)}
+.desp-cards{margin:0 0 14px}
+.sel-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 14px;border:1px solid color-mix(in srgb,var(--ac) 45%,var(--bd));border-radius:8px;background:color-mix(in srgb,var(--ac) 10%,transparent);font-size:13px}

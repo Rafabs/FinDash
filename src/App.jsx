@@ -222,7 +222,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.9</footer>
+      <footer className="app-version">v26.11.10</footer>
       {tour && <Tour onClose={closeTour} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (

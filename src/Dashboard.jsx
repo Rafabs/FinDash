@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
 import { MarkSvg } from './AccountMark.jsx'
@@ -7,7 +7,7 @@ import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 
 const COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#ff4d6a', '#5ba7ff', '#7b8794', '#2ee6a6']
 const CAT_COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#5ba7ff', '#7b8794', '#2ee6a6']
-const DESP_COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#ff4d6a', '#5ba7ff', '#7b8794']
+const DESP_COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#ff4d6a', '#5ba7ff', '#7b8794', '#2ee6a6', '#b388ff', '#ff8a50', '#4dd0e1', '#f06292', '#aed581']
 const TT = { contentStyle: { background: 'var(--card)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx)' }, cursor: { fill: 'var(--hover)' } }
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
 // eixo do gráfico "Despesas por grupo": ícone da conta (sobre a cor escolhida) + nome
@@ -86,6 +86,10 @@ export function resumo(d, ext = d.extrato, label = 'período', dsp = d.despesas 
 
 export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, selic, selicStatus }) {
   const [catSel, setCatSel] = useState(null) // categoria aberta no gráfico "Despesas por categoria"
+  const catPanel = useRef(null)
+  const [empBy, setEmpBy] = useState('grupo') // gráfico "Despesas por mês": séries por grupo ou por categoria
+  const [empTop, setEmpTop] = useState('10') // quantas séries mostrar (o restante vira "Demais")
+  useEffect(() => { if (catSel) catPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [catSel])
   const { carteira, extrato } = data
   const range = useMemo(() => rangeOf(period), [period])
   const ext = useMemo(() => extrato.filter((r) => r[D] && inRange(r[D], range)), [extrato, range])
@@ -139,6 +143,12 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
     return out.sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.valor - a.valor)
   }, [catSel, dsp])
   const totCatSel = catItems.reduce((t, x) => t + x.valor, 0)
+  const topCategorias = porCategoria // todas as categorias (o gráfico rola quando são muitas)
+  // clique em qualquer ponto da linha da categoria (barra, nome ou espaço ao lado) abre/fecha a lista
+  const pickCategoria = (st) => {
+    const name = st?.activePayload?.[0]?.payload?.name ?? st?.activeLabel ?? topCategorias[Number(st?.activeTooltipIndex ?? st?.activeIndex)]?.name
+    if (name) setCatSel((cur) => (cur === name ? null : String(name)))
+  }
   // totais para os percentuais (sempre sobre o conjunto inteiro, não só os itens exibidos)
   const totTipo = sum(porTipo, 'value'), totBanco = sum(porBanco, 'value'), totPorCat = sum(porCat, 'value')
   const totProvPapel = sum(prov, V), totConta = sum(porConta, 'value'), totCategoria = sum(porCategoria, 'value')
@@ -150,11 +160,22 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
   res.forEach((r) => { const k = r.DATA_RESGATE.slice(0, 7); (fluxoMap[k] ||= {}).Entradas = (fluxoMap[k].Entradas || 0) + (Number(r[RK]) || 0) })
   dsp.forEach((r) => { const k = monthOf(r.DATA); (fluxoMap[k] ||= {}).Despesas = (fluxoMap[k].Despesas || 0) + totalOf(r) })
   const fluxo = fillGen(fluxoMap, ['Entradas', 'Despesas'])
-  const top5 = porConta.slice(0, 5).map((x) => x.name)
-  const empMap = {}
-  dsp.forEach((r) => { const k = monthOf(r.DATA), c = top5.includes(r.TIPO_CONTA) ? r.TIPO_CONTA : 'Demais'; (empMap[k] ||= {})[c] = (empMap[k][c] || 0) + totalOf(r) })
-  const empCats = [...top5, ...(porConta.length > 5 ? ['Demais'] : [])]
-  const empilhado = fillGen(empMap, empCats)
+  const empSeries = useMemo(() => {
+    const parts = []
+    dsp.forEach((r) => {
+      const ym = monthOf(r.DATA)
+      if (empBy === 'categoria') r.ITENS.forEach((it) => parts.push({ ym, name: String(it.CATEGORIA || '').trim() || 'Sem categoria', v: Number(it.VALOR) || 0 }))
+      else parts.push({ ym, name: r.TIPO_CONTA || 'N/A', v: totalOf(r) })
+    })
+    const totals = new Map(); parts.forEach((x) => totals.set(x.name, (totals.get(x.name) || 0) + x.v))
+    const ranked = [...totals].sort((x, y) => y[1] - x[1]).map(([name]) => name)
+    const top = ranked.slice(0, empTop === 'todos' ? ranked.length : Number(empTop))
+    const map = {}
+    parts.forEach(({ ym, name, v }) => { const c = top.includes(name) ? name : 'Demais'; (map[ym] ||= {})[c] = (map[ym][c] || 0) + v })
+    const cats = [...top, ...(ranked.length > top.length ? ['Demais'] : [])]
+    return { cats, data: fillGen(map, cats) }
+  }, [dsp, empBy, empTop])
+  const empCats = empSeries.cats, empilhado = empSeries.data
   const parcelamentos = useMemo(() => installmentItems(data.despesas), [data.despesas])
   const parcelasFuturas = useMemo(() => {
     const todayMonth = nowYM()
@@ -246,23 +267,27 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
               <Bar dataKey="Entradas" fill="#c4cad1" radius={[6, 6, 0, 0]} /><Bar dataKey="Despesas" fill="#ff4d6a" radius={[6, 6, 0, 0]} /></BarChart>
           </ResponsiveContainer></div>
         <div className="card"><h3>Despesas por grupo</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porConta.slice(0, 8)} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} interval={0} tick={<GroupTick markOf={markOf} />} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totConta)}`, n]} {...TT} /><Bar dataKey="value" fill="#ff4d6a" radius={[0, 6, 6, 0]}><LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totConta)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
-          </ResponsiveContainer></div>
+          <div style={{ maxHeight: 460, overflowY: 'auto' }}><ResponsiveContainer width="100%" height={Math.max(260, porConta.length * 30 + 20)}>
+            <BarChart data={porConta} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} interval={0} tick={<GroupTick markOf={markOf} />} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totConta)}`, n]} {...TT} /><Bar dataKey="value" fill="#ff4d6a" radius={[0, 6, 6, 0]}><LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totConta)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
+          </ResponsiveContainer></div></div>
         {porCategoria.length > 0 && <div className="card"><h3>Despesas por categoria</h3><small className="muted">Clique numa barra para ver todas as despesas da categoria</small>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={porCategoria.slice(0, 8)} layout="vertical" margin={{ right: 48 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} tickFormatter={(v) => (String(v).length > 20 ? String(v).slice(0, 19) + '…' : v)} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totCategoria)}`, n]} {...TT} /><Bar dataKey="value" radius={[0, 6, 6, 0]} cursor="pointer" onClick={(d) => setCatSel((cur) => (cur === d?.name ? null : d?.name))}>{porCategoria.slice(0, 8).map((d) => <Cell key={d.name} fill={d.name === catSel ? '#e09400' : '#ffb020'} />)}<LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totCategoria)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
-          </ResponsiveContainer></div>}
-        {catSel && catItems.length > 0 && <section className="panel expense-history-panel" style={{ gridColumn: '1 / -1' }}>
+          <div style={{ maxHeight: 460, overflowY: 'auto' }}><ResponsiveContainer width="100%" height={Math.max(260, topCategorias.length * 30 + 20)}>
+            <BarChart data={topCategorias} layout="vertical" margin={{ right: 48 }} style={{ cursor: 'pointer' }} onClick={pickCategoria}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} tickFormatter={(v) => (String(v).length > 20 ? String(v).slice(0, 19) + '…' : v)} /><Tooltip formatter={(v, n) => [`${brl(v)} · ${pctOf(v, totCategoria)}`, n]} {...TT} /><Bar dataKey="value" radius={[0, 6, 6, 0]}>{topCategorias.map((d) => <Cell key={d.name} fill={d.name === catSel ? '#e09400' : '#ffb020'} />)}<LabelList dataKey="value" position="right" formatter={(v) => pctOf(v, totCategoria)} style={{ fill: 'var(--tx)' }} fontSize={11} /></Bar></BarChart>
+          </ResponsiveContainer></div></div>}
+        {catSel && catItems.length > 0 && <section ref={catPanel} className="panel expense-history-panel" style={{ gridColumn: '1 / -1' }}>
           <div className="panel-head"><div><h3>{catSel}</h3><small className="muted">{catItems.length} {catItems.length === 1 ? 'despesa' : 'despesas'} · {pctOf(totCatSel, totDesp)} das despesas do período · {labelOf(period)}</small></div><button type="button" className="sec sm" onClick={() => setCatSel(null)}>Fechar ✕</button></div>
           <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Grupo</th><th>Despesa</th><th>Valor</th></tr></thead>
             <tbody>{catItems.map((x, i) => <tr key={i}><td className="ro">{mesTick(monthOf(x.date))}</td><td className="ro"><svg width="16" height="16" style={{ verticalAlign: 'middle', marginRight: 6 }}><MarkSvg {...markOf(String(x.grupo))} size={16} /></svg>{x.grupo}</td><td className="ro">{x.nome}{x.parcela ? ` (${x.parcela})` : ''}</td><td className="ro">{brl(x.valor)}</td></tr>)}</tbody>
             <tfoot><tr><td className="ro" colSpan={3}><b>Total</b></td><td className="ro"><b>{brl(totCatSel)}</b></td></tr></tfoot></table></div>
         </section>}
-        <div className="card"><h3>Despesas por mês (principais grupos)</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={(v, n, e) => [`${brl(v)} · ${pctOf(v, sumOfNumbers(e?.payload))} do mês`, n]} labelFormatter={mesTick} {...TT} />
-              {empCats.map((c, i) => <Bar key={c} dataKey={c} stackId="d" fill={DESP_COLORS[i % 6]} />)}</BarChart>
+        <div className="card"><h3>Despesas por mês</h3>
+          <div className="chart-opts">
+            <label>Agrupar por<select value={empBy} onChange={(e) => setEmpBy(e.target.value)}><option value="grupo">Grupo</option><option value="categoria">Categoria</option></select></label>
+            <label>Mostrar<select value={empTop} onChange={(e) => setEmpTop(e.target.value)}><option value="5">Top 5</option><option value="10">Top 10</option><option value="15">Top 15</option><option value="todos">Todos</option></select></label>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={empilhado}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickFormatter={mesTick} fontSize={11} minTickGap={16} /><YAxis fontSize={11} /><Tooltip formatter={(v, n, e) => [`${brl(v)} · ${pctOf(v, sumOfNumbers(e?.payload))} do mês`, n]} labelFormatter={mesTick} {...TT} itemSorter={(it) => -(Number(it.value) || 0)} /><Legend wrapperStyle={{ fontSize: 11 }} />
+              {empCats.map((c, i) => <Bar key={c} dataKey={c} stackId="d" fill={c === 'Demais' ? '#4b5563' : DESP_COLORS[i % DESP_COLORS.length]} />)}</BarChart>
           </ResponsiveContainer></div>
       </div>
     </>

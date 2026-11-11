@@ -67,6 +67,25 @@ function ParentField({ value, onCommit }) {
   return <input className="cell" list="dl-contas" placeholder="Dentro do grupo… (opcional)" title="Coloque este grupo dentro de outro grupo (deixe vazio para ser um grupo principal)" style={{ marginTop: 4 }} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
+// Totais de uma lista de despesas {it, ym, g}: pago = parcela: valor já baixado / demais: pago se o mês já chegou
+function summarizeExpenses(list, currentMonth) {
+  const by = new Map(), groups = new Set()
+  let total = 0, pago = 0, pend = 0, fut = 0, abertas = 0, abertasValor = 0
+  list.forEach(({ it, ym, g }) => {
+    const v = Number(it.VALOR) || 0, nm = String(it.NOME || '').trim() || '(Sem descrição)'
+    const futuro = ym > currentMonth
+    const pg = it.PARCELAMENTO ? Math.min(v, Number(it.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : v
+    const pd = Math.max(0, v - pg)
+    total += v; pago += pg; pend += pd
+    if (futuro) fut += pd
+    if (it.PARCELAMENTO && pd > 0) { abertas++; abertasValor += pd }
+    if (g) groups.add(g)
+    const e = by.get(nm) || { name: nm, total: 0, count: 0 }
+    e.total += v; e.count++; by.set(nm, e)
+  })
+  return { total: round2(total), pago: round2(pago), pend: round2(pend), fut: round2(fut), abertas, abertasValor: round2(abertasValor), nGroups: groups.size, n: list.length, names: [...by.values()].map((e) => ({ ...e, total: round2(e.total) })).sort((x, y) => Math.abs(y.total) - Math.abs(x.total)) }
+}
+
 function ItemsModal({ row, onSave, onClose, catByName }) {
   const [items, setItems] = useState(row.ITENS.map((i) => ({ ...i })))
   const up = (j, p) => setItems((x) => x.map((it, k) => (k === j ? { ...it, ...p } : it)))
@@ -185,31 +204,31 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const searchSummary = useMemo(() => {
     const s = q.trim().toLowerCase()
     if (!s) return null
-    // cada item vem com o mês da linha; pago = parcela: valor já baixado / demais: pago se o mês já chegou
-    const summarize = (list) => {
-      const by = new Map(); let total = 0, pago = 0, pend = 0, fut = 0, abertas = 0
-      list.forEach(({ it, ym }) => {
-        const v = Number(it.VALOR) || 0, nm = String(it.NOME || '').trim() || '(Sem descrição)'
-        const futuro = ym > currentMonth
-        const pg = it.PARCELAMENTO ? Math.min(v, Number(it.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : v
-        const pd = Math.max(0, v - pg)
-        total += v; pago += pg; pend += pd
-        if (futuro) fut += pd
-        if (it.PARCELAMENTO && pd > 0) abertas++
-        const e = by.get(nm) || { name: nm, total: 0, count: 0 }
-        e.total += v; e.count++; by.set(nm, e)
-      })
-      return { total: round2(total), pago: round2(pago), pend: round2(pend), fut: round2(fut), abertas, n: list.length, names: [...by.values()].map((e) => ({ ...e, total: round2(e.total) })).sort((a, b) => Math.abs(b.total) - Math.abs(a.total)) }
-    }
+    const summarize = (list) => summarizeExpenses(list, currentMonth)
     const hit = (r, it) => groupPath(String(r.TIPO_CONTA || '').trim(), parents).join(' ').toLowerCase().includes(s) || String(it.NOME || '').toLowerCase().includes(s) || String(it.CATEGORIA || '').toLowerCase().includes(s)
     return {
-      period: summarize(filtered.flatMap(({ r, items }) => items.map(({ item }) => ({ it: item, ym: monthOf(r.DATA) })))),
-      all: summarize(rows.filter((r) => !cats.length || cats.includes(r.TIPO_CONTA)).flatMap((r) => r.ITENS.filter((it) => hit(r, it)).map((it) => ({ it, ym: monthOf(r.DATA) })))),
+      period: summarize(filtered.flatMap(({ r, items }) => items.map(({ item }) => ({ it: item, ym: monthOf(r.DATA), g: r.TIPO_CONTA })))),
+      all: summarize(rows.filter((r) => !cats.length || cats.includes(r.TIPO_CONTA)).flatMap((r) => r.ITENS.filter((it) => hit(r, it)).map((it) => ({ it, ym: monthOf(r.DATA), g: r.TIPO_CONTA })))),
     }
   }, [q, filtered, rows, cats, parents, currentMonth])
 
   const sorted = useMemo(() => sortItems(filtered, sort, (x, k) => (k === 'TOTAL' ? x.total : x.r[k]), (k) => (k === 'DATA' ? 'date' : k === 'TOTAL' ? 'money' : 'text')), [filtered, sort])
 
+  // indicadores do que está filtrado (período, grupos marcados e busca)
+  const filterStats = useMemo(() => summarizeExpenses(filtered.flatMap(({ r, items }) => items.map(({ item }) => ({ it: item, ym: monthOf(r.DATA), g: r.TIPO_CONTA }))), currentMonth), [filtered, currentMonth])
+  // indicadores das linhas marcadas nas caixinhas (valem para todas as páginas; com busca ativa, só os itens encontrados)
+  const selectionStats = useMemo(() => {
+    if (!selected.size) return null
+    const byIndex = new Map(filtered.map((entry) => [entry.i, entry]))
+    const list = []
+    selected.forEach((i) => {
+      const r = rows[i]; if (!r) return
+      const items = byIndex.has(i) ? byIndex.get(i).items.map(({ item }) => item) : r.ITENS
+      items.forEach((it) => list.push({ it, ym: monthOf(r.DATA), g: r.TIPO_CONTA }))
+    })
+    return summarizeExpenses(list, currentMonth)
+  }, [selected, filtered, rows, currentMonth])
+  const cardStats = selectionStats || filterStats
   const detailRows = useMemo(() => q.trim()
     ? filtered.map(({ r, items }) => ({ ...r, ITENS: items.map(({ item }) => item) }))
     : base.map(({ r }) => r), [base, filtered, q])
@@ -525,13 +544,6 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       {searchSummary && <div className="search-summary">
         <span>🔎 “{q.trim()}”</span>
         <span><b className="big">{brl(searchSummary.period.total)}</b> <small>em {searchSummary.period.n.toLocaleString('pt-BR')} {searchSummary.period.n === 1 ? 'lançamento' : 'lançamentos'} no período</small></span>
-        <div className="search-summary-kpis">
-          <span className="ss-kpi"><small>Valor total</small><b>{brl(searchSummary.period.total)}</b></span>
-          <span className="ss-kpi pos"><small>Pago</small><b>{brl(searchSummary.period.pago)}</b></span>
-          <span className="ss-kpi"><small>A pagar</small><b>{brl(searchSummary.period.pend)}</b></span>
-          <span className="ss-kpi"><small>Futuro (meses seguintes)</small><b>{brl(searchSummary.period.fut)}</b></span>
-          {searchSummary.period.abertas > 0 && <span className="ss-kpi"><small>Parcelas em aberto</small><b>{searchSummary.period.abertas.toLocaleString('pt-BR')}</b></span>}
-        </div>
         {searchSummary.all.n !== searchSummary.period.n && <span><b>{brl(searchSummary.all.total)}</b> <small>em todo o histórico ({searchSummary.all.n.toLocaleString('pt-BR')})</small></span>}
         {searchSummary.period.names.length > 1 && <div className="search-summary-names">
           {searchSummary.period.names.slice(0, 8).map((e) => <span key={e.name} className="chip na">{e.name} · {brl(e.total)}{e.count > 1 ? ` (${e.count}×)` : ''}</span>)}
@@ -545,6 +557,16 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         {cats.length > 0 && <button className="chip-btn" onClick={() => setCats([])}>limpar</button>}
       </div>
 
+      {(cardStats.n > 0 || selectionStats) && <>
+      {selectionStats && <div className="sel-bar"><span>☑ <b>{selected.size.toLocaleString('pt-BR')}</b> {selected.size === 1 ? 'linha selecionada' : 'linhas selecionadas'}: os valores abaixo são só da seleção</span><button type="button" className="sec sm" onClick={() => setSelected(new Set())}>Limpar seleção</button></div>}
+      <div className="cards desp-cards">
+        <div className="card kpi"><span className="ic">💰</span><small>Valor total</small><b>{brl(cardStats.total)}</b><small>{cardStats.n.toLocaleString('pt-BR')} {cardStats.n === 1 ? 'lançamento' : 'lançamentos'}{cardStats.nGroups ? ` · ${cardStats.nGroups} ${cardStats.nGroups === 1 ? 'grupo' : 'grupos'}` : ''}</small></div>
+        <div className="card kpi"><span className="ic">✅</span><small>Valor pago</small><b className="pos">{brl(cardStats.pago)}</b><small>{cardStats.total ? `${(cardStats.pago / cardStats.total * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do total` : '—'}</small></div>
+        <div className="card kpi"><span className="ic">⏳</span><small>A pagar</small><b>{brl(cardStats.pend)}</b><small>em aberto, atual e futuro</small></div>
+        <div className="card kpi"><span className="ic">🔮</span><small>Valor futuro</small><b>{brl(cardStats.fut)}</b><small>meses após o atual</small></div>
+        <div className="card kpi"><span className="ic">🧾</span><small>Parcelas em aberto</small><b>{cardStats.abertas.toLocaleString('pt-BR')}</b><small>{brl(cardStats.abertasValor)} a pagar</small></div>
+        <div className="card kpi"><span className="ic">📊</span><small>Média por lançamento</small><b>{brl(cardStats.n ? cardStats.total / cardStats.n : 0)}</b><small>{selectionStats ? 'da seleção' : labelOf(period)}</small></div>
+      </div></>}
       {view === 'lista' ? (
         <>
           <section className="panel">

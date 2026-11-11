@@ -60,7 +60,7 @@ const STEPS = [
     '**Despesas parceladas**: em qualquer conta (cartão, financiamento, mensalidade…), o total é dividido em parcelas mensais, com categoria se quiser, e você acompanha o que já foi pago.',
     '**Categorias por item**: classifique cada despesa (ex.: *Amazon — Compras Online*). O sistema sugere a categoria quando a descrição já foi usada.',
     '**Grupo dentro de grupo**: no lápis ✏️, use *Dentro do grupo* (ex.: *Condomínio* dentro de *Aluguel*). O total sobe para o grupo principal.',
-    'A **lupa** mostra o **valor total, o pago, o a pagar e o futuro** das despesas encontradas na busca.',
+    'Os **cartões acima da lista** mostram o **valor total, pago, a pagar e futuro** do que está filtrado (período, grupos e busca na lupa).',
   ] },
   { icon: '🏁', title: 'Resgates', sub: 'O lucro dos investimentos que você resgatou.', items: [
     'Registra os resgates com a **rentabilidade** obtida até a data (o lucro, que pode ser negativo).',
