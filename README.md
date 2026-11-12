@@ -236,6 +236,11 @@ No dashboard, os **proventos** consideram apenas a categoria *Proventos*.
  
 **Entradas** = lançamentos do Extrato + rentabilidade dos **Resgates**. É esse total que aparece no painel do Extrato e no fluxo de caixa. No saldo (entradas − despesas), a categoria *Venda de Patrimônio* fica de fora.
  
+**Editar e excluir categorias:** na aba Extrato, o botão **🏷️ Gerenciar categorias** abre a lista das categorias que você criou, com a quantidade e o total de lançamentos de cada uma.
+ 
+- **✏️ Renomear:** todos os lançamentos acompanham o novo nome. Se o novo nome já existir, o app oferece **mesclar** as duas categorias
+- **🗑 Excluir:** os lançamentos da categoria são movidos para a categoria que você escolher (padrão: *Outros*)
+- As categorias **padrão** (Proventos, Rendimentos, Aluguel, Salário, Venda de Patrimônio e Outros) ficam **protegidas**, porque o app usa algumas delas nos cálculos, como a *Venda de Patrimônio* no saldo
 ---
  
 ## 🔍 Busca de produtos
@@ -380,6 +385,9 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── ProductSearch.jsx          # busca e detalhe de produtos
     ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
     ├── Projecao.jsx               # aba Projeção (fluxo de caixa e patrimônio)
+    ├── dialog.js                  # confirmDialog() e alertDialog(): janelas do app no lugar de confirm()/alert()
+    ├── DialogHost.jsx             # desenha as janelas de confirmação e aviso (montado uma vez no App)
+    ├── ExtratoCategories.jsx      # janela para renomear/excluir categorias do Extrato
     ├── Tour.jsx                   # guia rápido do primeiro acesso (um passo por aba)
     ├── icons.js                   # ícones genéricos (Lucide), cores prontas e sugestão de ícone pelo nome
     ├── AccountMark.jsx            # desenha o ícone/imagem/emoji da conta sobre a cor de fundo
@@ -437,8 +445,9 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
 - [X] `v26.11.10` Exibir percentual dos itens em Dashboard
 - [X] `v26.11.11` Exibir Guia de Uso ao acessar pela primeira vez + Remolde layout
+- [X] `v26.11.12` Criação de Pop-Up, exibir valor total ao filtrar um item por categoria
 - [ ] Pesquisar algum produto e ver detalhes e informações 
 
 ---
 
-Feito para rodar no seu navegador. 💜
+Desenvolvido por RAFAEL BARBOSA | Feito para rodar no seu navegador. 💜

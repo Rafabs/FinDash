@@ -14,7 +14,10 @@ import RendaPorPapel from './RendaPorPapel.jsx'
 import NotesEditor from './NotesEditor.jsx'
 import Tour, { tourSeen, markTourSeen } from './Tour.jsx'
 import Projecao from './Projecao.jsx'
-import { SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
+import ExtratoCategories from './ExtratoCategories.jsx'
+import DialogHost from './DialogHost.jsx'
+import { confirmDialog, alertDialog } from './dialog.js'
+import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
@@ -35,6 +38,7 @@ export default function App() {
   const [modal, setModal] = useState(false)
   const [paste, setPaste] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [catManager, setCatManager] = useState(false) // janela "Categorias do Extrato"
   // guia rápido: abre no primeiro acesso (ou com ?tour=1 na URL) e pelo botão ❓
   const [tour, setTour] = useState(() => !tourSeen() || /[?&]tour=1\b/.test(location.search))
   const closeTour = () => { markTourSeen(); setTour(false) }
@@ -105,6 +109,17 @@ export default function App() {
   })
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
   const addExtratoCategory = (name) => setData((d) => ({ ...d, categoriasExtrato: [...new Set([...(d.categoriasExtrato || []), name])] }))
+  // renomear (ou mesclar em outra) e excluir categorias do Extrato; os lançamentos acompanham
+  const renameExtratoCategory = (from, to) => setData((d) => ({
+    ...d,
+    extrato: d.extrato.map((r) => (r.CATEGORIA === from ? { ...r, CATEGORIA: to } : r)),
+    categoriasExtrato: [...new Set((d.categoriasExtrato || []).filter((c) => c !== from).concat(CATS.includes(to) ? [] : [to]))],
+  }))
+  const deleteExtratoCategory = (name, moveTo) => setData((d) => ({
+    ...d,
+    extrato: d.extrato.map((r) => (r.CATEGORIA === name ? { ...r, CATEGORIA: moveTo } : r)),
+    categoriasExtrato: (d.categoriasExtrato || []).filter((c) => c !== name),
+  }))
   const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
   const addExtrato = () => setData((d) => ({ ...d, extrato: [...d.extrato, { 'DATA DE RECEBIMENTO': today(), 'VALOR DA APLICAÇÃO': 0, CATEGORIA: 'Outros', ORIGEM: '', 'INSTITUIÇÃO': '', 'CNPJ / CPF': '', TIPO: '' }] }))
   const [theme, setTheme] = useState(() => initTheme() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'))
@@ -146,13 +161,13 @@ export default function App() {
     try {
       const r = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
-      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length && r.notas == null) return alert('Nenhuma linha reconhecida. Confira se os cabeçalhos seguem o modelo.')
+      if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length && r.notas == null) return alertDialog({ title: 'Importação', icon: '📄', message: 'Nenhuma linha reconhecida.', detail: 'Confira se os cabeçalhos da planilha seguem o modelo.' })
       setData((d) => ({ ...d, ...r, categoriasExtrato: r.extrato ? [...new Set([...(d.categoriasExtrato || []), ...(r.extrato || []).map((x) => x.CATEGORIA).filter(Boolean)])] : d.categoriasExtrato }))
       setTab(r.notas?.trim() ? 'notas' : 'dash')
-    } catch { alert('Não foi possível ler o arquivo.') }
+    } catch { alertDialog({ title: 'Importação', icon: '⚠️', message: 'Não foi possível ler o arquivo.', detail: 'Use uma planilha .xlsx, .xls ou .csv.' }) }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
-  const clearAll = () => { if (confirm('Apagar todos os dados salvos neste navegador?')) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
+  const clearAll = async () => { if (await confirmDialog({ title: 'Limpar todos os dados', message: 'Apagar todos os dados salvos neste navegador?', detail: 'Exporte o XLSX antes se quiser guardar uma cópia. Esta ação não pode ser desfeita.', confirmLabel: 'Apagar tudo', danger: true })) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -204,9 +219,10 @@ export default function App() {
           </>
         )}
         {empty && tab === 'notas' && <div className="notes-back"><button className="sec" onClick={() => setTab('dash')}>← Voltar à página inicial</button></div>}
-        {tab === 'extrato' && (
+        {tab === 'extrato' && (<>
+          <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Renomear ou excluir categorias do Extrato" onClick={() => setCatManager(true)}>🏷️ Gerenciar categorias</button></div>
           <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
-        )}
+        </>)}
         {tab === 'despesas' && (
           <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
         )}
@@ -222,8 +238,10 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.10</footer>
+      <footer className="app-version">v26.11.12</footer>
       {tour && <Tour onClose={closeTour} />}
+      <DialogHost />
+      {catManager && <ExtratoCategories rows={data.extrato} categories={data.categoriasExtrato || []} onRename={renameExtratoCategory} onDelete={deleteExtratoCategory} onClose={() => setCatManager(false)} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (
         <PasteModal initial={paste} existing={data.extrato} onClose={() => setPaste(null)}

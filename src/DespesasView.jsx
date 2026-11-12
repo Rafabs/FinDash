@@ -11,6 +11,7 @@ import Pager, { usePageSize } from './Pager.jsx'
 import SearchField from './SearchField.jsx'
 import IconPicker from './IconPicker.jsx'
 import AccountMark from './AccountMark.jsx'
+import { confirmDialog, alertDialog } from './dialog.js'
 import { ICON_PREFIX, suggestIcon } from './icons.js'
 
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
@@ -20,7 +21,7 @@ const dataCurta = (s) => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)
 const confirmInstallmentPayment = (item, row) => {
   const paid = Math.min(Number(item.VALOR) || 0, Number(item.PARCELAMENTO?.valorPago) || 0)
   const remaining = Math.max(0, (Number(item.VALOR) || 0) - paid)
-  return confirm(`Confirmar a baixa da parcela ${item.PARCELAMENTO?.numero}/${item.PARCELAMENTO?.quantidade}?\n${item.NOME || 'Parcela'} · ${mesCurto(monthOf(row.DATA))}\nValor a quitar: ${brl(remaining)}\nO pagamento será registrado hoje.`)
+  return confirmDialog({ title: 'Baixar parcela', icon: '✅', message: `Confirmar a baixa da parcela ${item.PARCELAMENTO?.numero}/${item.PARCELAMENTO?.quantidade}?`, detail: `${item.NOME || 'Parcela'} · ${mesCurto(monthOf(row.DATA))} · Valor a quitar: ${brl(remaining)}. O pagamento será registrado hoje.`, confirmLabel: 'Confirmar baixa' })
 }
 
 function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CRÉDITO', catByName, onClose, onSave }) {
@@ -270,7 +271,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const toggleOpen = (g) => setOpenRows((x) => { const n = new Set(x); n.has(g) ? n.delete(g) : n.add(g); return n })
   const del = (g) => { if (!locked) { setOpenRows(new Set()); onDelete(g) } }
   const allSelected = slice.length > 0 && slice.every(({ i }) => selected.has(i))
-  const deleteSelected = () => { const ids = [...selected].sort((a, b) => b - a); if (!locked && ids.length && confirm(`Excluir ${ids.length} itens selecionados?`)) { ids.forEach(del); setSelected(new Set()) } }
+  const deleteSelected = async () => { const ids = [...selected].sort((a, b) => b - a); if (!locked && ids.length && await confirmDialog({ title: 'Excluir itens', message: `Excluir ${ids.length} ${ids.length === 1 ? 'item selecionado' : 'itens selecionados'}?`, detail: 'Esta ação não pode ser desfeita.', confirmLabel: 'Excluir', danger: true })) { ids.forEach(del); setSelected(new Set()) } }
   const canDropOn = (from, to) => !locked && from != null && from.row !== to &&
     rows[from.row] && rows[from.row].ITENS[from.item] && rows[to] &&
     monthOf(rows[from.row].DATA) === monthOf(rows[to].DATA)
@@ -349,7 +350,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   }
   const readLogo = async (file) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) { alert('Escolha um arquivo de imagem.'); return }
+    if (!file.type.startsWith('image/')) { alertDialog({ title: 'Imagem', icon: '🖼️', message: 'Escolha um arquivo de imagem.' }); return }
     let svgUrl = ''
     try {
       let bitmap
@@ -367,7 +368,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       const logo = canvas.toDataURL('image/webp', 0.82)
       if (accountPage && currentAccount) onUpdateAccount({ name: currentAccount.name, icon: currentAccount.icon || '🧾', logo })
       else setAccountLogo(logo)
-    } catch { alert('Não foi possível carregar essa imagem. Tente PNG, JPG, WebP ou SVG.') }
+    } catch { alertDialog({ title: 'Imagem', icon: '🖼️', message: 'Não foi possível carregar essa imagem.', detail: 'Tente PNG, JPG, WebP ou SVG.' }) }
     finally { if (svgUrl) URL.revokeObjectURL(svgUrl) }
   }
   const addToAccount = () => {
@@ -376,13 +377,13 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
     setQuickItem(''); setQuickValue(''); setQuickCat('')
   }
-  const markInstallmentPaid = (rowIndex, itemIndex) => {
+  const markInstallmentPaid = async (rowIndex, itemIndex) => {
     if (locked) return
     const row = rows[rowIndex]
     const item = row?.ITENS?.[itemIndex]
     if (!item?.PARCELAMENTO) return
     if (Number(item.PARCELAMENTO.valorPago) >= Number(item.VALOR)) return
-    if (!confirmInstallmentPayment(item, row)) return
+    if (!(await confirmInstallmentPayment(item, row))) return
     const ITENS = row.ITENS.map((current, index) => index === itemIndex
       ? { ...current, PARCELAMENTO: { ...current.PARCELAMENTO, valorPago: round2(Number(current.VALOR) || 0), dataPagamento: hojeISO() } }
       : current)
@@ -637,7 +638,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                         <td className="ro r" data-label="Total"><b>{brl(total)}</b></td>
                         <td className="acts">
                           <button className={'icon' + (ed ? ' ok' : '')} disabled={locked} title={locked ? 'Destrave a edição para editar' : ed ? 'Concluir edição' : 'Editar'} onClick={() => toggleOpen(i)}>{ed ? '✓' : '✏️'}</button>
-                          <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir'} onClick={() => confirm('Excluir este lançamento?') && del(i)}>🗑</button>
+                          <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir'} onClick={async () => { if (await confirmDialog({ title: 'Excluir lançamento', message: 'Excluir este lançamento?', detail: 'Esta ação não pode ser desfeita.', confirmLabel: 'Excluir', danger: true })) del(i) }}>🗑</button>
                         </td>
                         
                       </tr>

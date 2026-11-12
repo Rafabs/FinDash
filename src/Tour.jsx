@@ -43,7 +43,7 @@ const STEPS = [
     'No topo ficam o patrimônio, o total investido, o rendimento e a alocação RF × RV.',
   ] },
   { icon: '🧾', title: 'Extrato', sub: 'Todo o dinheiro que entra.', items: [
-    'Registra **proventos, rendimentos, aluguel, salário** e outras entradas. As categorias são reconhecidas **automaticamente**; você pode criar as suas em **＋ Categoria**.',
+    'Registra **proventos, rendimentos, aluguel, salário** e outras entradas. As categorias são reconhecidas **automaticamente**; você pode criar as suas em **＋ Categoria** e **renomear ou excluir** em **🏷️ Gerenciar categorias**.',
     'Filtre por **período, categoria** ou texto. Clique no cabeçalho de uma coluna para **ordenar**.',
     'Use **Colar dados** para copiar uma tabela do Excel ou Google Sheets: o sistema reconhece as colunas e avisa sobre **duplicatas**.',
     'As linhas ficam travadas: para alterar, clique no **lápis ✏️** da linha.',
