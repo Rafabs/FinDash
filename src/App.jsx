@@ -21,6 +21,8 @@ import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
+// rótulos curtos da barra de abas no celular
+const TAB_SHORT = { renda: 'Renda' }
 const TAB_ICONS = { dash: '📊', projecao: '🔮', renda: '💹', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
 const KEY = 'fynn-control-v1'
 const load = () => {
@@ -42,6 +44,8 @@ export default function App() {
   // guia rápido: abre no primeiro acesso (ou com ?tour=1 na URL) e pelo botão ❓
   const [tour, setTour] = useState(() => !tourSeen() || /[?&]tour=1\b/.test(location.search))
   const closeTour = () => { markTourSeen(); setTour(false) }
+  // no celular a barra de abas rola: mantém a aba ativa à vista
+  useEffect(() => { document.querySelector('.tabs button.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }) }, [tab])
   const [cartLocked, setCartLocked] = useState(true) // Carteira começa travada (evita digitação indevida)
   const [cdi, setCdi] = useState(readCachedCdi)
   const [cdiStatus, setCdiStatus] = useState('loading')
@@ -92,7 +96,7 @@ export default function App() {
       indicadoresResumo.push(['Despesas futuras · pago', brl(pago)])
       indicadoresResumo.push(['Despesas futuras · pendente', brl(Math.max(0, previsto - pago))])
     }
-    exportPdf({ ...data, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP }, indicadoresResumo, label, { cdi, selic })
+    exportPdf({ ...data, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP, projectionData: { carteira: data.carteira, extrato: data.extrato, despesas: data.despesas, resgates: data.resgates } }, indicadoresResumo, label, { cdi, selic })
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
@@ -201,7 +205,7 @@ export default function App() {
       {empty && tab !== 'notas' ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} onNotes={() => setTab('notas')} /> : (<>
       <nav className="tabs">
         {[['dash', 'Dashboard', null], ['projecao', 'Projeção', null], ['renda', 'Renda por papel', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length], ['notas', 'Notas', null]].map(([k, l, c]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl">{l}</span>{c != null && <em>{c}</em>}</button>
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{l}</span><span className="tl tl-short">{TAB_SHORT[k] || l}</span>{c != null && <em>{c}</em>}</button>
         ))}
       </nav>
       <main>
@@ -238,7 +242,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.12</footer>
+      <footer className="app-version">v26.11.14</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {catManager && <ExtratoCategories rows={data.extrato} categories={data.categoriasExtrato || []} onRename={renameExtratoCategory} onDelete={deleteExtratoCategory} onClose={() => setCatManager(false)} />}

@@ -18,7 +18,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Itens por página** configurável (20, 30, 40, 50, 100 ou 200; padrão 40) no Extrato, Despesas e Resgates, e a escolha fica salva
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
-- **Versão para celular**: abas viram barra inferior, tabelas viram cartões e janelas sobem de baixo da tela
+- **Versão para celular**: as abas viram uma barra inferior que **rola para o lado** (com nomes curtos e a aba ativa sempre à vista), tabelas viram cartões e janelas sobem de baixo da tela
 - Abas: **Dashboard**, **Projeção**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e dados de exemplo
 - **Guia rápido** no primeiro acesso, explicando cada aba para quem está começando; o botão **❓** do topo abre o guia de novo (veja [Guia rápido e limpeza de dados](#-guia-rápido-e-limpeza-de-dados))
@@ -445,7 +445,11 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
 - [X] `v26.11.10` Exibir percentual dos itens em Dashboard
 - [X] `v26.11.11` Exibir Guia de Uso ao acessar pela primeira vez + Remolde layout
-- [X] `v26.11.12` Criação de Pop-Up, exibir valor total ao filtrar um item por categoria
+- [X] `v26.11.12` Guia rápido no primeiro acesso, explicando cada aba (botão ❓ para rever)
+- [X] `v26.11.13` Aba Projeção: fluxo de caixa e patrimônio projetados a partir das entradas e despesas
+- [X] `v26.11.16` Janelas de confirmação e aviso do próprio app, no lugar das do navegador
+- [X] `v26.11.15` Extrato: renomear, mesclar e excluir categorias criadas pelo usuário
+- [X] `v26.11.14` Projeção só com parcelas em aberto, Projeção na última página do PDF e totais (pago, a pagar, futuro) ao filtrar em Despesas
 - [ ] Pesquisar algum produto e ver detalhes e informações 
 
 ---

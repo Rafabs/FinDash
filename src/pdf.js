@@ -161,7 +161,13 @@ function drawProjectionPatrimony(doc, rows, x, y, w, h) {
 }
 function addProjection(doc, data, settings) {
   const p = buildProjection(data, settings)
-  if (!p.n) return
+  if (!p.n) {
+    doc.addPage()
+    sectionHeading(doc, 'Projeção', 'Projeção de entradas, despesas e patrimônio', 'Sem histórico suficiente')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...PDF_COLORS.muted)
+    doc.text('Não há entradas ou despesas em meses anteriores para servir de base. Importe ou lance dados para ver a projeção.', 14, 40)
+    return
+  }
   const rows = p.rows, last = rows[rows.length - 1], sum = (k) => rows.reduce((t, r) => t + r[k], 0)
   const sobraMedia = sum('Sobra') / rows.length, negativos = rows.filter((r) => r.Sobra < 0)
   doc.addPage()
@@ -210,6 +216,36 @@ function addProjection(doc, data, settings) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted)
     doc.text('Estimativa baseada no histórico. Parcelas já pagas (com baixa) não entram; não considera impostos, inflação nem mudanças de renda.', 14, noteY)
   }
+}
+
+// Mede o conteúdo de cada coluna e escolhe fonte e larguras para que as palavras caibam inteiras
+// (a quebra só acontece entre palavras, nunca no meio delas).
+function fitColumns(doc, head, body, foot, avail, sizes = [7, 6.4, 5.8, 5.2]) {
+  const n = head.length, pad = 1.7 * 2 + 0.8
+  const pick = (rows, i) => rows.reduce((best, r) => {
+    const text = String(r[i] ?? '')
+    const token = text.split(' ').reduce((a, b) => (b.length > a.length ? b : a), '') // só o espaço comum quebra linha: "R$\u00a01.000,00" (espaço fixo) é uma palavra só
+    return { token: token.length > best.token.length ? token : best.token, full: text.length > best.full.length ? text : best.full }
+  }, { token: '', full: '' })
+  // cabeçalho e linha de totais são em negrito (mais largos que o corpo): medidos juntos
+  const cols = Array.from({ length: n }, (_, i) => ({ body: pick(body, i), head: pick([head, ...(foot || [])], i) }))
+  let fontSize = sizes[sizes.length - 1], need = [], want = []
+  for (const fs of sizes) {
+    doc.setFontSize(fs)
+    doc.setFont('helvetica', 'bold'); const h = cols.map((c) => doc.getTextWidth(c.head.token) * 1.06 + pad)
+    doc.setFont('helvetica', 'normal'); const b = cols.map((c) => doc.getTextWidth(c.body.token) * 1.04 + pad)
+    need = cols.map((_, i) => Math.max(h[i], b[i])); want = cols.map((c, i) => Math.min(42, Math.max(need[i], doc.getTextWidth(c.body.full) * 1.04 + pad)))
+    fontSize = fs
+    if (need.reduce((t, v) => t + v, 0) <= avail) break
+  }
+  const sumNeed = need.reduce((t, v) => t + v, 0)
+  if (sumNeed > avail) return { fontSize, widths: need.map((v) => (v * avail) / sumNeed) } // último recurso: reduz proporcionalmente
+  const extra = avail - sumNeed
+  const wish = want.map((w, i) => Math.max(0, w - need[i])), totalWish = wish.reduce((t, v) => t + v, 0)
+  let widths = need.map((v, i) => v + (totalWish ? Math.min(wish[i], (extra * wish[i]) / totalWish) : 0))
+  const left = avail - widths.reduce((t, v) => t + v, 0)
+  widths = widths.map((v) => v + left / n) // sobra distribuída por igual
+  return { fontSize, widths }
 }
 
 function addCharts(doc, data, periodo, marks) {
@@ -311,19 +347,26 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
     doc.addPage()
     sectionHeading(doc, 'Dados detalhados', SHEETS[k].name, `${data[k].length.toLocaleString('pt-BR')} registros`)
     const definitions = SHEETS[k].cols.map(([, type]) => type)
+    const bodyRows = data[k].map((r) => cols.map((c, i) => tableValue(r[c], definitions[i], c)))
+    const footRow = data[k].length ? (() => {
+      const row = totalsRow(cols, data[k], SUM_KEYS[k] || [], 'Total')
+      const vi = cols.indexOf('VAR_PP')
+      if (k === 'carteira' && vi >= 0 && sumOf(data[k], 'VLR_APLICACAO')) row[vi] = tableValue(sumOf(data[k], 'REND_BRUTO') / sumOf(data[k], 'VLR_APLICACAO'), 'calc', 'VAR_PP')
+      return row
+    })() : null
+    const avail = doc.internal.pageSize.getWidth() - 28
+    const fit = fitColumns(doc, labels, bodyRows, footRow ? [footRow] : [], avail)
     autoTable(doc, {
       ...tableStyles,
       startY: 34,
+      tableWidth: avail,
       head: [labels],
-      body: data[k].map((r) => cols.map((c, i) => tableValue(r[c], definitions[i], c))),
-      foot: data[k].length ? [(() => {
-        const row = totalsRow(cols, data[k], SUM_KEYS[k] || [], 'Total')
-        const vi = cols.indexOf('VAR_PP')
-        if (k === 'carteira' && vi >= 0 && sumOf(data[k], 'VLR_APLICACAO')) row[vi] = tableValue(sumOf(data[k], 'REND_BRUTO') / sumOf(data[k], 'VLR_APLICACAO'), 'calc', 'VAR_PP')
-        return row
-      })()] : undefined,
-      styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
-      columnStyles: Object.fromEntries(definitions.map((type, i) => [i, type === 'money' || type === 'calcm' || type === 'num' ? { halign: 'right' } : {}])),
+      body: bodyRows,
+      foot: footRow ? [footRow] : undefined,
+      styles: { ...tableStyles.styles, fontSize: fit.fontSize, cellPadding: 1.7 },
+      headStyles: { ...tableStyles.headStyles, fontSize: fit.fontSize, cellPadding: { top: 2.6, bottom: 2.6, left: 1.7, right: 1.7 } },
+      columnStyles: Object.fromEntries(definitions.map((type, i) => [i, { cellWidth: fit.widths[i], ...(type === 'money' || type === 'calcm' || type === 'num' ? { halign: 'right' } : {}) }])),
+      didParseCell: (h) => { if (h.section !== 'body' && ['money', 'calcm', 'num'].includes(definitions[h.column.index])) h.cell.styles.halign = 'right' },
     })
   }
   if (data.despesas?.length) {
@@ -476,7 +519,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
   }
-  addProjection(doc, data, loadProjectionSettings()) // projeção na última página
+  addProjection(doc, data.projectionData || data, loadProjectionSettings()) // projeção na última página, com o histórico completo
   const pageCount = doc.internal.getNumberOfPages()
   for (let page = 1; page <= pageCount; page++) {
     doc.setPage(page)

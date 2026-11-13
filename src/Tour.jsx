@@ -74,7 +74,7 @@ const STEPS = [
   { icon: '✅', title: 'Dicas finais', sub: 'Para não perder nada do que você fez.', items: [
     '**Exporte o XLSX com frequência.** Ele é o seu backup: se você limpar os dados do navegador, o que não foi exportado se perde.',
     'Nas tabelas, **clique no cabeçalho** para ordenar, **marque linhas** para excluir várias de uma vez e escolha quantos **itens por página** ver.',
-    'No celular, as abas viram uma **barra inferior** e as tabelas viram **cartões**.',
+    'No celular, as abas viram uma **barra inferior que rola para o lado** e as tabelas viram **cartões**.',
     'Clique em **❓** a qualquer momento para rever este guia.',
   ] },
 ]
