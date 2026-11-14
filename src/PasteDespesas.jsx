@@ -11,6 +11,18 @@ const FORMATOS = { blocos: 'blocos "rótulo: valor"', tabela: 'tabela', linhas: 
 // Cola despesas em grupos (blocos, tabela do Excel ou linhas livres), mostra a prévia e adiciona
 export default function PasteDespesas({ initial, rows: existing, onSave, onClose }) {
   const types = useMemo(() => [...new Set(existing.map((r) => r.TIPO_CONTA))], [existing])
+  // categorias já usadas e a mais recente de cada descrição (sugestão quando a categoria não vem na colagem)
+  const cats = useMemo(() => [...new Set(existing.flatMap((r) => r.ITENS.map((i) => String(i.CATEGORIA || '').trim()).filter(Boolean)))].sort((a, b) => a.localeCompare(b)), [existing])
+  const catByName = useMemo(() => {
+    const m = new Map()
+    ;[...existing].sort((a, b) => String(a.DATA).localeCompare(String(b.DATA))).forEach((r) => r.ITENS.forEach((i) => {
+      const c = String(i.CATEGORIA || '').trim(); if (!c) return
+      const n = String(i.NOME || '').trim().toLowerCase(); m.set(n, c)
+      const base = n.replace(/\s*\(\d+\/\d+\)$/, ''); if (base !== n) m.set(base, c)
+    }))
+    return m
+  }, [existing])
+  const suggest = (r) => catByName.get(String(r.desc || r.conta).trim().toLowerCase()) || ''
   const [raw, setRaw] = useState(initial || '')
   const [defYM, setDefYM] = useState(nowYM())
   const parsed = useMemo(() => parseDespesas(raw, types), [raw, types])
@@ -38,6 +50,7 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
   const nDup = info.filter((x) => x.valid && x.dup).length
   const nBad = info.filter((x) => !x.valid).length
   const nSemData = recs.filter((r, i) => info[i].valid && !r.date).length
+  const nNeg = sel.filter((i) => recs[i].valor < 0).length
   const total = sel.reduce((s, i) => s + recs[i].valor, 0)
   const nMeses = new Set(sel.map((i) => ym(recs[i]))).size
   const upd = (i, p) => setRecs((rs) => rs.map((r, j) => (j === i ? { ...r, ...p } : r)))
@@ -47,7 +60,11 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
     sel.forEach((i) => {
       const r = recs[i], m = ym(r), conta = r.conta.trim(), k = m + '|' + norm(conta)
       if (!map.has(k)) map.set(k, { DATA: m + '-01', TIPO_CONTA: conta, ITENS: [] })
-      map.get(k).ITENS.push({ NOME: (r.desc || conta).trim(), VALOR: round2(r.valor) })
+      const linha = map.get(k)
+      const pai = String(r.pai || '').trim()
+      if (pai && !linha.PAI && norm(pai) !== norm(conta)) linha.PAI = pai // grupo em que este grupo fica "dentro"
+      const cat = String(r.cat || '').trim() || suggest(r)
+      linha.ITENS.push({ NOME: (r.desc || conta).trim(), VALOR: round2(r.valor), ...(cat ? { CATEGORIA: cat } : {}) })
     })
     onSave([...map.values()])
   }
@@ -58,13 +75,13 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
         <div className="lm-head">
           <div>
             <h3>📋 Colar despesas</h3>
-            <small className="muted">Cada grupo recebe suas despesas internas. Para colar em blocos, use “grupo” e “despesa dentro do grupo”.</small>
+            <small className="muted">Cada grupo recebe suas despesas internas. Em blocos, use “grupo” e “despesa dentro do grupo”; opcionais: “categoria” e “grupo pai”. Valor negativo (ex.: -50,00) abate da fatura.</small>
           </div>
           <button className="sec sm" onClick={() => setRaw(EXEMPLO)}>Inserir exemplo</button>
         </div>
         <textarea
           autoFocus={!initial} rows={6} value={raw} onChange={(e) => setRaw(e.target.value)}
-          placeholder={'grupo: Cartão de crédito\ndespesa dentro do grupo: Manutenção veicular\nvalor: R$ 1.200,00\npago em: 15/05/2020\n\n— ou uma linha por despesa —\nInternet - R$ 119,90 - 15/05/2020\n\n— ou células copiadas do Excel (grupo · valor · data) —'}
+          placeholder={'grupo: Cartão de crédito\ndespesa dentro do grupo: Manutenção veicular\ncategoria: Veículo\nvalor: R$ 1.200,00\npago em: 15/05/2020\n\n— ou uma linha por despesa —\nInternet - R$ 119,90 - 15/05/2020\nEstorno -R$ 50,00 16/05/2020\n\n— ou células copiadas do Excel (grupo · despesa · categoria · grupo pai · valor · data) —'}
         />
 
         {recs.length > 0 && (
@@ -78,9 +95,10 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
               )}
             </div>
             <datalist id="dl-contas-p">{types.map((t) => <option key={t} value={t} />)}</datalist>
+            <datalist id="dl-cats-p">{cats.map((c) => <option key={c} value={c} />)}</datalist>
             <div className="wrap pv">
               <table>
-                <thead><tr><th></th><th>Status</th><th>Pago em</th><th>Grupo</th><th>Despesa dentro do grupo</th><th>Valor</th></tr></thead>
+                <thead><tr><th></th><th>Status</th><th>Pago em</th><th>Grupo</th><th>Despesa dentro do grupo</th><th>Categoria</th><th>Grupo pai</th><th>Valor</th></tr></thead>
                 <tbody>
                   {recs.slice(0, SHOW).map((r, i) => (
                     <tr key={i} className={info[i].valid ? '' : 'bad'}>
@@ -89,6 +107,8 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
                       <td><input className="cell" type="date" value={r.date} title={r.date ? '' : `Sem data: será lançada em ${defYM.split('-').reverse().join('/')}`} onChange={(e) => upd(i, { date: e.target.value })} /></td>
                       <td><input className="cell" list="dl-contas-p" style={{ minWidth: 150 }} value={r.conta} onChange={(e) => upd(i, { conta: e.target.value })} /></td>
                       <td><input className="cell" style={{ minWidth: 130 }} placeholder="(igual ao grupo)" value={r.desc} onChange={(e) => upd(i, { desc: e.target.value })} /></td>
+                      <td><input className="cell" list="dl-cats-p" style={{ minWidth: 120 }} placeholder={suggest(r) || '(opcional)'} value={r.cat || ''} onChange={(e) => upd(i, { cat: e.target.value })} /></td>
+                      <td><input className="cell" list="dl-contas-p" style={{ minWidth: 120 }} placeholder="(nenhum)" value={r.pai || ''} onChange={(e) => upd(i, { pai: e.target.value })} /></td>
                       <td><MoneyInput value={r.valor} onChange={(v) => upd(i, { valor: v })} /></td>
                     </tr>
                   ))}
@@ -98,6 +118,7 @@ export default function PasteDespesas({ initial, rows: existing, onSave, onClose
             <p className="hint">
               {recs.length} registro{recs.length === 1 ? '' : 's'} lido{recs.length === 1 ? '' : 's'} · <b>{sel.length}</b> {sel.length === 1 ? 'será adicionado' : 'serão adicionados'}
               {sel.length > 0 && <> ({brl(total)} em {nMeses} {nMeses === 1 ? 'mês' : 'meses'})</>}
+              {nNeg > 0 && <> · {nNeg} abatimento{nNeg === 1 ? '' : 's'} (valor negativo)</>}
               {nDup > 0 && <> · {nDup} duplicada{nDup === 1 ? '' : 's'} (marque para incluir)</>}
               {nBad > 0 && <> · {nBad} incompleta{nBad === 1 ? '' : 's'} (falta grupo ou valor)</>}
               {parsed.ignored.length > 0 && <> · {parsed.ignored.length} linha{parsed.ignored.length === 1 ? '' : 's'} não reconhecida{parsed.ignored.length === 1 ? '' : 's'}</>}

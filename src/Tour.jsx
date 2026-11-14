@@ -52,7 +52,7 @@ const STEPS = [
     'As despesas ficam em **grupos** (ex.: *Cartão de crédito*) e cada grupo tem as **despesas de dentro** (ex.: *Manutenção veicular*).',
     'Cada conta tem uma **subpágina**: clique no cartão da conta para ver o histórico e lançar novas despesas. Em **🎨 Ícone e cor**, personalize a conta.',
     'O assistente **📅 Lançar mês** sugere as contas recorrentes e mostra o valor anterior como referência.',
-    'Em **📋 Colar despesas** (ou `Ctrl+V` na aba) você cola vários registros de uma vez.',
+    'Em **📋 Colar despesas** (ou `Ctrl+V` na aba) você cola vários registros de uma vez, inclusive com **categoria**, **grupo pai** e **valores negativos** (estornos).',
     'Para editar uma linha, use o **lápis ✏️**. Para mudar uma despesa de grupo, **arraste-a** para outro grupo do mesmo mês.',
   ] },
   { icon: '🧩', title: 'Despesas — recursos avançados', sub: 'Para quando você já pegou o jeito.', items: [

@@ -285,10 +285,20 @@ valor: R$ 1.200,00                 pagamento: 15/05/2020
 pago em: 15/05/2020
 ```
  
-- **Blocos "rótulo: valor"**: grupo/conta (`grupo`, `despesa`, `custo`, `conta`, `gasto`, `tipo`, `categoria`), valor (`valor`, `preço`, `total`), data (`pago em`, `pagamento`, `data`, `vencimento`) e a despesa de dentro do grupo (`despesa dentro do grupo`, `descrição`, `item`, `obs`)
-- **Tabela copiada do Excel/Sheets**, com ou sem cabeçalho
+Com categoria, estorno e grupo pai:
+ 
+```text
+grupo: Cartão de crédito           despesa: Condomínio
+despesa dentro do grupo: Estorno    grupo pai: Aluguel
+valor: -R$ 50,00                    preço: R$ 480,00
+pago em: 16/05/2020                 pagamento: 15/05/2020
+```
+ 
+- **Blocos "rótulo: valor"**: grupo/conta (`grupo`, `despesa`, `custo`, `conta`, `gasto`, `tipo`), valor (`valor`, `preço`, `total`), data (`pago em`, `pagamento`, `data`, `vencimento`), a despesa de dentro do grupo (`despesa dentro do grupo`, `descrição`, `item`), a **categoria do item** (`categoria`, `classificação`) e o **grupo pai** (`grupo pai`, `pai`, `subgrupo`, `dentro do grupo`). Categoria e grupo pai são opcionais
+- **Valores negativos (abatimentos)**: `-50,00`, `-R$ 50,00`, `R$ -50,00`, `(50,00)` ou `50,00-`. Um hífen separado por espaços continua sendo só separador (`Energia - R$ 150,00` segue positivo)
+- **Tabela copiada do Excel/Sheets**, com ou sem cabeçalho (com cabeçalho, as colunas `Categoria` e `Grupo pai` também são lidas)
 - **Uma despesa por linha**, em ordem livre: `Energia elétrica - R$ 150,00 - 15/05/2020`
-A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e permite editar antes de adicionar. Grupos parecidos com os existentes são unificados (`energia` → `ENERGIA ELÉTRICA`), registros sem data vão para um mês padrão à sua escolha e registros do mesmo mês e grupo viram uma linha com várias despesas dentro. Só o **mês** é guardado, já que a aba Despesas é mensal.
+A prévia mostra cada registro como **nova**, **duplicada** ou **incompleta** e permite editar antes de adicionar, inclusive a **categoria** e o **grupo pai**. Quando a categoria não vem na colagem, o app sugere a mais recente usada para a mesma descrição (aparece como sugestão no campo e é aplicada ao adicionar). Grupos parecidos com os existentes são unificados (`energia` → `ENERGIA ELÉTRICA`), registros sem data vão para um mês padrão à sua escolha e registros do mesmo mês e grupo viram uma linha com várias despesas dentro. Só o **mês** é guardado, já que a aba Despesas é mensal.
  
 ---
  
@@ -316,7 +326,7 @@ Cada despesa pode ter uma categoria (opcional), preenchida no modal de edição 
 - A lupa também filtra pela categoria
 - No **Dashboard**, o card **Despesas por categoria** mostra as principais categorias do período (só aparece quando há alguma categoria) e, ao clicar numa barra, lista todas as despesas dela. No **PDF**, a lista de despesas mostra a categoria ao lado de cada item e há a tabela **Subtotal por categoria dentro de cada grupo**
 - Exportado nas colunas `CATEGORIA_n` e na aba `Despesas por categoria`
-- A colagem de despesas ainda não lê categorias; os itens colados entram sem categoria
+- Na colagem de despesas, a categoria vem do rótulo `categoria` (ou da coluna *Categoria* da tabela); sem ela, o app sugere a usada antes para a mesma descrição
 ---
  
 ## 🎨 Ícones das contas

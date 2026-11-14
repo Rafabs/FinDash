@@ -1,13 +1,21 @@
 import { parseDate, parseMoney as parseMoneyRaw } from './paste.js'
 
-// aceita "r$ 150,00", "R$150", "150,00" (maiúsculas ou minúsculas)
-const parseMoney = (s) => parseMoneyRaw(String(s ?? '').replace(/r\$/gi, 'R$'))
+// aceita "r$ 150,00", "R$150", "150,00" (maiúsculas ou minúsculas) e valores negativos (abatimentos):
+// "-50,00", "-R$ 50,00", "R$ -50,00", "(50,00)", "50,00-"
+const parseMoney = (s) => {
+  const body = String(s ?? '').replace(/[\u2212]/g, '-').replace(/r\$/gi, '').trim()
+  const neg = /^\(.*\)$/.test(body) || /^-/.test(body) || /-$/.test(body)
+  const v = parseMoneyRaw((neg ? body.replace(/^[-(\s]+|[-)\s]+$/g, '') : body))
+  return neg && v !== '' && v !== null && v !== undefined ? -Math.abs(Number(v)) : v
+}
 
 // ---------- utilidades ----------
 export const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9$ ]+/g, ' ').replace(/\s+/g, ' ').trim()
 
 // rótulos aceitos para cada campo (despesa/custo/conta..., valor/preço..., pago em/pagamento...)
 const FIELD_RES = [
+  ['pai', /^(grupo pai|pai|grupo principal|grupo superior|subgrupo|dentro do grupo|pertence( ao grupo)?)\b/], // grupo em que este grupo fica "dentro"
+  ['cat', /(categ|classific)/], // categoria do item (ex.: Compras Online)
   ['data', /(pag|data|venc|quit|compet|refer|^mes\b)/],
   ['valor', /(valor|preco|total|quantia|montante|vlr|^r\$)/],
   ['desc', /(despesa dentro|descri|item|obs|detalhe|nome|cota)/],
@@ -49,22 +57,23 @@ export function matchConta(name, types = []) {
 const TXT_DATE = /\b(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?(?:\s+de)?[\s/.-]*\d{4}\b/i
 const DATE_RE = /(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})/
 function fromFree(line) { // "Energia elétrica - R$ 150,00 - 15/05/2020" (ordem livre)
-  let rest = line
+  let rest = String(line).replace(/\u2212/g, '-')
   let date = ''
   const tm = rest.match(TXT_DATE) // "maio/2020", "mai de 2020"
   if (tm) { date = parseDateLoose(tm[0]); rest = rest.replace(tm[0], ' ') }
   const dm = !date && rest.match(DATE_RE)
   if (dm) { date = parseDateLoose(dm[1]); rest = rest.replace(dm[0], ' ') }
-  const nums = [...rest.matchAll(/(?:R\$\s*)?-?\d[\d.]*(?:,\d{1,2})?/gi)]
+  // número com sinal colado (-50, -R$ 50, R$ -50) ou entre parênteses (50,00); o "-" separado por espaços é só separador
+  const nums = [...rest.matchAll(/\(\s*(?:R\$\s*)?\d[\d.]*(?:,\d{1,2})?\s*\)|(?:-(?=R\$|\d))?(?:R\$\s*)?-?\d[\d.]*(?:,\d{1,2})?/gi)]
   const pick = nums.find((m) => /R\$/i.test(m[0])) || [...nums].reverse().find((m) => /,\d/.test(m[0])) || nums[nums.length - 1]
   let valor = ''
   if (pick) { valor = parseMoney(pick[0]); rest = rest.replace(pick[0], ' ') }
   const conta = rest.replace(/R\$/gi, ' ').replace(/[|;·–—]+/g, ' ').replace(/(^|\s)[-:](?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim()
-  return { date, valor, conta, desc: '' }
+  return { date, valor, conta, desc: '', cat: '', pai: '' }
 }
 
 function fromCells(cells, map) {
-  const r = { date: '', valor: '', conta: '', desc: '' }
+  const r = { date: '', valor: '', conta: '', desc: '', cat: '', pai: '' }
   if (map) { // com cabeçalho
     cells.forEach((c, i) => {
       const f = map[i]
@@ -101,7 +110,7 @@ export function parseDespesas(text, types = []) {
   if (known >= 2 && known >= filled.length / 2) {
     format = 'blocos'
     let cur = {}
-    const flush = () => { if (Object.keys(cur).length) recs.push({ date: parseDateLoose(cur.data), valor: parseMoney(cur.valor), conta: cur.conta || '', desc: cur.desc || '' }); cur = {} }
+    const flush = () => { if (Object.keys(cur).length) recs.push({ date: parseDateLoose(cur.data), valor: parseMoney(cur.valor), conta: cur.conta || '', desc: cur.desc || '', cat: cur.cat || '', pai: cur.pai || '' }); cur = {} }
     lines.forEach((l) => {
       if (!l.trim()) return flush()
       const k = kv(l)
@@ -122,15 +131,22 @@ export function parseDespesas(text, types = []) {
     format = 'linhas'
     recs = filled.map(fromFree)
   }
-  recs = recs.filter((r) => r.conta || r.valor !== '' || r.date).map((r) => ({ ...r, conta: matchConta(r.conta, types), desc: r.desc.trim() }))
+  recs = recs.filter((r) => r.conta || r.valor !== '' || r.date).map((r) => ({ ...r, conta: matchConta(r.conta, types), desc: r.desc.trim(), cat: String(r.cat || '').trim().slice(0, 60), pai: matchConta(r.pai, types) }))
   return { records: recs, ignored, format }
 }
 
 export const EXEMPLO = `grupo: Cartão de crédito
 despesa dentro do grupo: Manutenção veicular
+categoria: Veículo
 valor: R$ 1.200,00
 pago em: 15/05/2020
 
-despesa: Internet
-preço: R$ 119,90
+grupo: Cartão de crédito
+despesa dentro do grupo: Estorno de compra
+valor: -R$ 50,00
+pago em: 16/05/2020
+
+despesa: Condomínio
+grupo pai: Aluguel
+preço: R$ 480,00
 pagamento: 15/05/2020`
