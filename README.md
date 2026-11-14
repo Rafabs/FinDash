@@ -31,6 +31,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Lotes do mesmo papel mesclados: editar o preço de um atualiza todos
 - Rendimento e variação coloridos (▲ verde / ▼ vermelho) e linhas alternadas
 - Painel no topo com patrimônio, total investido, rendimento e alocação RF x RV
+- **Previdência privada (PGBL e VGBL)**: categorias próprias e um modo **🛡️ Aporte de previdência** no **+ Novo item**, para lançar os aportes mensais em cotas (veja [Previdência privada](#-previdência-privada))
 **Extrato (entradas)**
 - Categorias automáticas: Proventos, Rendimentos, Aluguel, Salário e Outros (mais "Venda de Patrimônio", escolhida manualmente)
 - Filtro por **período**, categoria e busca em texto (com botão para limpar)
@@ -217,6 +218,21 @@ Também ficam sempre travados: data de aplicação, quantidade, papel, banco, ca
 - **Variação** = Rendimento ÷ Total Aplicado
 Os lotes de RV com o mesmo `PAPEL` compartilham **Preço Unitário** e **Atualizado**. Editar um deles atualiza todos e recalcula o Valor Hoje de cada lote.
  
+---
+ 
+## 🛡️ Previdência privada
+ 
+**PGBL** e **VGBL** são categorias da Carteira. Como os aportes são mensais e o plano é em cotas, o app trata cada plano como **renda variável (RV)**: cada aporte é um item (lote) do mesmo plano, e o valor da cota atualiza todos de uma vez.
+ 
+No **+ Novo item**, escolha **🛡️ Aporte de previdência**:
+ 
+1. **Plano:** escolha um plano já lançado ou **＋ Novo plano** (nome do plano, banco, categoria PGBL ou VGBL e produto)
+2. Informe a **data do aporte**, o **valor do aporte** e o **valor da cota na data**
+3. O app calcula as **cotas compradas** (valor ÷ cota) e cria o lote. O **Valor Hoje** do plano inteiro é recalculado com a cota mais recente
+- **Aporte antigo** (data anterior à última atualização do plano): o lote usa a cota atual do plano, e o rendimento aparece na hora
+- Para atualizar a cota depois, edite o **Preço Unitário** de qualquer aporte do plano (com a aba destravada): todos os aportes acompanham
+- O **Dashboard** mostra o cartão **🛡️ Previdência privada** com o total, o percentual do patrimônio e a divisão entre PGBL e VGBL
+- Ao digitar PGBL ou VGBL no modo normal, o formulário sugere o modo de aporte. As cotas aceitam até 6 casas decimais; o Preço Unitário editado na tabela usa 2 casas
 ---
  
 ## 🏷️ Categorias do Extrato

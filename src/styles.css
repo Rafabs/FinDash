@@ -672,3 +672,5 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
   .tabs em{right:4px}
   .actions button,.toolbar>button,.ph-actions button,.seg button,.pager button,.modal .actions button{white-space:nowrap;word-break:normal;overflow-wrap:normal;letter-spacing:0}
 }
+.nd-mode{margin:0 0 12px}
+.nd-help{margin:0 0 12px;font-size:13px;line-height:1.5}

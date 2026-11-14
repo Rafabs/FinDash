@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
 import { MarkSvg } from './AccountMark.jsx'
-import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems } from './data.js'
+import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems, isPrevidencia } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 
 const COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#ff4d6a', '#5ba7ff', '#7b8794', '#2ee6a6']
@@ -201,6 +201,14 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
         {resumo(data).slice(0, 4).map(([l, v, tone, ic]) => (
           <div className="card kpi" key={l}><span className="ic">{ic}</span><small>{l}</small><b className={tone}>{v}</b></div>
         ))}
+        {(() => {
+          const prev = (data.carteira || []).filter(isPrevidencia)
+          if (!prev.length) return null
+          const tot = sum(prev, 'TOTAL_ATUAL'), all = sum(data.carteira, 'TOTAL_ATUAL')
+          const of = (c) => sum(prev.filter((r) => String(r.TIPO_PRODUTO).trim().toUpperCase().startsWith(c)), 'TOTAL_ATUAL')
+          return <div className="card kpi" title="Planos de previdência privada (categorias PGBL e VGBL da Carteira)"><span className="ic">🛡️</span><small>Previdência privada</small><b>{brl(tot)}</b>
+            <small>{pctOf(tot, all)} do patrimônio{of('PGBL') ? ` · PGBL ${brl(of('PGBL'))}` : ''}{of('VGBL') ? ` · VGBL ${brl(of('VGBL'))}` : ''}</small></div>
+        })()}
         <div className="card kpi" title="Taxa CDI anualizada, série 4389 do Banco Central do Brasil">
           <span className="ic">％</span><small>CDI anualizado</small>
           <b>{cdi ? `${cdi.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.` : cdiStatus === 'loading' ? 'Carregando…' : 'Indisponível'}</b>

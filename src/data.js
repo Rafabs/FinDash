@@ -61,6 +61,9 @@ export const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100
 export const isNum = (t) => t === 'num' || t === 'money'
 export const today = () => new Date().toISOString().slice(0, 10)
 export const isRV = (r) => r.TIPO_INV === 'RV'
+// Previdência privada: categorias PGBL e VGBL (aportes mensais viram lotes de um mesmo plano, em cotas)
+export const PREV_CATS = ['PGBL', 'VGBL']
+export const isPrevidencia = (r) => /^(PGBL|VGBL)\b/i.test(String(r?.TIPO_PRODUTO || '').trim())
 const day = (s) => (s ? new Date(s + 'T00:00:00Z').getTime() : NaN)
 
 // Bloqueios da Carteira. Editáveis: Atualizado, Preço Unitário (só RV) e Valor Hoje (só RF).
