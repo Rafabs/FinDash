@@ -31,7 +31,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Lotes do mesmo papel mesclados: editar o preço de um atualiza todos
 - Rendimento e variação coloridos (▲ verde / ▼ vermelho) e linhas alternadas
 - Painel no topo com patrimônio, total investido, rendimento e alocação RF x RV
-- **Previdência privada (PGBL e VGBL)**: categorias próprias e um modo **🛡️ Aporte de previdência** no **+ Novo item**, para lançar os aportes mensais em cotas (veja [Previdência privada](#-previdência-privada))
+- **Previdência privada (PGBL e VGBL)**: vários fundos, um modo **🛡️ Aporte de previdência** no **+ Novo item** para os aportes mensais e o botão **🛡️ Atualizar saldo da previdência** (veja [Previdência privada](#-previdência-privada))
 **Extrato (entradas)**
 - Categorias automáticas: Proventos, Rendimentos, Aluguel, Salário e Outros (mais "Venda de Patrimônio", escolhida manualmente)
 - Filtro por **período**, categoria e busca em texto (com botão para limpar)
@@ -222,17 +222,19 @@ Os lotes de RV com o mesmo `PAPEL` compartilham **Preço Unitário** e **Atualiz
  
 ## 🛡️ Previdência privada
  
-**PGBL** e **VGBL** são categorias da Carteira. Como os aportes são mensais e o plano é em cotas, o app trata cada plano como **renda variável (RV)**: cada aporte é um item (lote) do mesmo plano, e o valor da cota atualiza todos de uma vez.
+A previdência privada tem **vários fundos**. No app, cada **fundo é um papel** da Carteira (renda variável, em cotas) e cada **aporte mensal é um item (lote)** do mesmo fundo. A categoria pode ser **PGBL**, **VGBL** ou **PREVIDÊNCIA PRIVADA**: todas são reconhecidas como previdência.
  
-No **+ Novo item**, escolha **🛡️ Aporte de previdência**:
+**Lançar um aporte:** no **+ Novo item**, escolha **🛡️ Aporte de previdência**.
  
-1. **Plano:** escolha um plano já lançado ou **＋ Novo plano** (nome do plano, banco, categoria PGBL ou VGBL e produto)
-2. Informe a **data do aporte**, o **valor do aporte** e o **valor da cota na data**
-3. O app calcula as **cotas compradas** (valor ÷ cota) e cria o lote. O **Valor Hoje** do plano inteiro é recalculado com a cota mais recente
-- **Aporte antigo** (data anterior à última atualização do plano): o lote usa a cota atual do plano, e o rendimento aparece na hora
-- Para atualizar a cota depois, edite o **Preço Unitário** de qualquer aporte do plano (com a aba destravada): todos os aportes acompanham
+1. **Fundo:** escolha um fundo já lançado ou **＋ Novo fundo** (nome do fundo, banco, categoria PGBL ou VGBL, produto)
+2. Informe a **data** e o **valor do aporte**
+3. O app usa a **cota atual do fundo** para calcular as cotas compradas. Em um fundo novo, a cota é a que você informar ou uma **cota virtual de R$ 1,00** (cada R$ aportado = 1 cota), o que dispensa saber o valor real da cota
+**Atualizar os saldos:** na aba Carteira, o botão **🛡️ Atualizar saldo da previdência** lista os fundos. Informe o saldo atual de cada um, como aparece no extrato do plano, e o app ajusta a cota de todos os aportes do fundo (cota = saldo ÷ total de cotas). O Valor Hoje de cada aporte, o rendimento e a variação se recalculam sozinhos.
+ 
+- Funciona com fundos já lançados no formato antigo (1 cota com o valor do saldo): os novos aportes entram como frações dessa cota
+- Para alterar só a cota de um fundo, também dá para editar o **Preço Unitário** de qualquer aporte dele (com a aba destravada): todos acompanham
 - O **Dashboard** mostra o cartão **🛡️ Previdência privada** com o total, o percentual do patrimônio e a divisão entre PGBL e VGBL
-- Ao digitar PGBL ou VGBL no modo normal, o formulário sugere o modo de aporte. As cotas aceitam até 6 casas decimais; o Preço Unitário editado na tabela usa 2 casas
+- Aporte com data antiga entra pela cota atual do fundo (sem histórico de cotas, o ganho do período é distribuído entre as cotas ao atualizar o saldo)
 ---
  
 ## 🏷️ Categorias do Extrato
@@ -413,6 +415,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── Projecao.jsx               # aba Projeção (fluxo de caixa e patrimônio)
     ├── dialog.js                  # confirmDialog() e alertDialog(): janelas do app no lugar de confirm()/alert()
     ├── DialogHost.jsx             # desenha as janelas de confirmação e aviso (montado uma vez no App)
+    ├── PrevSaldos.jsx             # janela para atualizar o saldo dos fundos de previdência
     ├── ExtratoCategories.jsx      # janela para renomear/excluir categorias do Extrato
     ├── Tour.jsx                   # guia rápido do primeiro acesso (um passo por aba)
     ├── icons.js                   # ícones genéricos (Lucide), cores prontas e sugestão de ícone pelo nome
@@ -446,37 +449,37 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
 ---
  
-## 🗺️ TO DO
+## 🗺️ Histórico de atualizações
 
-- [X] `v26.10.1` Gráficos no PDF
-- [X] `v26.10.2` Colagem de várias despesas de uma vez
-- [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
-- [X] `v26.10.4` Pesquisar algum produto e filtrar seleção
-- [X] `v26.10.5` Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
-- [X] `v26.10.6` Melhorar o leitor de colar itens
-- [X] `v26.10.7` Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
-- [X] `v26.10.7` Ao filtrar um item em Despesas, exibir total apurado
-- [X] `v26.10.7` Exibir o percentual de gastos de cada categoria de item
-- [X] `v26.10.8` Em Extrato, retirar os itens predefinidos de CATEGORIA
-- [X] `v26.10.9` Metas de alocação e comparação com CDI/IPCA
-- [X] `v26.10.10` *Yield on cost* por papel, cruzando proventos e valor aplicado
-- [X] `v26.11.1` Atribuir abas de contas, com layout próprio, que ao ir inserindo, ir para os itens principais, respectivamente para o .xls
-- [X] `v26.11.2` Despesas: valores negativos (abatimentos) em itens e parcelas, e mover qualquer item para qualquer grupo do mesmo mês
-- [X] `v26.11.3` Despesas: grupo dentro de grupo, com totais somados no grupo principal
-- [X] `v26.11.4` Despesas: lista sem rolagem horizontal e despesas do grupo com quebra de linha
-- [X] `v26.11.5` Ícones genéricos para as contas de despesas, com cor de fundo editável, sugestão automática pelo nome e envio de PNG, JPG, WebP ou SVG
-- [X] `v26.11.6` Categorias por item (subitens) exportadas no XLSX e total apurado ao usar a lupa em Despesas
-- [X] `v26.11.7` PDF com linha de totais no fim das tabelas
-- [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
-- [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
-- [X] `v26.11.10` Exibir percentual dos itens em Dashboard
-- [X] `v26.11.11` Exibir Guia de Uso ao acessar pela primeira vez + Remolde layout
-- [X] `v26.11.12` Guia rápido no primeiro acesso, explicando cada aba (botão ❓ para rever)
-- [X] `v26.11.13` Aba Projeção: fluxo de caixa e patrimônio projetados a partir das entradas e despesas
-- [X] `v26.11.16` Janelas de confirmação e aviso do próprio app, no lugar das do navegador
+- [X] `v26.11.17` Criação e edição de Previdência Privada
+- [X] `v26.11.16` Projeção só com parcelas em aberto, Projeção na última página do PDF e totais (pago, a pagar, futuro) ao filtrar em Despesas
 - [X] `v26.11.15` Extrato: renomear, mesclar e excluir categorias criadas pelo usuário
-- [X] `v26.11.14` Projeção só com parcelas em aberto, Projeção na última página do PDF e totais (pago, a pagar, futuro) ao filtrar em Despesas
-- [ ] Pesquisar algum produto e ver detalhes e informações 
+- [X] `v26.11.14` Janelas de confirmação e aviso do próprio app, no lugar das do navegador
+- [X] `v26.11.13` Aba Projeção: fluxo de caixa e patrimônio projetados a partir das entradas e despesas
+- [X] `v26.11.12` Guia rápido no primeiro acesso, explicando cada aba (botão ❓ para rever)
+- [X] `v26.11.11` Exibir Guia de Uso ao acessar pela primeira vez + Remolde layout
+- [X] `v26.11.10` Exibir percentual dos itens em Dashboard
+- [X] `v26.11.9` Mostrar categorias e ícones das contas no PDF e no Dashboard
+- [X] `v26.11.8` Notas: a barra `/` pode ser digitada sem abrir a busca de produtos
+- [X] `v26.11.7` PDF com linha de totais no fim das tabelas
+- [X] `v26.11.6` Categorias por item (subitens) exportadas no XLSX e total apurado ao usar a lupa em Despesas
+- [X] `v26.11.5` Ícones genéricos para as contas de despesas, com cor de fundo editável, sugestão automática pelo nome e envio de PNG, JPG, WebP ou SVG
+- [X] `v26.11.4` Despesas: lista sem rolagem horizontal e despesas do grupo com quebra de linha
+- [X] `v26.11.3` Despesas: grupo dentro de grupo, com totais somados no grupo principal
+- [X] `v26.11.2` Despesas: valores negativos (abatimentos) em itens e parcelas, e mover qualquer item para qualquer grupo do mesmo mês
+- [X] `v26.11.1` Atribuir abas de contas, com layout próprio, que ao ir inserindo, ir para os itens principais, respectivamente para o .xls
+- [X] `v26.10.10` *Yield on cost* por papel, cruzando proventos e valor aplicado
+- [X] `v26.10.9` Metas de alocação e comparação com CDI/IPCA
+- [X] `v26.10.8` Em Extrato, retirar os itens predefinidos de CATEGORIA
+- [X] `v26.10.7` Exibir o percentual de gastos de cada categoria de item
+- [X] `v26.10.7` Ao filtrar um item em Despesas, exibir total apurado
+- [X] `v26.10.7` Inserir uma função de Notas que deve ser salvo no .xlsx e ao importá-lo, disponibilizá-lo ao usuário
+- [X] `v26.10.6` Melhorar o leitor de colar itens
+- [X] `v26.10.5` Na aba Carteira, travar e destravar todos os itens para edição para evitar digitação indevida
+- [X] `v26.10.4` Pesquisar algum produto e filtrar seleção
+- [X] `v26.10.3` Implantar função para selecionar diversos itens em todas as sheets
+- [X] `v26.10.2` Colagem de várias despesas de uma vez
+- [X] `v26.10.1` Gráficos no PDF
 
 ---
 

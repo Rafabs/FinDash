@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { round2, recalcCart, today, groupable, isPrevidencia, PREV_CATS } from './data.js'
+import { round2, recalcCart, today, groupable, isPrevidencia, previdenciaFunds, PREV_CATS } from './data.js'
 
 const round6 = (v) => Math.round((Number(v) || 0) * 1e6) / 1e6
 const brl = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -10,7 +10,7 @@ export default function NewItem({ rows, onSave, onClose }) {
     TIPO_PRODUTO: '', PRODUTO: '', QTD_COMPRA: 1, PRC_UNIT: '', VLR_APLICACAO: '', TOTAL_ATUAL: '',
   })
   const [mode, setMode] = useState('invest') // 'invest' | 'aporte' (previdência privada: PGBL/VGBL)
-  const [ap, setAp] = useState({ plano: '', data: today(), valor: '', cota: '' })
+  const [ap, setAp] = useState({ fundo: '', data: today(), valor: '', cota: '' })
   const rv = f.TIPO_INV === 'RV'
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const setTipo = (e) => {
@@ -19,37 +19,30 @@ export default function NewItem({ rows, onSave, onClose }) {
   }
   const uniq = (k) => [...new Set([...(k === 'TIPO_PRODUTO' ? PREV_CATS : []), ...rows.map((r) => r[k]).filter(Boolean)])]
   const setAporte = (k) => (e) => setAp({ ...ap, [k]: e.target.value })
-  const goAporte = () => { setMode('aporte'); setF((x) => ({ ...x, TIPO_INV: 'RV', PAPEL: x.PAPEL === 'N/A' ? '' : x.PAPEL, TIPO_PRODUTO: PREV_CATS.includes(x.TIPO_PRODUTO) ? x.TIPO_PRODUTO : 'PGBL' })) }
+  const goAporte = () => { setMode('aporte'); setF((x) => ({ ...x, TIPO_INV: 'RV', PAPEL: x.PAPEL === 'N/A' ? '' : x.PAPEL, TIPO_PRODUTO: isPrevidencia(x) && x.TIPO_PRODUTO ? x.TIPO_PRODUTO : 'PGBL', PRODUTO: x.PRODUTO || 'PREVIDÊNCIA PRIVADA' })) }
 
-  // planos de previdência já lançados (renda variável com papel): cada aporte novo entra como mais um lote do mesmo plano
-  const plans = useMemo(() => {
-    const m = new Map()
-    rows.filter((r) => isPrevidencia(r) && groupable(r)).forEach((r) => {
-      const key = [r.PAPEL, r.BANCO, r.TIPO_PRODUTO, r.PRODUTO].join('|')
-      const p = m.get(key) || { key, PAPEL: r.PAPEL, BANCO: r.BANCO, TIPO_PRODUTO: r.TIPO_PRODUTO, PRODUTO: r.PRODUTO, lots: [] }
-      p.lots.push(r); m.set(key, p)
-    })
-    return [...m.values()]
-  }, [rows])
-  const plan = plans.find((p) => p.key === ap.plano)
-  const base = plan || { PAPEL: f.PAPEL, BANCO: f.BANCO, TIPO_PRODUTO: f.TIPO_PRODUTO, PRODUTO: f.PRODUTO }
-  const latest = rows.filter((r) => groupable(r) && r.PAPEL === base.PAPEL).reduce((best, r) => (!best || String(r.ULTIMA_ATUAL) > String(best.ULTIMA_ATUAL) ? r : best), null)
-  const aporte = Number(ap.valor) || 0, cota = Number(ap.cota) || 0
-  const cotas = cota > 0 ? round6(aporte / cota) : 0
-  const current = !latest || String(ap.data) >= String(latest.ULTIMA_ATUAL || '') // aporte novo define a cota atual; aporte antigo usa a cota atual do plano
-  const prc = current ? cota : Number(latest.PRC_UNIT)
+  // fundos de previdência já lançados (renda variável com papel = nome do fundo): cada aporte novo vira mais um lote do mesmo fundo
+  const funds = useMemo(() => previdenciaFunds(rows), [rows])
+  const prevCats = [...new Set([...PREV_CATS, ...rows.filter(isPrevidencia).map((r) => r.TIPO_PRODUTO).filter(Boolean)])]
+  const fund = funds.find((x) => x.PAPEL === ap.fundo)
+  const base = fund || { PAPEL: f.PAPEL, BANCO: f.BANCO, TIPO_PRODUTO: f.TIPO_PRODUTO, PRODUTO: f.PRODUTO }
+  const aporte = Number(ap.valor) || 0, cotaInformada = Number(ap.cota) || 0
+  // cota usada: a atual do fundo; fundo novo usa a cota informada ou uma cota virtual de R$ 1,00 (cada R$ aportado = 1 unidade)
+  const prc = fund ? fund.price : cotaInformada > 0 ? cotaInformada : 1
+  const cotas = prc > 0 ? round6(aporte / prc) : 0
   const hojeAporte = round2(cotas * prc)
   const calc = round2((Number(f.QTD_COMPRA) || 0) * (Number(f.PRC_UNIT) || 0))
   const opt = (v, c) => (v === '' ? c : round2(Number(v)))
 
   const submitAporte = (e) => {
     e.preventDefault()
+    if (!(prc > 0) || !(aporte > 0)) return
     const row = {
-      DATA_APLICACAO: ap.data, ULTIMA_ATUAL: current ? ap.data : latest.ULTIMA_ATUAL,
+      DATA_APLICACAO: ap.data, ULTIMA_ATUAL: fund ? fund.date : ap.data,
       PAPEL: String(base.PAPEL).trim(), BANCO: String(base.BANCO).trim(), TIPO_PRODUTO: String(base.TIPO_PRODUTO).trim(), PRODUTO: String(base.PRODUTO).trim(),
       TIPO_INV: 'RV', QTD_COMPRA: cotas, PRC_UNIT: round6(prc), VLR_APLICACAO: round2(aporte), TOTAL_ATUAL: hojeAporte,
     }
-    onSave(recalcCart(row)) // o App sincroniza o preço e a data de atualização dos outros aportes do mesmo plano
+    onSave(recalcCart(row)) // o App mantém o preço e a data dos outros aportes do mesmo fundo (mesma cota)
   }
 
   const submit = (e) => {
@@ -77,22 +70,22 @@ export default function NewItem({ rows, onSave, onClose }) {
           <button type="button" className={mode === 'aporte' ? 'on' : ''} onClick={goAporte}>🛡️ Aporte de previdência</button>
         </div>
         {mode === 'aporte' ? <>
-          <p className="muted nd-help">PGBL e VGBL: cada aporte mensal vira um item do mesmo plano, em cotas (renda variável). O valor da cota atualiza todos os aportes do plano de uma vez.</p>
+          <p className="muted nd-help">Previdência privada: cada fundo é um papel e cada aporte mensal vira um item do mesmo fundo, em cotas. O app usa a cota atual do fundo; para atualizar o saldo de todos os fundos de uma vez, use <b>🛡️ Atualizar saldo da previdência</b> na aba Carteira.</p>
           <div className="fgrid">
-            <label>Plano<select value={ap.plano} onChange={setAporte('plano')}><option value="">＋ Novo plano</option>{plans.map((p) => <option key={p.key} value={p.key}>{p.PAPEL} · {p.BANCO} ({p.TIPO_PRODUTO})</option>)}</select></label>
-            {!plan && <>
-              {txt('PAPEL', 'Nome do plano', true)}
-              {txt('BANCO', 'Banco', true)}
-              <label>Categoria<select value={f.TIPO_PRODUTO} onChange={set('TIPO_PRODUTO')}>{PREV_CATS.map((c) => <option key={c}>{c}</option>)}</select></label>
+            <label>Fundo<select value={ap.fundo} onChange={setAporte('fundo')}><option value="">＋ Novo fundo</option>{funds.map((x) => <option key={x.PAPEL} value={x.PAPEL}>{x.PAPEL} · {x.BANCO}</option>)}</select></label>
+            {!fund && <>
+              {txt('PAPEL', 'Nome do fundo', true)}
+              {txt('BANCO', 'Banco / instituição', true)}
+              <label>Categoria<select value={f.TIPO_PRODUTO} onChange={set('TIPO_PRODUTO')}>{prevCats.map((c) => <option key={c}>{c}</option>)}</select></label>
               {txt('PRODUTO', 'Produto', true)}
+              <label>Valor da cota (opcional)<input type="number" step="any" min="0" placeholder="1,00 (cota virtual)" value={ap.cota} onChange={setAporte('cota')} /></label>
             </>}
             <label>Data do aporte<input type="date" value={ap.data} onChange={setAporte('data')} required /></label>
             <label>Valor do aporte (R$)<input type="number" step="0.01" min="0.01" value={ap.valor} onChange={setAporte('valor')} required /></label>
-            <label>Valor da cota na data (R$)<input type="number" step="any" min="0" value={ap.cota} onChange={setAporte('cota')} required /></label>
           </div>
           <p className="hint">
-            Cotas compradas: <b>{cotas.toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</b> · Valor hoje deste aporte: <b>{brl(hojeAporte)}</b>
-            {!current && <> · aporte antigo: usa a cota atual do plano ({brl(latest.PRC_UNIT)} em {String(latest.ULTIMA_ATUAL).split('-').reverse().join('/')})</>}
+            Cotas compradas: <b>{cotas.toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</b> · cota usada: <b>{prc.toLocaleString('pt-BR', { maximumFractionDigits: 6 })}</b> {fund ? '(cota atual do fundo)' : cotaInformada > 0 ? '(informada)' : '(virtual: cada R$ aportado = 1 cota)'} · Valor hoje deste aporte: <b>{brl(hojeAporte)}</b>
+            {fund && <> · saldo do fundo depois: <b>{brl(fund.saldo + hojeAporte)}</b></>}
           </p>
         </> : <>
         <div className="fgrid">

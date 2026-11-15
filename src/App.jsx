@@ -15,9 +15,10 @@ import NotesEditor from './NotesEditor.jsx'
 import Tour, { tourSeen, markTourSeen } from './Tour.jsx'
 import Projecao from './Projecao.jsx'
 import ExtratoCategories from './ExtratoCategories.jsx'
+import PrevSaldos from './PrevSaldos.jsx'
 import DialogHost from './DialogHost.jsx'
 import { confirmDialog, alertDialog } from './dialog.js'
-import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem } from './data.js'
+import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
@@ -40,6 +41,7 @@ export default function App() {
   const [modal, setModal] = useState(false)
   const [paste, setPaste] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [prevOpen, setPrevOpen] = useState(false) // janela "Atualizar saldo da previdência"
   const [catManager, setCatManager] = useState(false) // janela "Categorias do Extrato"
   // guia rápido: abre no primeiro acesso (ou com ?tour=1 na URL) e pelo botão ❓
   const [tour, setTour] = useState(() => !tourSeen() || /[?&]tour=1\b/.test(location.search))
@@ -113,6 +115,11 @@ export default function App() {
   })
   const saveMonth = (ym, novas) => setData((d) => ({ ...d, despesas: [...d.despesas.filter((r) => r.DATA.slice(0, 7) !== ym), ...novas] }))
   const addExtratoCategory = (name) => setData((d) => ({ ...d, categoriasExtrato: [...new Set([...(d.categoriasExtrato || []), name])] }))
+  // saldo dos fundos de previdência: ajusta a cota (preço) de todos os aportes do fundo e a data de atualização
+  const applyPrevSaldos = (updates, date) => setData((d) => ({
+    ...d,
+    carteira: d.carteira.map((r) => (updates[r.PAPEL] != null && isPrevidencia(r) && groupable(r) ? recalcCart({ ...r, PRC_UNIT: updates[r.PAPEL], ULTIMA_ATUAL: date }) : r)),
+  }))
   // renomear (ou mesclar em outra) e excluir categorias do Extrato; os lançamentos acompanham
   const renameExtratoCategory = (from, to) => setData((d) => ({
     ...d,
@@ -215,6 +222,7 @@ export default function App() {
         {tab === 'carteira' && (
           <>
             <CartHero rows={data.carteira} />
+            {data.carteira.some(isPrevidencia) && <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Atualizar o saldo de todos os fundos de previdência de uma vez" onClick={() => setPrevOpen(true)}>🛡️ Atualizar saldo da previdência</button></div>}
             <Table
               cols={SHEETS.carteira.cols} rows={data.carteira} onEdit={edit('carteira')} onDelete={del('carteira')}
               onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
@@ -242,9 +250,10 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.14</footer>
+      <footer className="app-version">v26.11.17</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
+      {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}
       {catManager && <ExtratoCategories rows={data.extrato} categories={data.categoriasExtrato || []} onRename={renameExtratoCategory} onDelete={deleteExtratoCategory} onClose={() => setCatManager(false)} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}
       {paste !== null && (

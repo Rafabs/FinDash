@@ -63,7 +63,20 @@ export const today = () => new Date().toISOString().slice(0, 10)
 export const isRV = (r) => r.TIPO_INV === 'RV'
 // Previdência privada: categorias PGBL e VGBL (aportes mensais viram lotes de um mesmo plano, em cotas)
 export const PREV_CATS = ['PGBL', 'VGBL']
-export const isPrevidencia = (r) => /^(PGBL|VGBL)\b/i.test(String(r?.TIPO_PRODUTO || '').trim())
+// reconhece PGBL, VGBL e "PREVIDÊNCIA PRIVADA" na categoria ou no produto
+export const isPrevidencia = (r) => [r?.TIPO_PRODUTO, r?.PRODUTO].some((v) => /\b(PGBL|VGBL)\b|PREVID[EÊ]NCIA/i.test(String(v || '').normalize('NFC')))
+// fundos de previdência da Carteira (renda variável com papel = nome do fundo), com saldo, cotas e cota atual
+export function previdenciaFunds(rows) {
+  const m = new Map()
+  ;(rows || []).filter((r) => isPrevidencia(r) && groupable(r)).forEach((r) => {
+    const fd = m.get(r.PAPEL) || { PAPEL: r.PAPEL, BANCO: r.BANCO, TIPO_PRODUTO: r.TIPO_PRODUTO, PRODUTO: r.PRODUTO, lots: [], saldo: 0, aplicado: 0, qtd: 0, price: 0, date: '' }
+    fd.lots.push(r)
+    fd.saldo += Number(r.TOTAL_ATUAL) || 0; fd.aplicado += Number(r.VLR_APLICACAO) || 0; fd.qtd += Number(r.QTD_COMPRA) || 0
+    if (String(r.ULTIMA_ATUAL) >= fd.date) { fd.date = String(r.ULTIMA_ATUAL); fd.price = Number(r.PRC_UNIT) || 0 }
+    m.set(r.PAPEL, fd)
+  })
+  return [...m.values()].sort((x, y) => String(x.PAPEL).localeCompare(String(y.PAPEL)))
+}
 const day = (s) => (s ? new Date(s + 'T00:00:00Z').getTime() : NaN)
 
 // Bloqueios da Carteira. Editáveis: Atualizado, Preço Unitário (só RV) e Valor Hoje (só RF).

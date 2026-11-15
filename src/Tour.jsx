@@ -40,7 +40,7 @@ const STEPS = [
     'Lista seus ativos de **renda fixa (RF)** e **renda variável (RV)**. Rendimento e variação são **calculados automaticamente**.',
     'A aba abre **🔒 travada** para evitar erros de digitação. Use **🔓 Destravar** para editar; ao sair da aba, ela trava de novo.',
     'Se você tem vários lotes do mesmo papel, **editar o preço de um atualiza todos**.',
-    'Para **PGBL e VGBL**, use **＋ Novo item** e escolha **🛡️ Aporte de previdência**: informe o valor do aporte e da cota, e o app calcula as cotas.',
+    '**Previdência privada (PGBL e VGBL):** lance cada aporte em **＋ Novo item**, na opção **🛡️ Aporte de previdência**, e atualize o saldo de todos os fundos de uma vez em **🛡️ Atualizar saldo da previdência**.',
     'No topo ficam o patrimônio, o total investido, o rendimento e a alocação RF × RV.',
   ] },
   { icon: '🧾', title: 'Extrato', sub: 'Todo o dinheiro que entra.', items: [
