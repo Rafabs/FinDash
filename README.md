@@ -30,6 +30,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Trava geral de edição**: a aba abre **🔒 travada**; o botão **🔓 Destravar** libera os campos editáveis e a exclusão. Ao sair da aba, ela trava de novo
 - Lotes do mesmo papel mesclados: editar o preço de um atualiza todos
 - Rendimento e variação coloridos (▲ verde / ▼ vermelho) e linhas alternadas
+- **Custo Médio** por papel de renda variável (FIIs, ações e fundos): total aplicado ÷ quantidade, somando todos os lotes do mesmo papel. Aparece em cada lote do papel, fica em branco na renda fixa e acompanha novos aportes e exclusões na hora
 - Painel no topo com patrimônio, total investido, rendimento e alocação RF x RV
 - **Previdência privada (PGBL e VGBL)**: vários fundos, um modo **🛡️ Aporte de previdência** no **+ Novo item** para os aportes mensais e o botão **🛡️ Atualizar saldo da previdência** (veja [Previdência privada](#-previdência-privada))
 **Extrato (entradas)**
@@ -146,7 +147,7 @@ Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
 | `TIPO_INV` | `RF` ou `RV` |
 | `TOTAL_ATUAL` | Valor hoje |
 | `ULTIMA_ATUAL` | Data da última atualização |
-| `PERIODO`, `REND_BRUTO`, `VAR_PP`, `IOF` | **Calculadas pelo app** (podem ficar em branco) |
+| `CUSTO_MEDIO`, `PERIODO`, `REND_BRUTO`, `VAR_PP`, `IOF` | **Calculadas pelo app** (podem ficar em branco). O `CUSTO_MEDIO` é recalculado ao importar |
  
 ### Aba `Extrato` (entradas)
  
@@ -376,6 +377,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - **Só os dados do app:** botão **Limpar** do topo (pede confirmação)
 - **Tudo do site (para ver o guia como um usuário novo):** no Chrome ou Edge, `F12` → **Application** (Aplicativo) → **Storage** → **Clear site data**. Ou, no console, `localStorage.clear(); location.reload()`
 - **Versão antiga do site (GitHub Pages):** recarregue sem cache com `Ctrl+F5` (ou `Ctrl+Shift+R`)
+ 
 > ⚠️ Limpar os dados do site apaga o que não foi exportado. Exporte o XLSX antes.
  
 ---
@@ -451,6 +453,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 ## 🗺️ Histórico de atualizações
 
+- [X] `v26.11.18` Exibir custo médio em carteira
 - [X] `v26.11.17` Criação e edição de Previdência Privada
 - [X] `v26.11.16` Projeção só com parcelas em aberto, Projeção na última página do PDF e totais (pago, a pagar, futuro) ao filtrar em Despesas
 - [X] `v26.11.15` Extrato: renomear, mesclar e excluir categorias criadas pelo usuário

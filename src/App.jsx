@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Table from './Table.jsx'
 import NewItem from './NewItem.jsx'
 import Dashboard, { resumo, brl } from './Dashboard.jsx'
@@ -18,7 +18,7 @@ import ExtratoCategories from './ExtratoCategories.jsx'
 import PrevSaldos from './PrevSaldos.jsx'
 import DialogHost from './DialogHost.jsx'
 import { confirmDialog, alertDialog } from './dialog.js'
-import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia } from './data.js'
+import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
@@ -98,7 +98,7 @@ export default function App() {
       indicadoresResumo.push(['Despesas futuras · pago', brl(pago)])
       indicadoresResumo.push(['Despesas futuras · pendente', brl(Math.max(0, previsto - pago))])
     }
-    exportPdf({ ...data, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP, projectionData: { carteira: data.carteira, extrato: data.extrato, despesas: data.despesas, resgates: data.resgates } }, indicadoresResumo, label, { cdi, selic })
+    exportPdf({ ...data, carteira: carteiraView, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP, projectionData: { carteira: data.carteira, extrato: data.extrato, despesas: data.despesas, resgates: data.resgates } }, indicadoresResumo, label, { cdi, selic })
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
@@ -165,6 +165,7 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
+  const carteiraView = useMemo(() => withAvgCost(data.carteira), [data.carteira]) // com o Custo Médio por papel (só para exibir e exportar)
   const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length && !data.notas?.trim()
   const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
   const handleFile = async (f) => {
@@ -199,9 +200,9 @@ export default function App() {
           {!empty && <>
           {hasFinancialData && <>
             <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
-            <button className="sec" onClick={() => exportCsv(['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira', data[['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'])}>CSV</button>
+            <button className="sec" onClick={() => { const key = ['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'; exportCsv(key, key === 'carteira' ? carteiraView : data[key]) }}>CSV</button>
           </>}
-          <button className="sec" onClick={() => exportXlsx(data)}>XLSX</button>
+          <button className="sec" onClick={() => exportXlsx({ ...data, carteira: carteiraView })}>XLSX</button>
           {hasFinancialData && <button className="sec" onClick={doPdf}>PDF</button>}
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
           </>}
@@ -224,9 +225,9 @@ export default function App() {
             <CartHero rows={data.carteira} />
             {data.carteira.some(isPrevidencia) && <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Atualizar o saldo de todos os fundos de previdência de uma vez" onClick={() => setPrevOpen(true)}>🛡️ Atualizar saldo da previdência</button></div>}
             <Table
-              cols={SHEETS.carteira.cols} rows={data.carteira} onEdit={edit('carteira')} onDelete={del('carteira')}
+              cols={SHEETS.carteira.cols} rows={carteiraView} onEdit={edit('carteira')} onDelete={del('carteira')}
               onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
-              sharedKeys={['PAPEL', 'PRC_UNIT', 'ULTIMA_ATUAL']}
+              sharedKeys={['PAPEL', 'PRC_UNIT', 'CUSTO_MEDIO', 'ULTIMA_ATUAL']}
             />
           </>
         )}
@@ -250,7 +251,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.17</footer>
+      <footer className="app-version">v26.11.18</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}

@@ -8,6 +8,7 @@ export const CART = [
   ['PRC_UNIT', 'money', 'Preço Unitário'],
   ['PAPEL', 'text', 'Papel'],
   ['VLR_APLICACAO', 'money', 'Total Aplicado'],
+  ['CUSTO_MEDIO', 'calcm', 'Custo Médio'],
   ['BANCO', 'text', 'Banco'],
   ['TIPO_PRODUTO', 'text', 'Categoria'],
   ['PRODUTO', 'text', 'Produto'],
@@ -116,6 +117,14 @@ export function normalizeGroups(rows) {
   const first = {}
   rows.forEach((r) => { if (groupable(r) && !first[r.PAPEL]) first[r.PAPEL] = r })
   return rows.map((r) => (groupable(r) ? syncPapel([r], first[r.PAPEL])[0] : r))
+}
+// Custo médio (preço médio) de cada papel de renda variável, como em FIIs e ações:
+// total aplicado ÷ quantidade, somando todos os lotes do mesmo papel. Renda fixa fica em branco.
+// É calculado na hora de exibir/exportar (não é gravado), então acompanha qualquer aporte ou exclusão.
+export function withAvgCost(rows) {
+  const acc = {}
+  rows.forEach((r) => { if (groupable(r)) { const a = (acc[r.PAPEL] ||= { v: 0, q: 0 }); a.v += n(r.VLR_APLICACAO); a.q += n(r.QTD_COMPRA) } })
+  return rows.map((r) => ({ ...r, CUSTO_MEDIO: groupable(r) && acc[r.PAPEL].q > 0 ? Math.round((acc[r.PAPEL].v / acc[r.PAPEL].q) * 1e4) / 1e4 : '' }))
 }
 
 const iso = (v) => {
