@@ -18,7 +18,7 @@ import ExtratoCategories from './ExtratoCategories.jsx'
 import PrevSaldos from './PrevSaldos.jsx'
 import DialogHost from './DialogHost.jsx'
 import { confirmDialog, alertDialog } from './dialog.js'
-import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost } from './data.js'
+import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV } from './data.js'
 import { exportPdf } from './pdf.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
@@ -49,11 +49,13 @@ export default function App() {
   // no celular a barra de abas rola: mantém a aba ativa à vista
   useEffect(() => { document.querySelector('.tabs button.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }) }, [tab])
   const [cartLocked, setCartLocked] = useState(true) // Carteira começa travada (evita digitação indevida)
+  const [cartEditing, setCartEditing] = useState(() => new Set()) // linhas da Carteira abertas no lápis (edição completa)
   const [cdi, setCdi] = useState(readCachedCdi)
   const [cdiStatus, setCdiStatus] = useState('loading')
   const [selic, setSelic] = useState(readCachedSelic)
   const [selicStatus, setSelicStatus] = useState('loading')
-  useEffect(() => { if (tab !== 'carteira') setCartLocked(true) }, [tab]) // sai da aba = trava de novo
+  useEffect(() => { if (tab !== 'carteira') setCartLocked(true) }, [tab])
+  useEffect(() => { setCartEditing(new Set()) }, [tab, cartLocked, data.carteira.length]) // índices mudam ao excluir/adicionar/travar // sai da aba = trava de novo
   const [period, setPeriod] = useState(defaultPeriod)
 
   // Ctrl+V fora de um campo, na aba Extrato, abre a colagem interativa
@@ -165,7 +167,7 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
-  const carteiraView = useMemo(() => withAvgCost(data.carteira), [data.carteira]) // com o Custo Médio por papel (só para exibir e exportar)
+  const carteiraView = useMemo(() => withAvgCost(data.carteira).map((r, i) => (cartEditing.has(i) ? { ...r, __edit: true } : r)), [data.carteira, cartEditing]) // com o Custo Médio por papel (só para exibir e exportar)
   const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length && !data.notas?.trim()
   const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
   const handleFile = async (f) => {
@@ -179,12 +181,20 @@ export default function App() {
     } catch { alertDialog({ title: 'Importação', icon: '⚠️', message: 'Não foi possível ler o arquivo.', detail: 'Use uma planilha .xlsx, .xls ou .csv.' }) }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
+  // lápis da Carteira: abre a linha para editar todos os campos (menos os calculados)
+  const toggleCartRow = (i) => {
+    if (cartLocked) return alertDialog({ title: 'Edição travada', icon: '🔒', message: 'Destrave a edição para editar um item.', detail: 'Use o botão “🔓 Destravar” acima da tabela.' })
+    setCartEditing((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })
+  }
+  const lockedCartRow = (r, k) => (r.__edit ? (isRV(r) ? k === 'TOTAL_ATUAL' : k === 'VLR_APLICACAO') : lockedCart(r, k))
+  const cartCols = SHEETS.carteira.cols.map((c) => (c[0] === 'TIPO_INV' ? [c[0], 'select', c[2]] : c)) // Tipo vira lista (RF/RV) na edição
   const clearAll = async () => { if (await confirmDialog({ title: 'Limpar todos os dados', message: 'Apagar todos os dados salvos neste navegador?', detail: 'Exporte o XLSX antes se quiser guardar uma cópia. Esta ação não pode ser desfeita.', confirmLabel: 'Apagar tudo', danger: true })) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
     // editar preço/atualizado de um lote atualiza todos os lotes do mesmo papel
     if (key === 'carteira' && (col === 'PRC_UNIT' || col === 'ULTIMA_ATUAL') && groupable(rows[i])) rows = syncPapel(rows, rows[i])
+    if (key === 'carteira' && (col === 'PAPEL' || col === 'TIPO_INV')) rows = normalizeGroups(rows) // lote que muda de papel/tipo assume o preço do grupo
     return { ...d, [key]: rows }
   })
   const add = (key) => () => setData((d) => ({ ...d, [key]: [...d[key], Object.fromEntries(SHEETS[key].cols.map(([k, t]) => [k, t === 'num' ? 0 : ''])) ] }))
@@ -225,8 +235,8 @@ export default function App() {
             <CartHero rows={data.carteira} />
             {data.carteira.some(isPrevidencia) && <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Atualizar o saldo de todos os fundos de previdência de uma vez" onClick={() => setPrevOpen(true)}>🛡️ Atualizar saldo da previdência</button></div>}
             <Table
-              cols={SHEETS.carteira.cols} rows={carteiraView} onEdit={edit('carteira')} onDelete={del('carteira')}
-              onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCart} groupFn={groupable} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
+              cols={cartCols} selects={{ TIPO_INV: ['RF', 'RV'] }} rows={carteiraView} onEdit={edit('carteira')} onDelete={del('carteira')}
+              onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCartRow} groupFn={cartEditing.size ? undefined : groupable} rowEditing={(i) => cartEditing.has(i)} onToggleEdit={toggleCartRow} quickEdit={!cartLocked} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
               sharedKeys={['PAPEL', 'PRC_UNIT', 'CUSTO_MEDIO', 'ULTIMA_ATUAL']}
             />
           </>
@@ -251,7 +261,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.18</footer>
+      <footer className="app-version">v26.11.19</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}

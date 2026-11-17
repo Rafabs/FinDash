@@ -5,10 +5,13 @@ import { useMedia } from './useMedia.js'
 
 const f2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
 const brl = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', f2)
+// nome do papel: mostra no máximo 40 caracteres (o texto completo fica no balão ao passar o mouse)
+const clip = (v, n = 40) => (String(v).length > n ? String(v).slice(0, n - 1).trimEnd() + '…' : v)
 const isRight = (t) => t === 'money' || t === 'calcm' || t === 'num'
 
 function show(k, t, v) {
   if (v === '' || v == null) return '—'
+  if (k === 'PAPEL') return clip(v)
   if (k === 'VAR_PP') return (v > 0 ? '▲ ' : v < 0 ? '▼ ' : '') + Math.abs(v * 100).toLocaleString('pt-BR', f2) + '%'
   if (k === 'REND_BRUTO') return (v > 0 ? '+ ' : v < 0 ? '− ' : '') + brl(Math.abs(v))
   if (k === 'PERIODO') return v + (v === 1 ? ' dia' : ' dias')
@@ -19,9 +22,9 @@ function show(k, t, v) {
 
 // sort/onSort: ordenação controlada pela tela (tabelas paginadas). Sem eles, a tabela ordena sozinha.
 // fillTone: destaque de rendimento/variação · toneMoney: valores em verde/vermelho no modo leitura
-// onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis
+// onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis (quickEdit: além disso, todas as linhas ficam com os campos rápidos editáveis)
 // locked + onToggleLock: trava/destrava a edição de toda a tabela (e a exclusão)
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, sort, onSort, locked, onToggleLock }) {
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, quickEdit, sort, onSort, locked, onToggleLock }) {
   const [own, setOwn] = useState(null)
   const mobile = useMedia('(max-width: 700px)') // no celular cada linha vira um cartão (sem mesclar células)
   const controlled = onSort !== undefined
@@ -60,7 +63,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
       <div className="panel-head">
         <span className="muted">
           {info ?? `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
-          {onToggleEdit ? ' · use o lápis para editar uma linha' : onToggleLock && locked ? ' · edição travada: clique em “Destravar” para editar' : ' · campos com borda são editáveis'}
+          {onToggleLock && locked ? ' · edição travada: clique em “Destravar” para editar' : onToggleEdit ? ' · use o lápis para editar uma linha' : ' · campos com borda são editáveis'}
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
           {' · clique no cabeçalho para ordenar'}
         </span>
@@ -82,7 +85,8 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
           <tbody>
             {list.map((e, n) => {
               const { r, i } = e
-              const editing = onToggleEdit ? !!rowEditing?.(i) : !locked
+              const penOn = onToggleEdit ? !!rowEditing?.(i) : false // linha aberta pelo lápis
+              const editing = onToggleEdit ? penOn || !!quickEdit : !locked
               return (
                 <tr key={i} className={e.shared && e.first ? 'gtop' : ''}>
                   <td className="idx"><input aria-label={`Selecionar item ${offset + n + 1}`} type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
@@ -97,7 +101,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
                       if (k === 'IOF')
                         return <td key={k} data-label={lbl ?? k} className="ro"><span className={'chip ' + (r[k] === 'SIM' ? 'warn' : r[k] === 'NÃO' ? 'ok' : 'na')}>{r[k] || '—'}</span></td>
                       if (k === 'PAPEL' && shared)
-                        return <td key={k} data-label={lbl ?? k} rowSpan={rs} className="ro grp"><span className="papel">{r[k]}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
+                        return <td key={k} data-label={lbl ?? k} rowSpan={rs} className="ro grp"><span className="papel" title={String(r[k])}>{clip(r[k])}</span>{e.span > 1 && <small>{e.span} lotes</small>}</td>
                       let cls = 'ro' + (right ? ' r' : '') + g
                       if (k === 'VAR_PP' || k === 'REND_BRUTO') {
                         const tone = r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : ''
@@ -112,11 +116,11 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
                         }
                         cls += tone
                       }
-                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={cls} title={t === 'num' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
+                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={cls} title={t === 'num' || k === 'PAPEL' ? String(r[k]) : undefined}>{show(k, t, r[k])}</td>
                     }
                     if (!editing) { // linha fechada: só leitura (use o lápis)
                       const tone = toneMoney && t === 'money' ? (r[k] > 0 ? ' pos' : r[k] < 0 ? ' neg' : '') : ''
-                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={'ro' + (right ? ' r' : '') + tone + g}>{show(k, t, r[k])}</td>
+                      return <td key={k} data-label={lbl ?? k} rowSpan={rs} className={'ro' + (right ? ' r' : '') + tone + g} title={k === 'PAPEL' ? String(r[k] ?? '') : undefined}>{show(k, t, r[k])}</td>
                     }
                     const title = shared && e.span > 1 ? `Altera todos os lotes de ${r.PAPEL}` : undefined
                     if (t === 'money')
@@ -146,7 +150,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
                     )
                   })}
                   <td className="acts">
-                    {onToggleEdit && <button className={'icon' + (editing ? ' ok' : '')} title={editing ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{editing ? '✓' : '✏️'}</button>}
+                    {onToggleEdit && <button className={'icon' + (penOn ? ' ok' : '')} title={penOn ? 'Concluir edição' : 'Editar'} onClick={() => onToggleEdit(i)}>{penOn ? '✓' : '✏️'}</button>}
                     <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir linha'} onClick={() => confirm('Excluir esta linha?') && onDelete(i)}>🗑</button>
                   </td>
                 </tr>

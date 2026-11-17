@@ -31,6 +31,7 @@ const datePt = (value) => {
 }
 const tableValue = (value, type, key) => {
   if (value == null || value === '') return ''
+  if (key === 'PAPEL') return String(value).length > 40 ? String(value).slice(0, 39).trimEnd() + '…' : String(value) // papel: no máximo 40 caracteres
   if (key === 'VAR_PP') return `${(Number(value) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
   if (type === 'date') return datePt(value)
   if (type === 'money' || type === 'calcm') return money(value)
