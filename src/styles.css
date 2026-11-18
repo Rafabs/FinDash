@@ -678,3 +678,8 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
 .prev-date input{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--inp);color:var(--tx)}
 .prev-table input.cell{width:130px;text-align:right}
 .prev-table td small{font-size:11px}
+.modal.items-modal{width:min(1020px,100%)}
+.items-modal .it{gap:12px}
+.items-modal .it .cell:first-child{flex:2.2;min-width:220px}
+.items-modal .it .cell{min-width:160px}
+.items-modal .it .money{width:190px}

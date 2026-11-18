@@ -96,7 +96,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
   })
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal items-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{row.TIPO_CONTA} · {mesCurto(monthOf(row.DATA))}</h3>
         <div className="slot-items">
           {items.map((it, j) => (
