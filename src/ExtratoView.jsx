@@ -7,11 +7,12 @@ import { brl } from './Dashboard.jsx'
 import { nextSort, sortItems } from './sort.js'
 import Pager, { usePageSize } from './Pager.jsx'
 import SearchField from './SearchField.jsx'
+import { promptDialog, alertDialog } from './dialog.js'
 
 const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
 const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 
-export default function ExtratoView({ resgates = [], rows, categories = [], onAddCategory, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
+export default function ExtratoView({ resgates = [], rows, categories = [], onAddCategory, onManageCategories, period, setPeriod, onEdit, onDelete, onAdd, onPaste }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
@@ -49,10 +50,10 @@ export default function ExtratoView({ resgates = [], rows, categories = [], onAd
   const cur = Math.min(page, pages - 1)
   const slice = sorted.slice(cur * size, cur * size + size)
   const toggle = (c) => setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
-  const createCategory = () => {
-    const name = window.prompt('Nome da nova categoria de entrada:')?.trim()
+  const createCategory = async () => {
+    const name = (await promptDialog({ title: 'Nova categoria', icon: '🏷️', message: 'Nome da nova categoria de entrada:', placeholder: 'Ex.: Freelance', maxLength: 40 }))?.trim()
     if (!name) return
-    if (types.some((t) => t.toLocaleLowerCase() === name.toLocaleLowerCase())) return window.alert('Essa categoria já existe.')
+    if (types.some((t) => t.toLocaleLowerCase() === name.toLocaleLowerCase())) return alertDialog({ title: 'Categoria existente', message: 'Essa categoria já existe.' })
     onAddCategory?.(name)
   }
   const toggleEdit = (g) => setEditing((s) => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
@@ -90,6 +91,7 @@ export default function ExtratoView({ resgates = [], rows, categories = [], onAd
         <PeriodFilter period={period} onChange={setPeriod} years={years} />
         <SearchField placeholder="Buscar origem, tipo ou instituição…" value={q} onChange={setQ} />
         <button className="sec" onClick={createCategory}>＋ Categoria</button>
+        {onManageCategories && <button className="sec" title="Renomear ou excluir categorias" onClick={onManageCategories}>🏷️ Gerenciar categorias</button>}
       </div>
       <div className="chips">
         {types.map((c, i) => (

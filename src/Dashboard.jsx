@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
 import PeriodFilter from './PeriodFilter.jsx'
 import { MarkSvg } from './AccountMark.jsx'
-import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems, isPrevidencia } from './data.js'
+import { CATS, tickerOf, totalOf, monthOf, RK, installmentItems, isPrevidencia, groupParents, groupPath } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 
 const COLORS = ['#00d2be', '#c4cad1', '#ffb020', '#ff4d6a', '#5ba7ff', '#7b8794', '#2ee6a6']
@@ -122,7 +122,10 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
   const dsp = useMemo(() => (data.despesas || []).filter((r) => inRange(r.DATA, range)), [data.despesas, range])
   const totDesp = dsp.reduce((t, r) => t + totalOf(r), 0)
   const mesesDesp = new Set(dsp.map((r) => monthOf(r.DATA))).size
-  const porConta = group(dsp.map((r) => ({ c: r.TIPO_CONTA, v: totalOf(r) })), 'c', 'v')
+  // gráficos por grupo: subgrupos somam no grupo principal (ex.: Condomínio dentro de Aluguel aparece como Aluguel)
+  const parents = useMemo(() => groupParents(data.despesas || []), [data.despesas])
+  const rootOf = (name) => groupPath(String(name || '').trim(), parents)[0] || name
+  const porConta = group(dsp.map((r) => ({ c: rootOf(r.TIPO_CONTA), v: totalOf(r) })), 'c', 'v')
   const markOf = (name) => ({ ...((data.contasDespesas || []).find((a) => String(a.name || '').toLocaleLowerCase() === name.toLocaleLowerCase()) || {}), name })
   // despesas por categoria do item (só aparece quando existe alguma categoria no período)
   const porCategoria = useMemo(() => {
@@ -165,7 +168,7 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
     dsp.forEach((r) => {
       const ym = monthOf(r.DATA)
       if (empBy === 'categoria') r.ITENS.forEach((it) => parts.push({ ym, name: String(it.CATEGORIA || '').trim() || 'Sem categoria', v: Number(it.VALOR) || 0 }))
-      else parts.push({ ym, name: r.TIPO_CONTA || 'N/A', v: totalOf(r) })
+      else parts.push({ ym, name: rootOf(r.TIPO_CONTA) || 'N/A', v: totalOf(r) })
     })
     const totals = new Map(); parts.forEach((x) => totals.set(x.name, (totals.get(x.name) || 0) + x.v))
     const ranked = [...totals].sort((x, y) => y[1] - x[1]).map(([name]) => name)
@@ -174,7 +177,7 @@ export default function Dashboard({ data, period, setPeriod, cdi, cdiStatus, sel
     parts.forEach(({ ym, name, v }) => { const c = top.includes(name) ? name : 'Demais'; (map[ym] ||= {})[c] = (map[ym][c] || 0) + v })
     const cats = [...top, ...(ranked.length > top.length ? ['Demais'] : [])]
     return { cats, data: fillGen(map, cats) }
-  }, [dsp, empBy, empTop])
+  }, [dsp, empBy, empTop, parents]) // eslint-disable-line
   const empCats = empSeries.cats, empilhado = empSeries.data
   const parcelamentos = useMemo(() => installmentItems(data.despesas), [data.despesas])
   const parcelasFuturas = useMemo(() => {

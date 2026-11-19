@@ -243,8 +243,7 @@ export default function App() {
         )}
         {empty && tab === 'notas' && <div className="notes-back"><button className="sec" onClick={() => setTab('dash')}>← Voltar à página inicial</button></div>}
         {tab === 'extrato' && (<>
-          <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Renomear ou excluir categorias do Extrato" onClick={() => setCatManager(true)}>🏷️ Gerenciar categorias</button></div>
-          <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
+          <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} onManageCategories={() => setCatManager(true)} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         </>)}
         {tab === 'despesas' && (
           <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
@@ -261,7 +260,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.19</footer>
+      <footer className="app-version">v26.11.9</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}

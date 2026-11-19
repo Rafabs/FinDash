@@ -683,3 +683,4 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
 .items-modal .it .cell:first-child{flex:2.2;min-width:220px}
 .items-modal .it .cell{min-width:160px}
 .items-modal .it .money{width:190px}
+.dialog-input{width:100%;margin:6px 0 4px;box-sizing:border-box}

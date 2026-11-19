@@ -8,8 +8,11 @@ export const registerDialogHost = (fn) => { host = fn; return () => { if (host =
 const open = (kind, options) => new Promise((resolve) => {
   const o = typeof options === 'string' ? { message: options } : (options || {})
   if (host) return host({ ...o, kind, resolve })
-  if (kind === 'confirm') resolve(window.confirm([o.message, o.detail].filter(Boolean).join('\n')))
+  if (kind === 'prompt') resolve(window.prompt([o.message, o.detail].filter(Boolean).join('\n'), o.initial || ''))
+  else if (kind === 'confirm') resolve(window.confirm([o.message, o.detail].filter(Boolean).join('\n')))
   else { window.alert([o.message, o.detail].filter(Boolean).join('\n')); resolve(true) }
 })
 export const confirmDialog = (options) => open('confirm', options)
 export const alertDialog = (options) => open('alert', options)
+// pede um texto; devolve o texto digitado ou null se cancelar
+export const promptDialog = (options) => open('prompt', options)
