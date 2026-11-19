@@ -233,11 +233,11 @@ export default function App() {
         {tab === 'carteira' && (
           <>
             <CartHero rows={data.carteira} />
-            {data.carteira.some(isPrevidencia) && <div className="extrato-cat-bar"><button type="button" className="sec sm" title="Atualizar o saldo de todos os fundos de previdência de uma vez" onClick={() => setPrevOpen(true)}>🛡️ Atualizar saldo da previdência</button></div>}
             <Table
               cols={cartCols} selects={{ TIPO_INV: ['RF', 'RV'] }} rows={carteiraView} onEdit={edit('carteira')} onDelete={del('carteira')}
               onAdd={() => setModal(true)} onDeleteMany={(ids) => ids.forEach(del('carteira'))} addLabel="+ Novo item" isLocked={lockedCartRow} groupFn={cartEditing.size ? undefined : groupable} rowEditing={(i) => cartEditing.has(i)} onToggleEdit={toggleCartRow} quickEdit={!cartLocked} fillTone locked={cartLocked} onToggleLock={() => setCartLocked((v) => !v)}
               sharedKeys={['PAPEL', 'PRC_UNIT', 'CUSTO_MEDIO', 'ULTIMA_ATUAL']}
+              extra={data.carteira.some(isPrevidencia) && <button className="sec" title="Atualizar o saldo de todos os fundos de previdência de uma vez" onClick={() => setPrevOpen(true)}>🛡️ Atualizar saldo da previdência</button>}
             />
           </>
         )}
