@@ -20,6 +20,8 @@ import DialogHost from './DialogHost.jsx'
 import { confirmDialog, alertDialog } from './dialog.js'
 import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV } from './data.js'
 import { exportPdf } from './pdf.js'
+import Personalizar from './Personalizar.jsx'
+import { loadPrefs, applyPrefs, TAB_LABEL } from './prefs.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
 // rótulos curtos da barra de abas no celular
@@ -32,7 +34,6 @@ const load = () => {
     return { carteira: normalizeGroups((d.carteira || []).map(recalcCart)), extrato: (d.extrato || []).map((r) => ({ ...r, CATEGORIA: r.CATEGORIA || categorize(r) })), categoriasExtrato: d.categoriasExtrato || [], despesas: d.despesas || [], contasDespesas: d.contasDespesas || [], resgates: d.resgates || [], notas: d.notas || '', notasHtml: d.notasHtml || '' }
   } catch { return { carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' } }
 }
-const initTheme = () => { try { return localStorage.getItem('fynn-theme') } catch {} return null }
 
 export default function App() {
   const [data, setData] = useState(load)
@@ -135,11 +136,11 @@ export default function App() {
   }))
   const addResgate = () => setData((d) => ({ ...d, resgates: [...d.resgates, { DATA_RESGATE: today(), PRODUTO: '', 'RENTABILIDADE ATÉ DATA RESGATE': 0 }] }))
   const addExtrato = () => setData((d) => ({ ...d, extrato: [...d.extrato, { 'DATA DE RECEBIMENTO': today(), 'VALOR DA APLICAÇÃO': 0, CATEGORIA: 'Outros', ORIGEM: '', 'INSTITUIÇÃO': '', 'CNPJ / CPF': '', TIPO: '' }] }))
-  const [theme, setTheme] = useState(() => initTheme() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'))
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    try { localStorage.setItem('fynn-theme', theme) } catch {}
-  }, [theme])
+  // preferências do usuário (tema, cor, papel de parede, densidade, abas): salvas no navegador e na aba "Preferências" do XLSX
+  const [prefs, setPrefs] = useState(loadPrefs)
+  const [prefsOpen, setPrefsOpen] = useState(false)
+  const theme = prefs.theme
+  useEffect(() => { applyPrefs(prefs) }, [prefs])
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} }, [data])
 
@@ -170,13 +171,17 @@ export default function App() {
   const carteiraView = useMemo(() => withAvgCost(data.carteira).map((r, i) => (cartEditing.has(i) ? { ...r, __edit: true } : r)), [data.carteira, cartEditing]) // com o Custo Médio por papel (só para exibir e exportar)
   const empty = !data.carteira.length && !data.extrato.length && !data.despesas?.length && !data.resgates?.length && !data.notas?.trim()
   const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
+  const visibleTabs = prefs.tabs.order.filter((id) => !prefs.tabs.hidden.includes(id))
+  useEffect(() => { if (!empty && !visibleTabs.includes(tab)) setTab('dash') }, [visibleTabs.join(), empty])
+  const COUNTS = { carteira: data.carteira.length, extrato: data.extrato.length, despesas: data.despesas.length, resgates: data.resgates.length }
   const handleFile = async (f) => {
     if (!f) return
     try {
-      const r = await importFile(f)
+      const { prefs: imported, ...r } = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
       if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length && r.notas == null) return alertDialog({ title: 'Importação', icon: '📄', message: 'Nenhuma linha reconhecida.', detail: 'Confira se os cabeçalhos da planilha seguem o modelo.' })
       setData((d) => ({ ...d, ...r, categoriasExtrato: r.extrato ? [...new Set([...(d.categoriasExtrato || []), ...(r.extrato || []).map((x) => x.CATEGORIA).filter(Boolean)])] : d.categoriasExtrato }))
+      if (imported) setPrefs(imported)
       setTab(r.notas?.trim() ? 'notas' : 'dash')
     } catch { alertDialog({ title: 'Importação', icon: '⚠️', message: 'Não foi possível ler o arquivo.', detail: 'Use uma planilha .xlsx, .xls ou .csv.' }) }
   }
@@ -212,18 +217,19 @@ export default function App() {
             <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
             <button className="sec" onClick={() => { const key = ['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'; exportCsv(key, key === 'carteira' ? carteiraView : data[key]) }}>CSV</button>
           </>}
-          <button className="sec" onClick={() => exportXlsx({ ...data, carteira: carteiraView })}>XLSX</button>
+          <button className="sec" onClick={() => exportXlsx({ ...data, carteira: carteiraView, prefs })}>XLSX</button>
           {hasFinancialData && <button className="sec" onClick={doPdf}>PDF</button>}
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
           </>}
           <button className="icon" title="Guia rápido: como usar cada aba" aria-label="Guia rápido" onClick={() => setTour(true)}>❓</button>
-          <button className="icon" title="Alternar tema" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+          <button className="icon" title="Personalizar" aria-label="Personalizar" onClick={() => setPrefsOpen(true)}>🎨</button>
+          <button className="icon" title="Alternar tema" onClick={() => setPrefs({ ...prefs, theme: theme === 'dark' ? 'light' : 'dark' })}>{theme === 'dark' ? '☀️' : '🌙'}</button>
         </div>
       </header>
       {empty && tab !== 'notas' ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} onNotes={() => setTab('notas')} /> : (<>
       <nav className="tabs">
-        {[['dash', 'Dashboard', null], ['projecao', 'Projeção', null], ['renda', 'Renda por papel', null], ['carteira', 'Carteira', data.carteira.length], ['extrato', 'Extrato', data.extrato.length], ['despesas', 'Despesas', data.despesas.length], ['resgates', 'Resgates', data.resgates.length], ['notas', 'Notas', null]].map(([k, l, c]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{l}</span><span className="tl tl-short">{TAB_SHORT[k] || l}</span>{c != null && <em>{c}</em>}</button>
+        {visibleTabs.map((k) => (
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{TAB_LABEL[k]}</span><span className="tl tl-short">{TAB_SHORT[k] || TAB_LABEL[k]}</span>{COUNTS[k] != null && <em>{COUNTS[k]}</em>}</button>
         ))}
       </nav>
       <main>
@@ -260,9 +266,10 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.9</footer>
+      <footer className="app-version">v26.11.21</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
+      {prefsOpen && <Personalizar prefs={prefs} onPreview={(p) => applyPrefs(p, false)} onSave={(p) => { setPrefs(p); setPrefsOpen(false) }} onClose={() => { applyPrefs(prefs, false); setPrefsOpen(false) }} />}
       {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}
       {catManager && <ExtratoCategories rows={data.extrato} categories={data.categoriasExtrato || []} onRename={renameExtratoCategory} onDelete={deleteExtratoCategory} onClose={() => setCatManager(false)} />}
       {searchOpen && hasFinancialData && <ProductSearch data={data} onClose={() => setSearchOpen(false)} />}

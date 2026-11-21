@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { prefsToRows, prefsFromRows } from './prefs.js'
 
 // [coluna no banco, tipo, rótulo exibido]
 // tipos: text | num | money | date | calc (texto/num calculado) | calcm (valor em R$ calculado)
@@ -357,6 +358,8 @@ export async function importFile(file) {
     out.notas = notes.text
     out.notasHtml = notes.html || ''
   }
+  const prefSheet = wb.Sheets['Preferências']
+  if (prefSheet) out.prefs = prefsFromRows(XLSX.utils.sheet_to_json(prefSheet, { header: 1, defval: '' }).slice(1))
   return out
 }
 
@@ -388,6 +391,11 @@ export function exportXlsx(data) {
     const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR'], ...lines])
     catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }]
     XLSX.utils.book_append_sheet(wb, catSheet, 'Despesas por categoria')
+  }
+  if (data.prefs) {
+    const ps = XLSX.utils.aoa_to_sheet(prefsToRows(data.prefs))
+    ps['!cols'] = [{ wch: 22 }, { wch: 60 }]
+    XLSX.utils.book_append_sheet(wb, ps, 'Preferências')
   }
   XLSX.writeFile(wb, 'fynn-control.xlsx', { cellStyles: true })
 }

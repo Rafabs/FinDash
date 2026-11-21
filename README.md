@@ -452,6 +452,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 ---
  
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.21` Criação de campo para edição de preferências do layout e customização da página
 - [X] `v26.11.20` Correção de largura em despesa, no pop-up de editar os itens.
 - [X] `v26.11.19` Função para editar itens na carteira e criar nome de PAPEL limitado em 40 caracteres
 - [X] `v26.11.18` Exibir custo médio em carteira

@@ -684,3 +684,33 @@ input:focus,select:focus,textarea:focus,.cell:focus{outline:none;border-color:va
 .items-modal .it .cell{min-width:160px}
 .items-modal .it .money{width:190px}
 .dialog-input{width:100%;margin:6px 0 4px;box-sizing:border-box}
+
+/* ================= Personalização (tema, papel de parede, densidade) ================= */
+body::before,body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none}
+body::before{background:var(--wp,transparent)}
+body::after{background:rgba(var(--wp-ov,255,255,255),var(--wp-dim,.5))}
+:root{--wp-ov:255,255,255;--wp-fg:0,0,0}
+[data-theme=dark]{--wp-ov:0,0,0;--wp-fg:255,255,255}
+html[data-wp=none] body::after{display:none}
+html:not([data-wp=none]) .card,html:not([data-wp=none]) .panel{background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(6px)}
+html[data-density=compact] td{padding-top:2px;padding-bottom:2px}
+html[data-density=compact] th{padding-top:6px;padding-bottom:6px}
+html[data-density=compact] .card{padding:12px}
+html[data-density=compact] main{font-size:13px}
+.prefs h4{margin:16px 0 8px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--mut)}
+.prefs-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.prefs-dot{width:28px;height:28px;padding:0;border-radius:50%;border:2px solid transparent;background-image:none}
+.prefs-dot[aria-pressed=true]{border-color:var(--tx);box-shadow:0 0 0 2px var(--card) inset}
+.prefs input[type=color]{width:34px;height:30px;padding:0;border:1px solid var(--bd);border-radius:8px;background:transparent;cursor:pointer}
+.prefs-file{cursor:pointer;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--bd);border-radius:9px}
+.prefs-file:hover{background:var(--hover)}
+.prefs-range{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:13px}
+.prefs-range input{flex:1}
+.prefs-tabs{list-style:none;margin:0;padding:0}
+.prefs-tabs li{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--bd)}
+.prefs-tabs label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.prefs-note{font-size:12px;margin:14px 0 0}
+.prefs-pats{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:10px}
+.prefs-pat{height:56px;color:var(--tx);border:2px solid var(--bd);display:flex;align-items:flex-end;justify-content:flex-start;padding:4px;font-size:11px;font-weight:600}
+.prefs-pat[aria-pressed=true]{border-color:var(--ac)}
+.prefs-pat span{background:color-mix(in srgb,var(--card) 82%,transparent);padding:1px 6px;border-radius:6px}
