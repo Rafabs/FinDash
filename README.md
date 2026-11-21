@@ -13,11 +13,12 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Importação de `.xlsx` (dados e notas) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
 - Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas, todas com linha de **totais** no fim)
 - **Busca de produtos** (🔍 no topo, `Ctrl+K` ou `/`; a barra só abre a busca fora de campos de texto, então pode ser digitada normalmente nas Notas): veja detalhes de qualquer papel ou produto (veja [Busca de produtos](#-busca-de-produtos))
-- **Seleção múltipla**: marque várias linhas com o checkbox e exclua de uma vez
+- **Seleção múltipla**: marque várias linhas com o checkbox e exclua de uma vez (no Extrato, o cabeçalho também mostra a **soma** dos itens selecionados)
 - Tabelas com **ordenação por cabeçalho** (clique: crescente → decrescente → original; vale para o conjunto filtrado, não só para a página)
 - **Itens por página** configurável (20, 30, 40, 50, 100 ou 200; padrão 40) no Extrato, Despesas e Resgates, e a escolha fica salva
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
+- **🎨 Personalização do layout** (botão 🎨 do topo): tema, cor de destaque, densidade, **papel de parede** (cor, gradiente, imagem sua ou **fundos prontos** como grade, pontos, linhas e xadrez) e **quais abas aparecem e em que ordem**. Fica salvo no XLSX e volta do jeito que você deixou ao importar (veja [Personalização](#-personalização))
 - **Versão para celular**: as abas viram uma barra inferior que **rola para o lado** (com nomes curtos e a aba ativa sempre à vista), tabelas viram cartões e janelas sobem de baixo da tela
 - Abas: **Dashboard**, **Projeção**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e dados de exemplo
@@ -38,6 +39,8 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Filtro por **período**, categoria e busca em texto (com botão para limpar)
 - **Categorias personalizadas**: crie as suas com **＋ Categoria**; elas aparecem nos filtros, na tabela, no painel e ficam salvas no XLSX
 - Tabela paginada e editável
+- **Trava geral de edição**: a aba abre **🔒 travada**; o botão **🔓** libera o lápis ✏️, o **+ Novo lançamento**, o **📋 Colar dados** e a exclusão. Ao sair da aba, ela trava de novo
+- **Soma da seleção**: marque lançamentos pelo checkbox e o cabeçalho da tabela mostra quantos estão selecionados e a **soma** do valor (funciona também com a edição travada). A seleção é limpa ao trocar de página, filtro, busca, ordem ou período
 - **Colar dados** do Excel/Google Sheets com reconhecimento automático das colunas, prévia editável e detecção de duplicatas
 **Projeção**
 - Estima, mês a mês, **entradas, despesas, sobra e acumulado**, e a **evolução do patrimônio**, em 6, 12, 24 ou 36 meses
@@ -65,6 +68,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Indicadores do filtro**: acima da lista, cartões no estilo do Dashboard mostram **valor total, valor pago, a pagar, valor futuro, parcelas em aberto e média por lançamento** do que está filtrado (período, grupos marcados e busca). Ao usar a lupa, também aparecem o total de todo o histórico e os totais por item. A busca encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
+- **Baixa de despesas**: lançamentos novos nascem **a pagar** e só contam como **pagos** depois da baixa. Use **✓ Dar baixa hoje** ou **📅 Outra data** (no histórico da conta e no lápis ✏️ do grupo) e **↩ Desfazer baixa** se errar (veja [Baixa de despesas](#-baixa-de-despesas))
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
 - **📋 Colar despesas** (ou `Ctrl+V` na aba): cole vários registros de uma vez; o app entende texto em blocos (`grupo:` / `despesa dentro do grupo:` / `valor:` / `pago em:`), tabelas do Excel e linhas livres (veja [Colar despesas](#-colar-despesas))
@@ -130,7 +134,7 @@ Por que funciona em qualquer subpasta: o `vite.config.js` usa `base: './'` (cami
  
 ## 📥 Formato da planilha
  
-O arquivo `.xlsx` tem as abas de dados `Control_Fynn`, `Extrato`, `Despesas`, `Resgates` e `Notas`, mais `Contas de despesas` e `Despesas por categoria` (opcionais, criadas pelo app quando necessárias). Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
+O arquivo `.xlsx` tem as abas de dados `Control_Fynn`, `Extrato`, `Despesas`, `Resgates` e `Notas`, mais `Contas de despesas`, `Despesas por categoria` e `Preferências` (opcionais, criadas pelo app quando necessárias). Mantenha os cabeçalhos **exatamente** como abaixo. Na tela inicial do app há botões para baixar um modelo pronto (`.xlsx` completo ou CSV de cada tabela).
  
 Datas aceitas: `AAAA-MM-DD` ou `DD/MM/AAAA`.
  
@@ -169,6 +173,7 @@ Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessári
 | `TIPO_CONTA` | Ex.: `CONDOMÍNIO`, `INTERNET`, `CARTÃO DE CRÉDITO` |
 | `COTA_1`, `VALOR`, `COTA_2`, `VALOR`, … | Itens da conta (nome + valor; o valor pode ser negativo para abatimentos) |
 | `PARCELAMENTO_1`, `PARCELAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com os dados das parcelas de cada item (não edite) |
+| `PAGAMENTO_1`, `PAGAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com a **baixa** de cada item (pago e data). Não edite. Itens sem essa informação seguem a regra antiga: pagos quando o mês já chegou |
 | `CATEGORIA_1`, `CATEGORIA_2`, … | Categoria do item correspondente (`COTA_1` ↔ `CATEGORIA_1`). Opcional; as colunas só aparecem quando existe alguma categoria |
 | `GRUPO_PAI` | Opcional. Nome do grupo em que este grupo está "dentro" (ex.: `ALUGUEL` para a conta `CONDOMÍNIO`) |
  
@@ -187,8 +192,22 @@ Guarda o ícone e o logo de cada conta da aba Despesas.
  
 ### Aba `Despesas por categoria` (opcional)
  
-Relatório legível, criado na exportação quando existe alguma categoria: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA` e `VALOR`. Serve para consulta e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
+Relatório legível, criado na exportação quando existe alguma categoria ou baixa: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA`, `VALOR`, `STATUS` (`Paga`, `Pendente` ou `Abatimento`) e `DATA_PAGAMENTO`. Serve para consulta, filtros e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
  
+### Aba `Preferências` (opcional)
+
+Guarda a personalização do layout (veja [Personalização](#-personalização)) em duas colunas, `CHAVE` e `VALOR`. Ao importar, o app aplica essas preferências; sem a aba, mantém as atuais.
+
+| Chave | Valor |
+|---|---|
+| `version` | Versão do formato (hoje `1`) |
+| `theme` | `light` ou `dark` |
+| `accent` | Cor de destaque em hexadecimal (vazio = cor padrão do tema) |
+| `density` | `normal` ou `compact` |
+| `tabs.order`, `tabs.hidden` | Ordem das abas e abas ocultas, separadas por vírgula |
+| `wallpaper.type`, `wallpaper.dim` | `none`, `color`, `gradient`, `pattern` ou `image`, e o contraste (0 a 0,9) |
+| `wallpaper.value.0`, `.1`, … | Cor, gradiente, nome do fundo pronto ou a imagem (data URL), em blocos de 30 000 caracteres por causa do limite da célula do Excel |
+
 ### Aba `Resgates`
  
 | Coluna | Descrição |
@@ -364,6 +383,39 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 ---
  
+## 🌈 Personalização
+
+O botão **🎨** do topo abre a janela **Personalizar**. Tudo tem **pré-visualização ao vivo**; só vale depois de **Salvar** (**Cancelar** desfaz) e **Restaurar padrão** volta ao original.
+
+- **Tema:** claro ou escuro (o botão ☀️/🌙 do topo continua funcionando)
+- **Cor de destaque:** seis cores prontas, uma cor personalizada ou **Padrão** (a cor do tema)
+- **Densidade:** *Normal* ou *Compacta* (tabelas e cartões mais enxutos)
+- **Papel de parede:** nenhum, **gradientes**, cor sólida, **imagem sua** ou um dos **fundos prontos**: Grade, Projeto, Pontos, Linhas, Diagonal, Traços cruzados, Xadrez, Aurora e Foco. Os traços seguem o tema claro/escuro e a Aurora e o Foco usam a sua cor de destaque. O controle de **Contraste** clareia ou escurece o fundo para manter a leitura
+- **Abas:** mostre ou oculte cada aba e mude a ordem com ↑ ↓ (o **Dashboard** não pode ser oculto)
+
+**Onde fica salvo**
+- No navegador (`fynn-prefs-v1`) e no **XLSX**, na aba `Preferências`. Ao importar um XLSX exportado por você, o layout volta como estava (veja o [formato da aba](#aba-preferências-opcional))
+- Imagens são reduzidas a até 1600 px e guardadas em JPEG (limite de 10 MB no envio). Elas deixam o XLSX e o `localStorage` maiores; os fundos prontos guardam só o nome, sem peso
+- Planilha de terceiros é tratada como não confiável: cores, gradientes e imagens são validados ao importar, e um valor inválido vira "sem papel de parede"
+
+---
+
+## ✅ Baixa de despesas
+
+Cada despesa tem uma situação de pagamento, para separar o que foi **lançado** do que já foi **pago**.
+
+- **Itens novos nascem "a pagar":** lançamento rápido da conta, **+ item** no lápis ✏️ e itens novos do **📅 Lançar mês**. Valores negativos (abatimentos) não têm baixa
+- **✓ Dar baixa hoje** registra o pagamento na data atual; **📅 Outra data** abre uma janela para escolher o dia (inclusive antecipado). **↩ Desfazer baixa** volta o item para "a pagar"
+- Os botões ficam no **histórico da conta** (com a edição liberada) e no lápis ✏️ do grupo. Na lista, o item mostra **✓ paga** ou **⏳ a pagar**
+- **Parcelas** usam os mesmos botões: **Quitar restante hoje** quando há pagamento parcial e data livre, como nos demais itens
+- **Despesas antigas** (sem baixa registrada) continuam como antes: contam como pagas quando o mês já chegou, e como a pagar nos meses futuros. Para corrigir uma delas, use **↩ Desfazer baixa**
+- Itens vindos de **📋 Colar despesas** também seguem essa regra antiga
+- Os cartões **Valor pago** e **A pagar**, o **Valor futuro** e o **PDF** (colunas *Pago* e *Pendente*, com "paga em" ou "a pagar" no item) usam a baixa
+- O **📅 Lançar mês** preserva categoria, parcela e baixa dos itens já lançados
+- No XLSX, a baixa vai nas colunas ocultas `PAGAMENTO_n` e, de forma legível, em `STATUS` e `DATA_PAGAMENTO` da aba `Despesas por categoria`
+
+---
+
 ## 🧭 Guia rápido e limpeza de dados
  
 **Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
@@ -371,7 +423,7 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 - Ao fechar, o app grava `fynn-tour-v1` no `localStorage` e não mostra o guia sozinho de novo
 - O botão **❓** do topo reabre o guia quando quiser
 - Para testar sem apagar nada, acrescente `?tour=1` ao endereço (ex.: `https://usuario.github.io/FinDash/?tour=1`)
-**O que o navegador guarda** (`localStorage` do site): `fynn-control-v1` (seus dados), `fynn-theme` (tema), `fynn-tour-v1` (guia visto) e o cache do CDI e da Selic.
+**O que o navegador guarda** (`localStorage` do site): `fynn-control-v1` (seus dados), `fynn-theme` (tema), `fynn-prefs-v1` (personalização do layout), `fynn-tour-v1` (guia visto) e o cache do CDI e da Selic.
  
 **Como limpar**
 - **Só os dados do app:** botão **Limpar** do topo (pede confirmação)
@@ -394,7 +446,9 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 ├── package.json
 └── src/
     ├── main.jsx                   # ponto de entrada
-    ├── App.jsx                    # estado, abas, importação/exportação, tema
+    ├── App.jsx                    # estado, abas, importação/exportação, preferências
+    ├── prefs.js                   # preferências de layout: carregar, aplicar, fundos prontos e leitura/escrita na aba Preferências
+    ├── Personalizar.jsx           # janela 🎨 Personalizar (tema, cor, densidade, papel de parede e abas)
     ├── data.js                    # colunas, regras de cálculo, categorias, import/export, modelos, dados de exemplo
     ├── period.js                  # filtro de período (mês, 3/12 meses, ano, tudo, personalizado)
     ├── paste.js                   # leitura de dados colados no Extrato (datas, valores, colunas)
@@ -407,13 +461,13 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
     ├── RendaPorPapel.jsx          # aba Renda por papel (yield on cost)
     ├── market.js                  # CDI e Selic (API pública do Banco Central, com cache local)
     ├── CartHero.jsx               # painel de resumo da Carteira
-    ├── Table.jsx                  # tabela editável (todas as abas): ordenação, seleção, lápis e trava
+    ├── Table.jsx                  # tabela editável (todas as abas): ordenação, seleção (com soma), lápis e trava
     ├── NewItem.jsx                # formulário de novo item da Carteira
-    ├── ExtratoView.jsx            # aba Extrato
+    ├── ExtratoView.jsx            # aba Extrato (trava de edição e soma da seleção)
     ├── PasteModal.jsx             # colagem interativa de lançamentos do Extrato
     ├── PasteDespesas.jsx          # colagem interativa de despesas
     ├── ProductSearch.jsx          # busca e detalhe de produtos
-    ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas)
+    ├── DespesasView.jsx           # aba Despesas (lista, matriz mensal, grupos, categorias, contas, baixa)
     ├── Projecao.jsx               # aba Projeção (fluxo de caixa e patrimônio)
     ├── dialog.js                  # confirmDialog() e alertDialog(): janelas do app no lugar de confirm()/alert()
     ├── DialogHost.jsx             # desenha as janelas de confirmação e aviso (montado uma vez no App)
@@ -440,7 +494,8 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 - Os dados ficam no `localStorage` do navegador. **Limpar o cache apaga tudo**, então exporte um `.xlsx` de vez em quando como backup.
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
-- **CSV** exporta a aba atual. **XLSX** exporta as abas de dados e `Notas` no mesmo formato de entrada, então pode ser reimportado.
+- A **personalização do layout** também vai no XLSX (aba `Preferências`) e é restaurada ao importar.
+- **CSV** exporta a aba atual. **XLSX** exporta as abas de dados, `Notas` e `Preferências` (com a baixa das despesas) no mesmo formato de entrada, então pode ser reimportado.
 - **PDF** traz o resumo, os gráficos e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 ---
  
@@ -452,6 +507,10 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
 ---
  
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.25` Extrato: botão de travar a edição e soma dos itens selecionados
+- [X] `v26.11.24` Despesas: botão de dar baixa (hoje ou outra data); lançamentos novos nascem "a pagar"
+- [X] `v26.11.23` Preferências de layout salvas no .xlsx (aba Preferências) e restauradas ao importar
+- [X] `v26.11.22` Papel de parede com fundos pré-definidos (grade, pontos, linhas, xadrez, aurora e outros)
 - [X] `v26.11.21` Criação de campo para edição de preferências do layout e customização da página
 - [X] `v26.11.20` Correção de largura em despesa, no pop-up de editar os itens.
 - [X] `v26.11.19` Função para editar itens na carteira e criar nome de PAPEL limitado em 40 caracteres

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import PeriodFilter from './PeriodFilter.jsx'
 import LancarMes from './LancarMes.jsx'
 import PasteDespesas from './PasteDespesas.jsx'
-import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath } from './data.js'
+import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath, itemPaid, payDate, payPatch, reopenPatch } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
@@ -18,10 +18,37 @@ const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximum
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
 const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const dataCurta = (s) => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : ''
-const confirmInstallmentPayment = (item, row) => {
-  const paid = Math.min(Number(item.VALOR) || 0, Number(item.PARCELAMENTO?.valorPago) || 0)
-  const remaining = Math.max(0, (Number(item.VALOR) || 0) - paid)
-  return confirmDialog({ title: 'Baixar parcela', icon: '✅', message: `Confirmar a baixa da parcela ${item.PARCELAMENTO?.numero}/${item.PARCELAMENTO?.quantidade}?`, detail: `${item.NOME || 'Parcela'} · ${mesCurto(monthOf(row.DATA))} · Valor a quitar: ${brl(remaining)}. O pagamento será registrado hoje.`, confirmLabel: 'Confirmar baixa' })
+// Janela para escolher a data da baixa (pagamento)
+function BaixaModal({ name, onClose, onConfirm }) {
+  const [date, setDate] = useState(hojeISO())
+  return <div className="overlay dialog-overlay" onClick={(e) => { e.stopPropagation(); onClose() }}>
+    <div className="modal dialog" role="dialog" aria-modal="true" aria-label="Dar baixa" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-head"><span className="dialog-ic" aria-hidden="true">📅</span><h3>Dar baixa</h3></div>
+      <div className="dialog-body"><p>{name || 'Despesa'}: informe a data do pagamento.</p></div>
+      <input className="cell dialog-input" type="date" autoFocus value={date} onChange={(e) => setDate(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && date) onConfirm(date) }} />
+      <div className="actions"><button type="button" className="sec" onClick={onClose}>Cancelar</button><button type="button" disabled={!date} onClick={() => onConfirm(date)}>✓ Confirmar baixa</button></div>
+    </div>
+  </div>
+}
+
+// Situação e ações de pagamento de uma despesa: dar baixa hoje, em outra data, ou desfazer a baixa
+function PayControls({ item, ym, current, locked, onChange }) {
+  const [askDate, setAskDate] = useState(false)
+  const v = Number(item.VALOR) || 0
+  if (!v) return null
+  if (v < 0) return <small className="muted">Abatimento · sem baixa</small>
+  const paid = itemPaid(item, ym, current)
+  const open = paid < v
+  const date = payDate(item)
+  const tip = locked ? 'Destrave a edição para dar baixa' : ''
+  return <div className="installment-row-action">
+    <small>{open ? `Pendente${paid > 0 ? ` · ${brl(v - paid)}` : ''}` : `✓ Paga${date ? ` em ${dataCurta(date)}` : ''}`}</small>
+    {open ? <>
+      <button type="button" className="sec sm" disabled={locked} title={tip} onClick={() => onChange(payPatch(item, hojeISO()))}>✓ {paid > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button>
+      <button type="button" className="sec sm" disabled={locked} title={tip || 'Dar baixa em outra data'} onClick={() => setAskDate(true)}>📅 Outra data</button>
+    </> : <button type="button" className="sec sm" disabled={locked} title={tip} onClick={() => onChange(reopenPatch(item))}>↩ Desfazer baixa</button>}
+    {askDate && <BaixaModal name={item.NOME} onClose={() => setAskDate(false)} onConfirm={(d) => { setAskDate(false); onChange(payPatch(item, d)) }} />}
+  </div>
 }
 
 function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CRÉDITO', catByName, onClose, onSave }) {
@@ -68,14 +95,14 @@ function ParentField({ value, onCommit }) {
   return <input className="cell" list="dl-contas" placeholder="Dentro do grupo… (opcional)" title="Coloque este grupo dentro de outro grupo (deixe vazio para ser um grupo principal)" style={{ marginTop: 4 }} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
-// Totais de uma lista de despesas {it, ym, g}: pago = parcela: valor já baixado / demais: pago se o mês já chegou
+// Totais de uma lista de despesas {it, ym, g}: pago = valor já baixado (itens antigos sem baixa: pagos se o mês já chegou)
 function summarizeExpenses(list, currentMonth) {
   const by = new Map(), groups = new Set()
   let total = 0, pago = 0, pend = 0, fut = 0, abertas = 0, abertasValor = 0
   list.forEach(({ it, ym, g }) => {
     const v = Number(it.VALOR) || 0, nm = String(it.NOME || '').trim() || '(Sem descrição)'
     const futuro = ym > currentMonth
-    const pg = it.PARCELAMENTO ? Math.min(v, Number(it.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : v
+    const pg = itemPaid(it, ym, currentMonth)
     const pd = Math.max(0, v - pg)
     total += v; pago += pg; pend += pd
     if (futuro) fut += pd
@@ -104,11 +131,12 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
               <input className="cell" placeholder="Descrição" value={it.NOME} onChange={(e) => up(j, { NOME: e.target.value, ...(!it.CATEGORIA && catByName?.get(e.target.value.trim().toLowerCase()) ? { CATEGORIA: catByName.get(e.target.value.trim().toLowerCase()) } : {}) })} />
               <input className="cell" list="dl-categorias" placeholder="Categoria (opcional)" style={{ minWidth: 150 }} value={it.CATEGORIA || ''} onChange={(e) => up(j, { CATEGORIA: e.target.value })} />
               <MoneyInput value={it.VALOR} onChange={(v) => up(j, { VALOR: v })} />
-              {it.PARCELAMENTO && <label className="installment-paid-field">Pago neste mês<MoneyInput value={String(it.PARCELAMENTO.valorPago || 0)} onChange={(v) => up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Math.max(0, Math.min(Number(it.VALOR) || 0, Number(v) || 0))), dataPagamento: Number(v) > 0 ? hojeISO() : '' } })} />{it.PARCELAMENTO.dataPagamento && <small>Baixada em {dataCurta(it.PARCELAMENTO.dataPagamento)}</small>}<button type="button" className="sec sm" disabled={Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR)} onClick={() => confirmInstallmentPayment(it, row) && up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Number(it.VALOR) || 0), dataPagamento: hojeISO() } })}>✓ {Number(it.PARCELAMENTO.valorPago) > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></label>}
+              {it.PARCELAMENTO && <label className="installment-paid-field">Pago neste mês<MoneyInput value={String(it.PARCELAMENTO.valorPago || 0)} onChange={(v) => up(j, { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Math.max(0, Math.min(Number(it.VALOR) || 0, Number(v) || 0))), dataPagamento: Number(v) > 0 ? hojeISO() : '' } })} /></label>}
+              <PayControls item={it} ym={monthOf(row.DATA)} current={nowYM()} locked={false} onChange={(patch) => up(j, patch)} />
               {items.length > 1 && <button className="icon" onClick={() => setItems((x) => x.filter((_, k) => k !== j))}>✕</button>}
             </div>
           ))}
-          <button className="sec sm" onClick={() => setItems((x) => [...x, { NOME: '', VALOR: '' }])}>+ item</button>
+          <button className="sec sm" onClick={() => setItems((x) => [...x, { NOME: '', VALOR: '', PAGAMENTO: { pago: false } }])}>+ item</button>
         </div>
         <p className="hint">Total: <b>{brl(totalOf({ ITENS: clean }))}</b></p>
         <div className="actions">
@@ -244,13 +272,12 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     const total = breakdown.reduce((s, group) => s + group.total, 0)
     const itemsOf = (entry) => entry.items ? entry.items.map(({ item }) => item) : entry.r.ITENS
     const paidAheadOf = (entry) => itemsOf(entry).reduce((s, item) => {
-      const installment = item.PARCELAMENTO
-      return s + (installment?.dataPagamento && installment.dataPagamento.slice(0, 7) < monthOf(entry.r.DATA)
-        ? Math.min(Number(item.VALOR) || 0, Number(installment.valorPago) || 0) : 0)
+      const date = payDate(item), ym = monthOf(entry.r.DATA)
+      return s + (date && date.slice(0, 7) < ym ? itemPaid(item, ym, currentMonth) : 0)
     }, 0)
     const pendingOf = (entry) => itemsOf(entry).reduce((s, item) => {
       const value = Number(item.VALOR) || 0
-      return s + (value < 0 ? value : Math.max(0, value - (Number(item.PARCELAMENTO?.valorPago) || 0)))
+      return s + (value < 0 ? value : Math.max(0, value - itemPaid(item, monthOf(entry.r.DATA), currentMonth)))
     }, 0)
     const periodTotal = currentRows.reduce((s, entry) => s + (entry.total ?? totalOf(entry.r)), 0) + futureRows.reduce((s, entry) => s + paidAheadOf(entry), 0)
     const futureTotal = futureRows.reduce((s, entry) => s + pendingOf(entry), 0)
@@ -374,20 +401,14 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const addToAccount = () => {
     const value = Number(String(quickValue).replace(',', '.'))
     if (!quickItem.trim() || !Number.isFinite(value) || !quickMonth) return
-    onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
+    onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...(value >= 0 ? { PAGAMENTO: { pago: false } } : {}), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
     setQuickItem(''); setQuickValue(''); setQuickCat('')
   }
-  const markInstallmentPaid = async (rowIndex, itemIndex) => {
+  const patchItem = (rowIndex, itemIndex, patch) => {
     if (locked) return
     const row = rows[rowIndex]
-    const item = row?.ITENS?.[itemIndex]
-    if (!item?.PARCELAMENTO) return
-    if (Number(item.PARCELAMENTO.valorPago) >= Number(item.VALOR)) return
-    if (!(await confirmInstallmentPayment(item, row))) return
-    const ITENS = row.ITENS.map((current, index) => index === itemIndex
-      ? { ...current, PARCELAMENTO: { ...current.PARCELAMENTO, valorPago: round2(Number(current.VALOR) || 0), dataPagamento: hojeISO() } }
-      : current)
-    onUpdate(rowIndex, { ITENS })
+    if (!row?.ITENS?.[itemIndex]) return
+    onUpdate(rowIndex, { ITENS: row.ITENS.map((current, index) => (index === itemIndex ? { ...current, ...patch } : current)) })
   }
 
   const isCardAccount = /cart[aã]o|cr[eé]dit/i.test(currentAccount?.name || '')
@@ -428,10 +449,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <div className="panel-head"><div><h3>Histórico</h3><small className="muted">Todos os lançamentos de {currentAccount?.name || accountPage}</small></div><span className="expense-history-count">{currentRows.length} registro{currentRows.length === 1 ? '' : 's'}</span></div>
         <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Despesas</th><th>Total</th></tr></thead><tbody>
           {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span></td><td><div className="account-history-items">{r.ITENS.map((it, j) => {
-            const paid = Math.min(Number(it.VALOR) || 0, Number(it.PARCELAMENTO?.valorPago) || 0)
-            const credit = (Number(it.VALOR) || 0) < 0
-            const unpaid = it.PARCELAMENTO && !credit && paid < (Number(it.VALOR) || 0)
-            return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span>{it.PARCELAMENTO && <div className="installment-row-action"><small>{credit ? 'Abatimento · sem baixa' : unpaid ? `Pendente · ${brl((Number(it.VALOR) || 0) - paid)}` : `✓ Paga${it.PARCELAMENTO.dataPagamento ? ` em ${dataCurta(it.PARCELAMENTO.dataPagamento)}` : ''}`}</small><button type="button" className="sec sm" disabled={locked || !unpaid} title={locked ? 'Destrave a edição para dar baixa' : ''} onClick={() => markInstallmentPaid(i, j)}>{paid ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button></div>}</div>
+            return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span><PayControls item={it} ym={monthOf(r.DATA)} current={currentMonth} locked={locked} onChange={(patch) => patchItem(i, j, patch)} /></div>
           })}</div></td><td className="ro"><b>{brl(totalOf(r))}</b></td></tr>)}
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
         </tbody></table></div>
@@ -609,7 +627,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                             }}
                             onDragEnd={() => { setDragSource(null); setDragOver(null) }}
                           >
-                            {it.NOME || '—'}{it.CATEGORIA && <em className="chip-cat"> ({it.CATEGORIA})</em>} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
+                            {it.NOME || '—'}{it.CATEGORIA && <em className="chip-cat"> ({it.CATEGORIA})</em>} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PAGAMENTO && Number(it.VALOR) >= 0 ? (it.PAGAMENTO.pago ? ' · ✓ paga' : ' · ⏳ a pagar') : it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
                           </span>
                         ))}
                         {!items.length && <span className="muted">Sem despesas · arraste uma aqui</span>}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import MoneyInput from './MoneyInput.jsx'
 import { nextSort, sortItems } from './sort.js'
 import { useMedia } from './useMedia.js'
@@ -24,7 +24,8 @@ function show(k, t, v) {
 // fillTone: destaque de rendimento/variação · toneMoney: valores em verde/vermelho no modo leitura
 // onToggleEdit + rowEditing: linhas só editáveis após clicar no lápis (quickEdit: além disso, todas as linhas ficam com os campos rápidos editáveis)
 // locked + onToggleLock: trava/destrava a edição de toda a tabela (e a exclusão)
-export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, quickEdit, sort, onSort, locked, onToggleLock }) {
+// sumKey: coluna monetária somada nas linhas selecionadas · resetKey: quando muda, a seleção é limpa (página, filtro, ordem…)
+export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMany, addLabel = '+ Nova linha', isLocked, groupFn, sharedKeys = [], offset = 0, info, extra, selects, fillTone, toneMoney, rowEditing, onToggleEdit, quickEdit, sort, onSort, locked, onToggleLock, sumKey, resetKey }) {
   const [own, setOwn] = useState(null)
   const mobile = useMedia('(max-width: 700px)') // no celular cada linha vira um cartão (sem mesclar células)
   const controlled = onSort !== undefined
@@ -32,7 +33,9 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
   const toggleSort = controlled ? onSort : (k) => setOwn((s) => nextSort(s, k))
   const typeOf = (k) => cols.find((c) => c[0] === k)?.[1]
   const [selected, setSelected] = useState(() => new Set())
+  useEffect(() => { setSelected(new Set()) }, [resetKey]) // a seleção é por posição na página: não pode sobreviver a troca de página/filtro/ordem
   const allSelected = rows.length > 0 && selected.size === rows.length
+  const selSum = sumKey ? [...selected].reduce((s, i) => s + (Number(rows[i]?.[sumKey]) || 0), 0) : 0
   const toggleSelected = (i) => setSelected((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
   const deleteSelected = () => {
     const ids = [...selected].sort((a, b) => b - a)
@@ -67,7 +70,7 @@ export default function Table({ cols, rows, onEdit, onAdd, onDelete, onDeleteMan
           {groupFn && ' · lotes do mesmo papel compartilham preço e data'}
           {' · clique no cabeçalho para ordenar'}
         </span>
-        <div className="ph-actions">{onToggleLock && <button className={'sec lock' + (locked ? '' : ' open')} onClick={onToggleLock} title={locked ? 'Clique para liberar a edição' : 'Clique para travar a edição'}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button>}{selected.size > 0 && <><span className="muted">{selected.size} selecionados</span><button className="sec danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : ''} onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}{extra}<button onClick={onAdd}>{addLabel}</button></div>
+        <div className="ph-actions">{onToggleLock && <button className={'sec lock' + (locked ? '' : ' open')} onClick={onToggleLock} title={locked ? 'Clique para liberar a edição' : 'Clique para travar a edição'}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button>}{selected.size > 0 && <><span className="muted">{selected.size} selecionado{selected.size === 1 ? '' : 's'}</span>{sumKey && <span className="sel-sum" title="Soma dos itens selecionados">Soma: <b>{brl(selSum)}</b></span>}<button className="sec danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : ''} onClick={deleteSelected}>Excluir selecionados</button><button className="sec" onClick={() => setSelected(new Set())}>Limpar seleção</button></>}{extra}<button onClick={onAdd}>{addLabel}</button></div>
       </div>
       <div className="wrap">
         <table className="rt">

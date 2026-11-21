@@ -207,6 +207,28 @@ export function moveExpenseItem(rows, fromRow, itemIndex, toRow) {
   return next
 }
 
+// ---------- Baixa (pagamento) de despesas ----------
+// Itens novos nascem "a pagar" (PAGAMENTO.pago = false) e só contam como pagos depois da baixa.
+// Itens antigos, sem PAGAMENTO, mantêm a regra anterior (pagos quando o mês já chegou); parcelas usam PARCELAMENTO.valorPago.
+export const itemPaid = (it, ym, currentMonth) => {
+  const v = Number(it.VALOR) || 0
+  if (it.PARCELAMENTO) return Math.min(v, Number(it.PARCELAMENTO.valorPago) || 0)
+  if (it.PAGAMENTO) return v < 0 || it.PAGAMENTO.pago ? v : 0
+  return ym > currentMonth ? 0 : v
+}
+export const payDate = (it) => it.PARCELAMENTO?.dataPagamento || it.PAGAMENTO?.data || ''
+export const payPatch = (it, date) => (it.PARCELAMENTO
+  ? { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: round2(Number(it.VALOR) || 0), dataPagamento: date } }
+  : { PAGAMENTO: { pago: true, data: date } })
+export const reopenPatch = (it) => (it.PARCELAMENTO
+  ? { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: 0, dataPagamento: '' } }
+  : { PAGAMENTO: { pago: false } })
+const curYM = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}` }
+export const payStatus = (it, ym, cur = curYM()) => {
+  const v = Number(it.VALOR) || 0
+  return v < 0 ? 'Abatimento' : !v ? '' : itemPaid(it, ym, cur) >= v ? 'Paga' : 'Pendente'
+}
+
 function toDespesas(ws) {
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })
   if (!aoa.length || !aoa[0].includes('TIPO_CONTA')) return null
@@ -220,8 +242,13 @@ function toDespesas(ws) {
     const match = String(header || '').trim().match(/^CATEGORIA[_ ]?(\d+)$/i)
     if (match) catColumns.set(Number(match[1]), column)
   })
+  const payColumns = new Map()
+  aoa[0].forEach((header, column) => {
+    const match = String(header || '').match(/^PAGAMENTO_(\d+)$/)
+    if (match) payColumns.set(Number(match[1]), column)
+  })
   const paiCol = aoa[0].indexOf('GRUPO_PAI')
-  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...catColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
+  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...payColumns.values(), ...catColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
   const out = []
   aoa.slice(1).forEach((row) => {
     const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
@@ -248,6 +275,14 @@ function toDespesas(ws) {
             }
           }
         } catch { /* mantém a despesa mesmo se metadados ocultos estiverem inválidos */ }
+      }
+      const payColumn = payColumns.get((k - 3) / 2 + 1)
+      const rawPay = payColumn == null ? null : row[payColumn]
+      if (rawPay && !item.PARCELAMENTO) {
+        try {
+          const m = typeof rawPay === 'string' ? JSON.parse(rawPay) : rawPay
+          if (m && typeof m.pago === 'boolean') item.PAGAMENTO = { pago: m.pago, ...(m.pago && typeof m.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.data) ? { data: m.data } : {}) }
+        } catch { /* ignora metadado inválido */ }
       }
       itens.push(item)
     }
@@ -283,6 +318,8 @@ function despSheet(rows, includeParcelMetadata = false) {
   const head = ['DATA', 'VALOR', 'TIPO_CONTA']
   for (let k = 1; k <= maxN; k++) head.push(`COTA_${k}`, 'VALOR')
   if (includeParcelMetadata) for (let k = 1; k <= maxN; k++) head.push(`PARCELAMENTO_${k}`)
+  const withPay = includeParcelMetadata && rows.some((r) => r.ITENS.some((i) => i.PAGAMENTO))
+  if (withPay) for (let k = 1; k <= maxN; k++) head.push(`PAGAMENTO_${k}`)
   const withItemCat = rows.some((r) => r.ITENS.some((i) => i.CATEGORIA))
   if (withItemCat) for (let k = 1; k <= maxN; k++) head.push(`CATEGORIA_${k}`)
   const withParent = rows.some((r) => r.PAI)
@@ -291,6 +328,7 @@ function despSheet(rows, includeParcelMetadata = false) {
     r.DATA, totalOf(r), r.TIPO_CONTA,
     ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat(),
     ...(includeParcelMetadata ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PARCELAMENTO ? JSON.stringify(r.ITENS[k].PARCELAMENTO) : null) : []),
+    ...(withPay ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PAGAMENTO ? JSON.stringify(r.ITENS[k].PAGAMENTO) : null) : []),
     ...(withItemCat ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.CATEGORIA || null) : []),
     ...(withParent ? [r.PAI || null] : []),
   ])]
@@ -298,6 +336,7 @@ function despSheet(rows, includeParcelMetadata = false) {
   if (includeParcelMetadata) ws['!cols'] = [
     ...Array.from({ length: 3 + 2 * maxN }, () => ({})),
     ...Array.from({ length: maxN }, () => ({ hidden: true })),
+    ...(withPay ? Array.from({ length: maxN }, () => ({ hidden: true })) : []),
     ...(withItemCat ? Array.from({ length: maxN }, () => ({})) : []),
     ...(withParent ? [{}] : []),
   ]
@@ -385,11 +424,11 @@ export function exportXlsx(data) {
   noteSheet['!cols'] = [{ wch: 100 }, { hidden: true }]
   XLSX.utils.book_append_sheet(wb, noteSheet, 'Notas')
   // relatório legível das categorias (só leitura: a importação lê as colunas CATEGORIA_n da aba Despesas)
-  if (data.despesas?.some((r) => r.ITENS.some((i) => i.CATEGORIA))) {
+  if (data.despesas?.some((r) => r.ITENS.some((i) => i.CATEGORIA || i.PAGAMENTO))) {
     const lines = [...data.despesas].sort((x, y) => String(y.DATA).localeCompare(String(x.DATA)))
-      .flatMap((r) => r.ITENS.map((i) => [monthOf(r.DATA), r.TIPO_CONTA, i.NOME, i.CATEGORIA || '', Number(i.VALOR) || 0]))
-    const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR'], ...lines])
-    catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }]
+      .flatMap((r) => r.ITENS.map((i) => [monthOf(r.DATA), r.TIPO_CONTA, i.NOME, i.CATEGORIA || '', Number(i.VALOR) || 0, payStatus(i, monthOf(r.DATA)), payDate(i)]))
+    const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR', 'STATUS', 'DATA_PAGAMENTO'], ...lines])
+    catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 16 }]
     XLSX.utils.book_append_sheet(wb, catSheet, 'Despesas por categoria')
   }
   if (data.prefs) {

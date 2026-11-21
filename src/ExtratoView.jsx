@@ -19,6 +19,7 @@ export default function ExtratoView({ resgates = [], rows, categories = [], onAd
   const [sort, setSort] = useState(null)
   const [size, setSize] = usePageSize()
   const [editing, setEditing] = useState(() => new Set()) // linhas abertas pelo lápis
+  const [locked, setLocked] = useState(true) // edição começa travada (evita digitação indevida); destrava no botão da tabela
   const wantEdit = useRef(false)
   const range = useMemo(() => rangeOf(period), [period])
   const years = useMemo(() => [...new Set(rows.map((r) => Number(String(r[D]).slice(0, 4))).filter(Boolean))], [rows])
@@ -57,7 +58,9 @@ export default function ExtratoView({ resgates = [], rows, categories = [], onAd
     onAddCategory?.(name)
   }
   const toggleEdit = (g) => setEditing((s) => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
-  const add = () => { wantEdit.current = true; setCats([]); setQ(''); setSort(null); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
+  const lockedAlert = (what) => alertDialog({ title: 'Edição travada', icon: '🔒', message: `Destrave a edição para ${what}.`, detail: 'Clique em “🔒 Edição travada” acima da tabela.' })
+  const toggleLock = () => { if (!locked) setEditing(new Set()); setLocked(!locked) } // ao travar, fecha as linhas abertas
+  const add = () => { if (locked) return lockedAlert('adicionar um lançamento'); wantEdit.current = true; setCats([]); setQ(''); setSort(null); setPage(0); setPeriod((p) => ({ ...p, mode: 'all' })); onAdd() }
   // o lançamento recém-criado já abre em modo de edição
   useEffect(() => { if (wantEdit.current) { wantEdit.current = false; toggleEdit(rows.length - 1) } }, [rows.length])
   const del = (g) => { setEditing(new Set()); onDelete(g) }
@@ -106,11 +109,13 @@ export default function ExtratoView({ resgates = [], rows, categories = [], onAd
         cols={EXT} rows={slice.map((x) => x.r)} offset={cur * size} selects={{ CATEGORIA: types }}
         onEdit={(n, k, v) => onEdit(slice[n].i, k, v)} onDelete={(n) => del(slice[n].i)}
         onDeleteMany={(ns) => ns.map((n) => slice[n].i).sort((a, b) => b - a).forEach(del)}
-        rowEditing={(n) => editing.has(slice[n].i)} onToggleEdit={(n) => toggleEdit(slice[n].i)}
+        rowEditing={(n) => !locked && editing.has(slice[n].i)} onToggleEdit={(n) => (locked ? lockedAlert('editar um lançamento') : toggleEdit(slice[n].i))}
+        locked={locked} onToggleLock={toggleLock} sumKey={V}
+        resetKey={`${cur}|${size}|${q}|${cats.join(',')}|${JSON.stringify(period)}|${sort?.key}|${sort?.dir}|${rows.length}`}
         sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))}
         onAdd={add} addLabel="+ Novo lançamento"
         info={`${filtered.length} lançamento${filtered.length === 1 ? '' : 's'}`}
-        extra={<button className="sec" onClick={onPaste}>📋 Colar dados</button>}
+        extra={<button className="sec" disabled={locked} title={locked ? 'Destrave a edição para colar dados' : ''} onClick={onPaste}>📋 Colar dados</button>}
       />
       <Pager page={cur} pages={pages} total={sorted.length} size={size} onPage={setPage} onSize={setSize} />
     </>

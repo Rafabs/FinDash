@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown } from './data.js'
+import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown, itemPaid } from './data.js'
 import { markPng } from './markImage.js'
 import { buildProjection, loadProjectionSettings } from './projection.js'
 import { nowYM } from './period.js'
@@ -378,10 +378,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
     const calcDesp = (r) => {
       const futuro = monthOf(r.DATA) > currentMonth
       const previsto = totalOf(r)
-      const pago = r.ITENS.reduce((sum, item) => {
-        const valor = Number(item.VALOR) || 0
-        return sum + (item.PARCELAMENTO ? Math.min(valor, Number(item.PARCELAMENTO.valorPago) || 0) : futuro ? 0 : valor)
-      }, 0)
+      const pago = r.ITENS.reduce((sum, item) => sum + itemPaid(item, monthOf(r.DATA), currentMonth), 0)
       return { futuro, previsto, pago, pendente: Math.max(0, previsto - pago) }
     }
     const calcs = data.despesas.map(calcDesp)
@@ -396,7 +393,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
         const itens = r.ITENS.map((item) => {
           const parcela = item.PARCELAMENTO
           const baixadaEm = parcela?.dataPagamento ? `; baixada em ${datePt(parcela.dataPagamento)}` : ''
-          const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : ''
+          const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : item.PAGAMENTO && Number(item.VALOR) >= 0 ? (item.PAGAMENTO.pago ? ` (paga${item.PAGAMENTO.data ? ` em ${datePt(item.PAGAMENTO.data)}` : ''})` : ' (a pagar)') : ''
           return `${item.NOME || '-'}${item.CATEGORIA ? ` (${item.CATEGORIA})` : ''}: ${money(item.VALOR)}${sufixo}`
         }).join(' · ')
         return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(pendente)]

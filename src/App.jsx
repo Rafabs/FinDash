@@ -266,7 +266,7 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.21</footer>
+      <footer className="app-version">v26.11.25</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {prefsOpen && <Personalizar prefs={prefs} onPreview={(p) => applyPrefs(p, false)} onSave={(p) => { setPrefs(p); setPrefsOpen(false) }} onClose={() => { applyPrefs(prefs, false); setPrefsOpen(false) }} />}
