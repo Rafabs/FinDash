@@ -287,16 +287,35 @@ function addCharts(doc, data, periodo, marks) {
   }
 }
 
-export async function exportPdf(data, resumo, periodo, indicadores = {}) {
+// PDF só de despesas (uma conta ou categoria): indicadores + 3 ou 4 gráficos
+function addDespesasCharts(doc, data, periodo, titulo, marks) {
+  const dsp = data.despesas || []
+  const itens = dsp.flatMap((r) => r.ITENS || [])
+  const porGrupo = aggregate(dsp.map((r) => ({ conta: r.TIPO_CONTA, total: totalOf(r) })), 'conta', 'total')
+  const charts = [
+    ['Despesas por mês', aggregate(dsp.map((r) => ({ mes: monthOf(r.DATA), total: totalOf(r) })), 'mes', 'total').sort((a, b) => a.name.localeCompare(b.name)).slice(-6).map((x) => ({ ...x, name: mesCurto(x.name) }))],
+    ['Por categoria do item', aggregate(itens.map((i) => ({ nome: String(i.CATEGORIA || '').trim() || 'Sem categoria', total: Number(i.VALOR) || 0 })), 'nome', 'total')],
+    ['Maiores despesas', aggregate(itens.map((i) => ({ nome: String(i.NOME || '').trim() || '(Sem descrição)', total: Number(i.VALOR) || 0 })), 'nome', 'total')],
+    ...(porGrupo.length > 1 ? [['Por grupo', porGrupo]] : []),
+  ]
+  doc.addPage()
+  sectionHeading(doc, 'Análise visual', titulo, `Período: ${periodo || 'Todo o período'}`)
+  const positions = [[14, 32], [155, 32], [14, 112], [155, 112]]
+  charts.forEach(([title, rows], i) => drawChart(doc, title, rows, ...positions[i], 128, 80, [255, 77, 106], title === 'Por grupo' ? marks : null))
+}
+
+// opcoes.somenteDespesas: relatório só das despesas recebidas (já filtradas), com opcoes.titulo no cabeçalho
+export async function exportPdf(data, resumo, periodo, indicadores = {}, opcoes = {}) {
+  const solo = !!opcoes.somenteDespesas
   const marks = await buildMarks(data)
   const doc = new jsPDF({ orientation: 'landscape' })
   const pageWidth = doc.internal.pageSize.getWidth()
   doc.setFillColor(35, 40, 62); doc.rect(0, 0, pageWidth, 62, 'F')
   doc.setFillColor(...PDF_COLORS.brand); doc.rect(0, 0, pageWidth, 3, 'F')
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(190, 194, 214)
-  doc.text('FYNN CONTROL   /   RELATÓRIO FINANCEIRO', 14, 17)
+  doc.text(solo ? 'FYNN CONTROL   /   RELATÓRIO DE DESPESAS' : 'FYNN CONTROL   /   RELATÓRIO FINANCEIRO', 14, 17)
   doc.setFontSize(24); doc.setTextColor(255, 255, 255)
-  doc.text('Visão geral da carteira', 14, 33)
+  doc.text(solo ? String(opcoes.titulo || 'Despesas').slice(0, 46) : 'Visão geral da carteira', 14, 33)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(210, 213, 226)
   doc.text(`Período: ${periodo || 'Todo o período'}`, 14, 42)
   doc.setFontSize(8); doc.setTextColor(190, 194, 214)
@@ -323,26 +342,29 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
       styles: { ...tableStyles.styles, fontSize: 8, cellPadding: 3 },
     })
   }
-  const cdi = indicadores.cdi
-  const selic = indicadores.selic
-  const cdiX = 174, cdiY = 93, cdiW = pageWidth - cdiX - 14
-  doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line)
-  doc.roundedRect(cdiX, cdiY, cdiW, 49, 3, 3, 'FD')
-  doc.setFillColor(...PDF_COLORS.brand); doc.roundedRect(cdiX + 6, cdiY + 7, 2, 6, 1, 1, 'F')
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_COLORS.ink)
-  doc.text('Taxas de referência', cdiX + 12, cdiY + 12)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...PDF_COLORS.muted)
-  doc.text('CDI anualizado', cdiX + 6, cdiY + 22)
-  doc.text('Meta Selic · Copom', cdiX + 60, cdiY + 22)
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...PDF_COLORS.brand)
-  doc.text(cdi ? `${cdi.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—', cdiX + 6, cdiY + 33)
-  doc.text(selic ? `${selic.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—', cdiX + 60, cdiY + 33)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted)
-  doc.text(cdi ? `${cdi.date} · BCB SGS 4389` : 'Sem cotação', cdiX + 6, cdiY + 41)
-  doc.text(selic ? `${selic.date} · BCB SGS 432` : 'Sem cotação', cdiX + 60, cdiY + 41)
-  doc.text('Taxas anuais; datas correspondem às últimas observações disponíveis.', cdiX + 6, cdiY + 46)
-  addCharts(doc, data, periodo, marks)
-  for (const k of ['carteira', 'extrato']) {
+  if (!solo) {
+    const cdi = indicadores.cdi
+    const selic = indicadores.selic
+    const cdiX = 174, cdiY = 93, cdiW = pageWidth - cdiX - 14
+    doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line)
+    doc.roundedRect(cdiX, cdiY, cdiW, 49, 3, 3, 'FD')
+    doc.setFillColor(...PDF_COLORS.brand); doc.roundedRect(cdiX + 6, cdiY + 7, 2, 6, 1, 1, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_COLORS.ink)
+    doc.text('Taxas de referência', cdiX + 12, cdiY + 12)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...PDF_COLORS.muted)
+    doc.text('CDI anualizado', cdiX + 6, cdiY + 22)
+    doc.text('Meta Selic · Copom', cdiX + 60, cdiY + 22)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...PDF_COLORS.brand)
+    doc.text(cdi ? `${cdi.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—', cdiX + 6, cdiY + 33)
+    doc.text(selic ? `${selic.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—', cdiX + 60, cdiY + 33)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted)
+    doc.text(cdi ? `${cdi.date} · BCB SGS 4389` : 'Sem cotação', cdiX + 6, cdiY + 41)
+    doc.text(selic ? `${selic.date} · BCB SGS 432` : 'Sem cotação', cdiX + 60, cdiY + 41)
+    doc.text('Taxas anuais; datas correspondem às últimas observações disponíveis.', cdiX + 6, cdiY + 46)
+  }
+  if (solo) addDespesasCharts(doc, data, periodo, opcoes.titulo || 'Despesas', marks)
+  else addCharts(doc, data, periodo, marks)
+  for (const k of solo ? [] : ['carteira', 'extrato']) {
     const cols = SHEETS[k].cols.map(([c]) => c)
     const labels = SHEETS[k].cols.map(([c, , l]) => l ?? c)
     doc.addPage()
@@ -504,7 +526,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
       })
     }
   }
-  if (data.resgates?.length) {
+  if (!solo && data.resgates?.length) {
     doc.addPage()
     sectionHeading(doc, 'Dados detalhados', 'Resgates', `${data.resgates.length.toLocaleString('pt-BR')} registros`)
     autoTable(doc, {
@@ -517,7 +539,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
       styles: { ...tableStyles.styles, fontSize: 7, cellPadding: 2.5 },
     })
   }
-  addProjection(doc, data.projectionData || data, loadProjectionSettings()) // projeção na última página, com o histórico completo
+  if (!solo) addProjection(doc, data.projectionData || data, loadProjectionSettings()) // projeção na última página, com o histórico completo
   const pageCount = doc.internal.getNumberOfPages()
   for (let page = 1; page <= pageCount; page++) {
     doc.setPage(page)
@@ -531,8 +553,9 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...PDF_COLORS.muted)
-    doc.text('Fynn Control  ·  Relatório financeiro', 14, pageHeight - 6)
+    doc.text(solo ? 'Fynn Control  ·  Relatório de despesas' : 'Fynn Control  ·  Relatório financeiro', 14, pageHeight - 6)
     doc.text(`${page} / ${pageCount}`, pageWidth - 14, pageHeight - 6, { align: 'right' })
   }
-  doc.save('fynn-control.pdf')
+  const slug = String(opcoes.titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+  doc.save(solo ? `fynn-despesas${slug ? `-${slug}` : ''}.pdf` : 'fynn-control.pdf')
 }

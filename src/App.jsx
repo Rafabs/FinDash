@@ -18,8 +18,11 @@ import ExtratoCategories from './ExtratoCategories.jsx'
 import PrevSaldos from './PrevSaldos.jsx'
 import DialogHost from './DialogHost.jsx'
 import { confirmDialog, alertDialog } from './dialog.js'
-import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV } from './data.js'
+import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV, itemPaid, mergeExpenseRows } from './data.js'
 import { exportPdf } from './pdf.js'
+import PdfModal from './PdfModal.jsx'
+import { EMPTY_META, loadMeta, saveMeta, fmtDT, canPick, pickHandle, readHandle, saveHandle, loadHandle, clearHandle } from './fileMeta.js'
+import { scopeRows, scopeSummary } from './pdfScope.js'
 import Personalizar from './Personalizar.jsx'
 import { loadPrefs, applyPrefs, TAB_LABEL } from './prefs.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
@@ -82,7 +85,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', h)
   }, [])
 
-  const doPdf = () => {
+  // dados do período para o PDF (despesas do mês atual para trás + futuras, como na tela)
+  const pdfData = () => {
     const range = rangeOf(period), label = labelOf(period)
     const currentMonth = nowYM()
     const includeFuture = !range.to || range.to.slice(0, 7) >= currentMonth
@@ -91,12 +95,24 @@ export default function App() {
     const allDesp = data.despesas || []
     const despP = allDesp.filter((r) => inRange(r.DATA, range) && r.DATA.slice(0, 7) <= currentMonth).sort((x, y) => y.DATA.localeCompare(x.DATA))
     const despFuturas = includeFuture ? allDesp.filter((r) => r.DATA.slice(0, 7) > currentMonth).sort((x, y) => y.DATA.localeCompare(x.DATA)) : []
-    const despesasPdf = [...despP, ...despFuturas]
     const resP = (data.resgates || []).filter((r) => inRange(r.DATA_RESGATE, range)).sort((x, y) => (y.DATA_RESGATE || '').localeCompare(x.DATA_RESGATE || ''))
+    return { label, currentMonth, extP, despP, despFuturas, despesasPdf: [...despP, ...despFuturas], resP }
+  }
+  // scope = null: relatório completo · { kind: 'grupo' | 'categoria', name }: só as despesas daquela conta/categoria
+  const doPdf = (scope = null) => {
+    const { label, currentMonth, extP, despP, despFuturas, despesasPdf, resP } = pdfData()
+    if (scope) {
+      const rows = scopeRows(despesasPdf, scope)
+      const sm = scopeSummary(rows, currentMonth)
+      exportPdf({ ...data, despesas: rows },
+        [['Total previsto', brl(sm.previsto)], ['Pago', brl(sm.pago), 'pos'], ['A pagar', brl(sm.pendente)], ['Lançamentos', String(sm.count)]],
+        label, {}, { somenteDespesas: true, titulo: scope.kind === 'categoria' ? `Categoria · ${scope.name}` : scope.name })
+      return
+    }
     const indicadoresResumo = resumo(data, extP, label, despP, resP).map(([l, v]) => [l, v])
     if (despFuturas.length) {
       const previsto = despFuturas.reduce((s, r) => s + r.ITENS.reduce((t, i) => t + (Number(i.VALOR) || 0), 0), 0)
-      const pago = despFuturas.reduce((s, r) => s + r.ITENS.reduce((t, i) => t + Math.min(Number(i.VALOR) || 0, Number(i.PARCELAMENTO?.valorPago) || 0), 0), 0)
+      const pago = despFuturas.reduce((s, r) => s + r.ITENS.reduce((t, i) => t + itemPaid(i, r.DATA.slice(0, 7), currentMonth), 0), 0)
       indicadoresResumo.push(['Despesas futuras · previsto', brl(previsto)])
       indicadoresResumo.push(['Despesas futuras · pago', brl(pago)])
       indicadoresResumo.push(['Despesas futuras · pendente', brl(Math.max(0, previsto - pago))])
@@ -110,6 +126,7 @@ export default function App() {
     return despesas === d.despesas ? d : { ...d, despesas }
   })
   const addDesp = (novas) => setData((d) => ({ ...d, despesas: [...d.despesas, ...novas] }))
+  const appendDesp = (novas) => setData((d) => ({ ...d, despesas: mergeExpenseRows(d.despesas, novas) })) // parcelas e lançamentos da conta entram na fatura do mês
   const addExpenseAccount = (account) => setData((d) => ({ ...d, contasDespesas: [...(d.contasDespesas || []), account] }))
   const updateExpenseAccount = (account) => setData((d) => {
     const current = d.contasDespesas || []
@@ -139,6 +156,19 @@ export default function App() {
   // preferências do usuário (tema, cor, papel de parede, densidade, abas): salvas no navegador e na aba "Preferências" do XLSX
   const [prefs, setPrefs] = useState(loadPrefs)
   const [prefsOpen, setPrefsOpen] = useState(false)
+  const [pdfOpen, setPdfOpen] = useState(false)
+  // arquivo carregado: nome, quando foi carregado e quando os dados foram editados pela última vez
+  const [fileMeta, setFileMeta] = useState(loadMeta)
+  const fileHandle = useRef(null) // arquivo aberto pelo seletor: permite recarregar direto do disco
+  const skipEdit = useRef(false) // a próxima mudança em `data` vem de carregar/limpar, não de uma edição
+  const prevData = useRef(data)
+  useEffect(() => { loadHandle().then((h) => { if (h && !fileHandle.current) fileHandle.current = h }) }, [])
+  useEffect(() => { // qualquer mudança nos dados (item, valor, nota…) atualiza a hora da última edição
+    if (prevData.current === data) return
+    prevData.current = data
+    if (skipEdit.current) { skipEdit.current = false; return }
+    setFileMeta((m) => { const n = { ...m, editedAt: Date.now() }; saveMeta(n); return n })
+  }, [data])
   const theme = prefs.theme
   useEffect(() => { applyPrefs(prefs) }, [prefs])
 
@@ -174,18 +204,42 @@ export default function App() {
   const visibleTabs = prefs.tabs.order.filter((id) => !prefs.tabs.hidden.includes(id))
   useEffect(() => { if (!empty && !visibleTabs.includes(tab)) setTab('dash') }, [visibleTabs.join(), empty])
   const COUNTS = { carteira: data.carteira.length, extrato: data.extrato.length, despesas: data.despesas.length, resgates: data.resgates.length }
-  const handleFile = async (f) => {
+  const handleFile = async (f, handle = null) => {
     if (!f) return
     try {
       const { prefs: imported, ...r } = await importFile(f)
       if (r.carteira) r.carteira = normalizeGroups(r.carteira)
       if (!r.carteira?.length && !r.extrato?.length && !r.despesas?.length && !r.resgates?.length && r.notas == null) return alertDialog({ title: 'Importação', icon: '📄', message: 'Nenhuma linha reconhecida.', detail: 'Confira se os cabeçalhos da planilha seguem o modelo.' })
+      skipEdit.current = true
       setData((d) => ({ ...d, ...r, categoriasExtrato: r.extrato ? [...new Set([...(d.categoriasExtrato || []), ...(r.extrato || []).map((x) => x.CATEGORIA).filter(Boolean)])] : d.categoriasExtrato }))
       if (imported) setPrefs(imported)
+      const meta = { name: f.name, loadedAt: Date.now(), editedAt: null, diskAt: f.lastModified || null }
+      setFileMeta(meta); saveMeta(meta)
+      fileHandle.current = handle
+      if (handle) saveHandle(handle); else clearHandle()
       setTab(r.notas?.trim() ? 'notas' : 'dash')
     } catch { alertDialog({ title: 'Importação', icon: '⚠️', message: 'Não foi possível ler o arquivo.', detail: 'Use uma planilha .xlsx, .xls ou .csv.' }) }
   }
   const onFile = (e) => { handleFile(e.target.files[0]); e.target.value = '' }
+  const resetFile = () => { fileHandle.current = null; clearHandle(); setFileMeta({ ...EMPTY_META }); saveMeta({ ...EMPTY_META }) }
+  // importar: com seletor do navegador guarda a "alça" do arquivo (para recarregar); sem ele, usa o campo de arquivo
+  const openFile = async () => {
+    if (!canPick()) return input.current.click()
+    try { const h = await pickHandle(); handleFile(await h.getFile(), h) } catch (e) { if (e?.name !== 'AbortError') input.current.click() }
+  }
+  // recarregar: lê de novo o arquivo do disco (descarta o que foi editado depois do carregamento)
+  const reloadFile = async () => {
+    if (fileMeta.editedAt && !(await confirmDialog({ title: 'Recarregar arquivo', message: 'Recarregar descarta as alterações feitas depois do último carregamento.', detail: `Última edição: ${fmtDT(fileMeta.editedAt)}. Exporte o XLSX antes se quiser guardá-las.`, confirmLabel: 'Recarregar', danger: true }))) return
+    try {
+      let h = fileHandle.current
+      if (!h && canPick()) h = await pickHandle() // primeira vez: escolhe o arquivo; depois é um clique só
+      if (!h) return input.current.click() // navegador sem acesso ao disco: escolha o arquivo de novo
+      await handleFile(await readHandle(h), h)
+    } catch (e) {
+      if (e?.name === 'AbortError') return
+      alertDialog({ title: 'Recarregar arquivo', icon: '⚠️', message: 'Não foi possível ler o arquivo.', detail: 'Ele pode ter sido movido ou renomeado, ou a permissão foi negada. Use ⬆ Importar para escolher de novo.' })
+    }
+  }
   // lápis da Carteira: abre a linha para editar todos os campos (menos os calculados)
   const toggleCartRow = (i) => {
     if (cartLocked) return alertDialog({ title: 'Edição travada', icon: '🔒', message: 'Destrave a edição para editar um item.', detail: 'Use o botão “🔓 Destravar” acima da tabela.' })
@@ -193,7 +247,7 @@ export default function App() {
   }
   const lockedCartRow = (r, k) => (r.__edit ? (isRV(r) ? k === 'TOTAL_ATUAL' : k === 'VLR_APLICACAO') : lockedCart(r, k))
   const cartCols = SHEETS.carteira.cols.map((c) => (c[0] === 'TIPO_INV' ? [c[0], 'select', c[2]] : c)) // Tipo vira lista (RF/RV) na edição
-  const clearAll = async () => { if (await confirmDialog({ title: 'Limpar todos os dados', message: 'Apagar todos os dados salvos neste navegador?', detail: 'Exporte o XLSX antes se quiser guardar uma cópia. Esta ação não pode ser desfeita.', confirmLabel: 'Apagar tudo', danger: true })) { setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
+  const clearAll = async () => { if (await confirmDialog({ title: 'Limpar todos os dados', message: 'Apagar todos os dados salvos neste navegador?', detail: 'Exporte o XLSX antes se quiser guardar uma cópia. Esta ação não pode ser desfeita.', confirmLabel: 'Apagar tudo', danger: true })) { skipEdit.current = true; resetFile(); setData({ carteira: [], extrato: [], categoriasExtrato: [], despesas: [], contasDespesas: [], resgates: [], notas: '', notasHtml: '' }); setTab('dash') } }
 
   const edit = (key) => (i, col, val) => setData((d) => {
     let rows = d[key].map((r, j) => (j !== i ? r : key === 'carteira' ? recalcCart({ ...r, [col]: val }) : { ...r, [col]: val }))
@@ -209,16 +263,26 @@ export default function App() {
     <>
       <header>
         <div className="brand"><span className="logo"><svg viewBox="0 0 64 64" width="22" height="22"><rect x="14" y="36" width="9" height="14" rx="3" fill="#fff" opacity=".65" /><rect x="27.5" y="26" width="9" height="24" rx="3" fill="#fff" opacity=".85" /><rect x="41" y="14" width="9" height="36" rx="3" fill="#fff" /></svg></span><div><h1>Fynn Control</h1><small>Carteira de investimentos</small></div></div>
+        {!empty && (fileMeta.name || fileMeta.editedAt) && (
+          <div className="filebar" title={`Arquivo: ${fileMeta.name || 'dados do navegador'}\nCarregado: ${fmtDT(fileMeta.loadedAt)}\nÚltima edição: ${fileMeta.editedAt ? fmtDT(fileMeta.editedAt) : 'nenhuma'}${fileMeta.diskAt ? `\nArquivo no disco modificado em: ${fmtDT(fileMeta.diskAt)}` : ''}`}>
+            <span className="file-name">📄 {fileMeta.name || 'Dados do navegador'}</span>
+            <span className="file-times">
+              {fileMeta.loadedAt && <small>Carregado {fmtDT(fileMeta.loadedAt)}</small>}
+              <small className={fileMeta.editedAt ? 'dirty' : ''}>{fileMeta.editedAt ? `Editado ${fmtDT(fileMeta.editedAt, fileMeta.loadedAt)}` : 'Sem edições'}</small>
+            </span>
+            {fileMeta.name && <button className="icon" title="Recarregar o arquivo do disco" aria-label="Recarregar arquivo" onClick={reloadFile}>🔄</button>}
+          </div>
+        )}
         <div className="actions">
           <input ref={input} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
-          <button onClick={() => input.current.click()}>⬆ Importar</button>
+          <button onClick={openFile}>⬆ Importar</button>
           {!empty && <>
           {hasFinancialData && <>
             <button className="sec" title="Buscar produto (Ctrl+K)" onClick={() => setSearchOpen(true)}>🔍 Buscar</button>
             <button className="sec" onClick={() => { const key = ['extrato', 'despesas', 'resgates'].includes(tab) ? tab : 'carteira'; exportCsv(key, key === 'carteira' ? carteiraView : data[key]) }}>CSV</button>
           </>}
           <button className="sec" onClick={() => exportXlsx({ ...data, carteira: carteiraView, prefs })}>XLSX</button>
-          {hasFinancialData && <button className="sec" onClick={doPdf}>PDF</button>}
+          {hasFinancialData && <button className="sec" onClick={() => setPdfOpen(true)}>PDF</button>}
           <button className="sec" title="Apagar todos os dados" onClick={clearAll}>Limpar</button>
           </>}
           <button className="icon" title="Guia rápido: como usar cada aba" aria-label="Guia rápido" onClick={() => setTour(true)}>❓</button>
@@ -226,7 +290,7 @@ export default function App() {
           <button className="icon" title="Alternar tema" onClick={() => setPrefs({ ...prefs, theme: theme === 'dark' ? 'light' : 'dark' })}>{theme === 'dark' ? '☀️' : '🌙'}</button>
         </div>
       </header>
-      {empty && tab !== 'notas' ? <Landing onPick={() => input.current.click()} onFile={handleFile} onDemo={() => setData(demoData())} onNotes={() => setTab('notas')} /> : (<>
+      {empty && tab !== 'notas' ? <Landing onPick={openFile} onFile={handleFile} onDemo={() => { skipEdit.current = true; resetFile(); setData(demoData()) }} onNotes={() => setTab('notas')} /> : (<>
       <nav className="tabs">
         {visibleTabs.map((k) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{TAB_LABEL[k]}</span><span className="tl tl-short">{TAB_SHORT[k] || TAB_LABEL[k]}</span>{COUNTS[k] != null && <em>{COUNTS[k]}</em>}</button>
@@ -252,7 +316,7 @@ export default function App() {
           <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} onManageCategories={() => setCatManager(true)} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         </>)}
         {tab === 'despesas' && (
-          <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} />
+          <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} onAppendRows={appendDesp} />
         )}
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />
@@ -266,9 +330,10 @@ export default function App() {
           </section>
         )}
       </main></>)}
-      <footer className="app-version">v26.11.25</footer>
+      <footer className="app-version">v26.11.28</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
+      {pdfOpen && <PdfModal despesas={pdfData().despesasPdf} periodLabel={labelOf(period)} onClose={() => setPdfOpen(false)} onExport={(scope) => { setPdfOpen(false); doPdf(scope) }} />}
       {prefsOpen && <Personalizar prefs={prefs} onPreview={(p) => applyPrefs(p, false)} onSave={(p) => { setPrefs(p); setPrefsOpen(false) }} onClose={() => { applyPrefs(prefs, false); setPrefsOpen(false) }} />}
       {prevOpen && <PrevSaldos rows={data.carteira} onApply={applyPrevSaldos} onClose={() => setPrevOpen(false)} />}
       {catManager && <ExtratoCategories rows={data.extrato} categories={data.categoriasExtrato || []} onRename={renameExtratoCategory} onDelete={deleteExtratoCategory} onClose={() => setCatManager(false)} />}

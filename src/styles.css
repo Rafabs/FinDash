@@ -721,3 +721,24 @@ html[data-density=compact] main{font-size:13px}
 /* Soma da seleção (Extrato) */
 .sel-sum{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;padding:5px 10px;border:1px solid color-mix(in srgb,var(--ac) 45%,var(--bd));border-radius:8px;background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .sel-sum b{font-variant-numeric:tabular-nums}
+
+/* Exportar PDF (completo ou só uma conta/categoria) */
+.pdf-modal{width:min(520px,100%)}
+.pdf-period{margin:2px 0 12px;font-size:12px}
+.pdf-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;cursor:pointer}
+.pdf-opt input{margin-top:3px;accent-color:var(--ac)}
+.pdf-opt span{display:grid;gap:2px}
+.pdf-opt small{color:var(--mut);font-size:12px}
+.pdf-opt:has(input:checked){border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,transparent)}
+.pdf-opt.off{opacity:.55;cursor:not-allowed}
+.pdf-modal select{width:100%;margin:4px 0 10px}
+.pdf-sum{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--ac) 8%,transparent);margin-bottom:6px}
+
+/* Arquivo carregado: nome, carregado/editado e recarregar */
+.filebar{display:flex;align-items:center;gap:10px;min-width:0;padding:5px 6px 5px 12px;border:1px solid var(--bd);border-radius:10px;background:color-mix(in srgb,var(--card) 70%,transparent);font-size:12px}
+.file-name{font-weight:700;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-times{display:grid;line-height:1.25}
+.file-times small{color:var(--mut);font-size:11px;white-space:nowrap}
+.file-times small.dirty{color:var(--ac);font-weight:700}
+.filebar .icon{width:28px;height:28px;padding:0}
+@media(max-width:700px){.filebar{width:100%;justify-content:space-between}.file-name{max-width:42vw}}

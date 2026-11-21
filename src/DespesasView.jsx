@@ -73,7 +73,7 @@ function InstallmentModal({ accounts, initialYM, initialAccount = 'CARTÃO DE CR
     onSave(rows)
   }
   return <div className="overlay" onClick={onClose}><div className="modal installment-modal" onClick={(e) => e.stopPropagation()}>
-    <h3>＋ Nova despesa parcelada</h3><p className="muted">O valor total será dividido entre os meses (faturas do cartão, parcelas de financiamento, mensalidades, seguros…) na conta que você escolher. Use valor negativo para um abatimento parcelado (estorno, desconto).</p>
+    <h3>＋ Nova despesa parcelada</h3><p className="muted">O valor total será dividido entre os meses (faturas do cartão, parcelas de financiamento, mensalidades, seguros…) na conta que você escolher. Use valor negativo para um abatimento parcelado (estorno, desconto). Cada parcela entra na <b>fatura já existente</b> da conta naquele mês; se o mês ainda não tem fatura, ela é criada.</p>
     <div className="account-name-field">
       <label>Descrição da compra</label><input className="cell" autoFocus placeholder="Ex.: Notebook, Seguro do carro, IPTU" value={description} onChange={(e) => { const v = e.target.value; setDescription(v); if (!category && catByName?.get(v.trim().toLowerCase())) setCategory(catByName.get(v.trim().toLowerCase())) }} />
       <label>Categoria (opcional)</label><input className="cell" list="dl-categorias" placeholder="Ex.: Compras Online" value={category} onChange={(e) => setCategory(e.target.value)} />
@@ -148,7 +148,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
   )
 }
 
-export default function DespesasView({ rows, accounts = [], onAddAccount, onUpdateAccount, period, setPeriod, onUpdate, onDelete, onMoveItem, onSaveMonth, onAddRows }) {
+export default function DespesasView({ rows, accounts = [], onAddAccount, onUpdateAccount, period, setPeriod, onUpdate, onDelete, onMoveItem, onSaveMonth, onAddRows, onAppendRows }) {
   const [cats, setCats] = useState([])
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
@@ -401,7 +401,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const addToAccount = () => {
     const value = Number(String(quickValue).replace(',', '.'))
     if (!quickItem.trim() || !Number.isFinite(value) || !quickMonth) return
-    onAddRows([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...(value >= 0 ? { PAGAMENTO: { pago: false } } : {}), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
+    ;(onAppendRows || onAddRows)([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...(value >= 0 ? { PAGAMENTO: { pago: false } } : {}), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
     setQuickItem(''); setQuickValue(''); setQuickCat('')
   }
   const patchItem = (rowIndex, itemIndex, patch) => {
@@ -454,7 +454,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
         </tbody></table></div>
       </section>
-      {installmentModal && <InstallmentModal accounts={accountCards} catByName={catByName} initialYM={nextYM} initialAccount={currentAccount?.name} onClose={() => setInstallmentModal(false)} onSave={(novas) => { onAddRows(novas); setInstallmentModal(false) }} />}
+      {installmentModal && <InstallmentModal accounts={accountCards} catByName={catByName} initialYM={nextYM} initialAccount={currentAccount?.name} onClose={() => setInstallmentModal(false)} onSave={(novas) => { (onAppendRows || onAddRows)(novas); setInstallmentModal(false) }} />}
       {categoryDatalist}
       {iconPicker}
     </section>

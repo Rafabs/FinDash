@@ -196,6 +196,20 @@ export function expenseBreakdown(rows, parentsArg) {
     }))
     .sort((a, b) => b.total - a.total)
 }
+// Junta linhas novas na fatura que já existe (mesma conta e mesmo mês): as parcelas e os lançamentos entram como
+// itens da linha existente. Se o mês ainda não tem fatura dessa conta, a linha nova é criada.
+export function mergeExpenseRows(rows, novas) {
+  const key = (r) => `${String(r.TIPO_CONTA || '').trim().toLocaleLowerCase()}|${monthOf(r.DATA)}`
+  const out = [...(rows || [])]
+  ;(novas || []).forEach((n) => {
+    const i = out.findIndex((r) => key(r) === key(n))
+    if (i < 0) { out.push(n); return }
+    const itens = [...(out[i].ITENS || []), ...(n.ITENS || [])]
+    out[i] = { ...out[i], ITENS: itens, ...(out[i].VALOR != null ? { VALOR: totalOf({ ITENS: itens }) } : {}) }
+  })
+  return out
+}
+
 export function moveExpenseItem(rows, fromRow, itemIndex, toRow) {
   const source = rows[fromRow], target = rows[toRow]
   if (fromRow === toRow || !source || !target || monthOf(source.DATA) !== monthOf(target.DATA)) return rows

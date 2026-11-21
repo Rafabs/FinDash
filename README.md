@@ -11,7 +11,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
  
 **Geral**
 - Importação de `.xlsx` (dados e notas) ou `.csv` (uma tabela por arquivo, reconhecida pelo cabeçalho)
-- Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas, todas com linha de **totais** no fim)
+- Exportação em **CSV**, **XLSX** e **PDF** (com resumo, **gráficos** e tabelas, todas com linha de **totais** no fim). O PDF pode ser o relatório completo ou **somente de uma conta ou categoria de despesas** (ex.: *Cartão de crédito*, *Internet*); veja [Exportar PDF de uma conta ou categoria](#-exportar-pdf-de-uma-conta-ou-categoria)
 - **Busca de produtos** (🔍 no topo, `Ctrl+K` ou `/`; a barra só abre a busca fora de campos de texto, então pode ser digitada normalmente nas Notas): veja detalhes de qualquer papel ou produto (veja [Busca de produtos](#-busca-de-produtos))
 - **Seleção múltipla**: marque várias linhas com o checkbox e exclua de uma vez (no Extrato, o cabeçalho também mostra a **soma** dos itens selecionados)
 - Tabelas com **ordenação por cabeçalho** (clique: crescente → decrescente → original; vale para o conjunto filtrado, não só para a página)
@@ -24,6 +24,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Landing page com explicação, modelos para download e dados de exemplo
 - **Guia rápido** no primeiro acesso, explicando cada aba para quem está começando; o botão **❓** do topo abre o guia de novo (veja [Guia rápido e limpeza de dados](#-guia-rápido-e-limpeza-de-dados))
 - Dados salvos automaticamente no navegador
+- **Arquivo carregado na barra superior**: mostra o nome do `.xlsx`, a **data e hora do carregamento** e a **hora da última edição** (qualquer item, valor, nota ou lançamento alterado), com o botão **🔄 Recarregar** (veja [Arquivo carregado e recarregar](#-arquivo-carregado-e-recarregar))
 - **Notas pessoais formatadas**: fonte, tamanho, negrito, itálico, sublinhado e cores; salvas automaticamente e preservadas no XLSX
 **Carteira**
 - Itens de renda fixa (RF) e variável (RV) com cálculos automáticos
@@ -64,7 +65,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Mover despesas**: arraste uma despesa para **qualquer outro grupo do mesmo mês**. O grupo de origem pode ficar vazio (ele continua na lista, pronto para receber novas despesas) e o destino pode ter o mesmo nome do grupo de origem
 - **Grupo dentro de grupo**: no lápis ✏️ da linha, use **"Dentro do grupo…"** (ex.: *Condomínio* dentro de *Aluguel*). O vínculo vale para o grupo inteiro e para os meses seguintes; no resumo, os totais do filho sobem para o grupo principal sem contar duas vezes. O app recusa vínculos circulares (veja [Grupos dentro de grupos](#-grupos-dentro-de-grupos))
 - **Valores negativos (abatimentos)**: estornos e descontos entram com valor negativo e **abatem do total da fatura**. Digite `-` antes do valor ou use o botão **±** ao lado do campo (útil no celular)
-- **Despesas parceladas em qualquer conta**: na página de cada conta (cartão, financiamento, mensalidades, seguros, IPTU…), divida o total em parcelas mensais, com **categoria** opcional (inclusive valor negativo, para abatimentos parcelados), e acompanhe o valor pago em cada parcela. As parcelas entram na Projeção, no Dashboard e no PDF
+- **Despesas parceladas em qualquer conta**: na página de cada conta (cartão, financiamento, mensalidades, seguros, IPTU…), divida o total em parcelas mensais, com **categoria** opcional (inclusive valor negativo, para abatimentos parcelados), e acompanhe o valor pago em cada parcela. As parcelas entram na Projeção, no Dashboard e no PDF. **Cada parcela entra na fatura já existente** da mesma conta e mês (ex.: duas compras parceladas no cartão aparecem juntas na fatura de cada mês); se o mês ainda não tem fatura da conta, ela é criada. O **＋ Novo lançamento** da conta segue a mesma regra
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Indicadores do filtro**: acima da lista, cartões no estilo do Dashboard mostram **valor total, valor pago, a pagar, valor futuro, parcelas em aberto e média por lançamento** do que está filtrado (período, grupos marcados e busca). Ao usar a lupa, também aparecem o total de todo o histórico e os totais por item. A busca encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
@@ -416,6 +417,48 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 
 ---
 
+## 🔄 Arquivo carregado e recarregar
+
+Ao importar uma planilha, a barra superior mostra um cartão com:
+
+- **Nome do arquivo** (ex.: `fynn-control.xlsx`)
+- **Carregado:** data e hora em que o arquivo foi lido pelo app
+- **Editado:** hora da **última alteração** feita depois do carregamento: qualquer item, valor, nota, lançamento, exclusão ou categoria. Sem alterações, aparece *Sem edições* (a data só é repetida se a edição for em outro dia)
+- Passe o mouse para ver as datas completas e quando o arquivo foi modificado no disco
+
+**🔄 Recarregar** lê o arquivo de novo e substitui os dados pelos do arquivo, útil quando você o alterou fora do app (Excel, outro dispositivo sincronizado).
+
+- Se houve edições depois do carregamento, o app **pede confirmação**, porque elas serão descartadas. Exporte o XLSX antes se quiser guardá-las
+- **Chrome, Edge e Opera:** ao importar, o app guarda a referência do arquivo (sem copiá-lo). Recarregar é **um clique**; depois de fechar e abrir o navegador, ele pede a permissão de leitura de novo
+- **Outros navegadores (Firefox, Safari):** não há acesso ao disco, então **Recarregar** abre a escolha de arquivo para você selecionar o mesmo `.xlsx`
+- Arquivos arrastados para a tela inicial não guardam a referência: na primeira vez, **Recarregar** pede para escolher o arquivo
+- Os dados do cartão ficam no navegador (`fynn-file-v1`) e são apagados em **Limpar**. **Dados de exemplo** não contam como arquivo
+
+---
+
+## 📄 Exportar PDF de uma conta ou categoria
+
+O botão **PDF** do topo abre a janela **Exportar PDF**, com duas opções:
+
+- **Relatório completo:** carteira, extrato, despesas, resgates, gráficos e projeção (como antes)
+- **Somente uma conta ou categoria de despesas:** escolha na lista uma **conta / grupo** (ex.: *Cartão de crédito*, *Internet*, *Aluguel*) ou uma **categoria dos itens** (ex.: *Compras Online*). A janela mostra na hora o número de lançamentos, o previsto, o pago e o a pagar do que será exportado
+
+O PDF de uma conta ou categoria traz:
+
+- Cabeçalho com o nome escolhido e quatro indicadores: **total previsto**, **pago**, **a pagar** e **lançamentos**
+- Uma página de gráficos: despesas por mês, por categoria do item e maiores despesas (e por grupo, quando há mais de um)
+- A lista de despesas com **Previsto, Pago e Pendente** e linha de totais, a composição por grupo e o subtotal por categoria
+- Nada de carteira, extrato, resgates ou projeção. O arquivo sai como `fynn-despesas-<nome>.pdf`
+
+Regras:
+
+- O **período** do topo vale também aqui (meses futuros entram quando o período inclui o mês atual)
+- Escolher uma conta que tem **grupos dentro** (ex.: *Condomínio* dentro de *Aluguel*) inclui os grupos de dentro; escolher o grupo de dentro exporta só ele
+- Na categoria dos itens, só entram os itens daquela categoria, em qualquer conta
+- O **pago** segue a [baixa de despesas](#-baixa-de-despesas)
+
+---
+
 ## 🧭 Guia rápido e limpeza de dados
  
 **Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
@@ -423,7 +466,7 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 - Ao fechar, o app grava `fynn-tour-v1` no `localStorage` e não mostra o guia sozinho de novo
 - O botão **❓** do topo reabre o guia quando quiser
 - Para testar sem apagar nada, acrescente `?tour=1` ao endereço (ex.: `https://usuario.github.io/FinDash/?tour=1`)
-**O que o navegador guarda** (`localStorage` do site): `fynn-control-v1` (seus dados), `fynn-theme` (tema), `fynn-prefs-v1` (personalização do layout), `fynn-tour-v1` (guia visto) e o cache do CDI e da Selic.
+**O que o navegador guarda** (`localStorage` do site): `fynn-control-v1` (seus dados), `fynn-theme` (tema), `fynn-prefs-v1` (personalização do layout), `fynn-file-v1` (nome e horários do arquivo carregado), `fynn-tour-v1` (guia visto) e o cache do CDI e da Selic.
  
 **Como limpar**
 - **Só os dados do app:** botão **Limpar** do topo (pede confirmação)
@@ -446,7 +489,7 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 ├── package.json
 └── src/
     ├── main.jsx                   # ponto de entrada
-    ├── App.jsx                    # estado, abas, importação/exportação, preferências
+    ├── App.jsx                    # estado, abas, importação/exportação, arquivo carregado, preferências
     ├── prefs.js                   # preferências de layout: carregar, aplicar, fundos prontos e leitura/escrita na aba Preferências
     ├── Personalizar.jsx           # janela 🎨 Personalizar (tema, cor, densidade, papel de parede e abas)
     ├── data.js                    # colunas, regras de cálculo, categorias, import/export, modelos, dados de exemplo
@@ -454,7 +497,10 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
     ├── paste.js                   # leitura de dados colados no Extrato (datas, valores, colunas)
     ├── pasteDesp.js               # interpretador de texto colado de despesas
     ├── products.js                # cruza carteira, proventos e resgates por produto
-    ├── pdf.js                     # relatório em PDF (resumo, gráficos e tabelas)
+    ├── pdf.js                     # relatório em PDF (resumo, gráficos e tabelas; completo ou só de uma conta/categoria)
+    ├── PdfModal.jsx               # janela Exportar PDF (relatório completo ou uma conta/categoria de despesas)
+    ├── fileMeta.js                # arquivo carregado: nome, horários de carga/edição e recarga do disco
+    ├── pdfScope.js                # filtra as despesas por conta (com os grupos de dentro) ou por categoria para o PDF
     ├── useMedia.js                # detecta tela de celular
     ├── Landing.jsx                # tela inicial (sem dados)
     ├── Dashboard.jsx              # indicadores e gráficos
@@ -496,7 +542,7 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
 - A **personalização do layout** também vai no XLSX (aba `Preferências`) e é restaurada ao importar.
 - **CSV** exporta a aba atual. **XLSX** exporta as abas de dados, `Notas` e `Preferências` (com a baixa das despesas) no mesmo formato de entrada, então pode ser reimportado.
-- **PDF** traz o resumo, os gráficos e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
+- **PDF** pode ser completo ou só de uma conta/categoria de despesas (janela ao clicar em **PDF**). O completo traz o resumo, os gráficos e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 ---
  
 ## ⚠️ Observações
@@ -507,6 +553,9 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 ---
  
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.28` Despesas: parcelas e lançamentos da conta entram na fatura já existente do mesmo mês (ex.: várias compras parceladas na mesma fatura do cartão)
+- [X] `v26.11.27` Barra superior com o nome do arquivo (.xlsx), data e hora do carregamento, hora da última edição e botão de recarregar
+- [X] `v26.11.26` Exportar PDF somente de uma conta ou categoria de despesas (ex.: Cartão de crédito, Internet)
 - [X] `v26.11.25` Extrato: botão de travar a edição e soma dos itens selecionados
 - [X] `v26.11.24` Despesas: botão de dar baixa (hoje ou outra data); lançamentos novos nascem "a pagar"
 - [X] `v26.11.23` Preferências de layout salvas no .xlsx (aba Preferências) e restauradas ao importar
