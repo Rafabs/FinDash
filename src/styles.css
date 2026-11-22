@@ -742,3 +742,43 @@ html[data-density=compact] main{font-size:13px}
 .file-times small.dirty{color:var(--ac);font-weight:700}
 .filebar .icon{width:28px;height:28px;padding:0}
 @media(max-width:700px){.filebar{width:100%;justify-content:space-between}.file-name{max-width:42vw}}
+
+/* Situação das despesas: PAGA · VENCIDA · VENCE ESSE MÊS · A VENCER */
+.st-paga{--stc:var(--pos)}.st-vencida{--stc:var(--neg)}.st-vence{--stc:#d97706}.st-avencer{--stc:#3b82f6}
+[data-theme=dark] .st-vence{--stc:#fbbf24}[data-theme=dark] .st-avencer{--stc:#60a5fa}
+.st-paga,.st-vencida,.st-vence,.st-avencer,.chip-btn.st-paga,.chip-btn.st-vencida,.chip-btn.st-vence,.chip-btn.st-avencer{color:var(--stc);background:color-mix(in srgb,var(--stc) 14%,transparent);border-color:color-mix(in srgb,var(--stc) 38%,transparent)}
+.st{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid transparent;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.04em;white-space:nowrap;vertical-align:middle}
+.chip-btn.st-btn{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.chip-btn.st-btn small{font-weight:600;opacity:.85}
+.chip-btn.st-btn.on{box-shadow:0 0 0 2px var(--stc) inset}
+.row-status{margin-top:4px;text-align:right}.row-status .st{margin-left:0}
+.account-history-month + .row-status,.expense-history-month + .row-status{text-align:left;margin-top:4px}
+
+/* Menu lateral (sidebar): no celular continua sendo a barra inferior */
+.brand{cursor:pointer;border-radius:10px;padding:2px 8px 2px 2px;margin-left:-2px;transition:background .15s}
+.brand:hover{background:var(--hover)}
+.brand:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.side-toggle{display:none!important}
+@media(min-width:701px){
+.shell{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start}
+.shell>nav.tabs{position:sticky;top:var(--hdr-h,64px);z-index:4;flex-direction:column;flex-wrap:nowrap;gap:4px;width:232px;max-width:none;height:calc(100vh - var(--hdr-h,64px));margin:0;padding:14px 10px;overflow-x:hidden;overflow-y:auto;border:0;border-right:1px solid var(--bd);border-radius:0;box-shadow:none;background:color-mix(in srgb,var(--card) 80%,transparent);backdrop-filter:blur(10px)}
+.shell>nav.tabs>button{width:100%;justify-content:flex-start;padding:10px 12px;text-align:left}
+.shell>nav.tabs>button em{margin-left:auto}
+.shell>nav.tabs>.side-toggle{display:flex!important;flex:none;margin-top:auto;justify-content:center;width:100%;background:transparent;border:1px solid var(--bd);color:var(--mut);box-shadow:none;text-transform:none;font-size:15px}
+.shell>nav.tabs>.side-toggle:hover{background:var(--hover);color:var(--tx)}
+.shell>main{min-width:0;padding-top:18px}
+.shell.side-mini>nav.tabs{width:68px;padding:14px 8px}
+.shell.side-mini>nav.tabs>button{justify-content:center;padding:10px 0;position:relative}
+.shell.side-mini>nav.tabs>button .tl{display:none}
+.shell.side-mini>nav.tabs>button .ti{font-size:19px}
+.shell.side-mini>nav.tabs>button em{position:absolute;top:2px;right:3px;margin:0;font-size:9px;padding:0 5px}
+}
+/* telas médias: o menu já abre recolhido (só ícones) */
+@media(min-width:701px) and (max-width:1000px){
+.shell>nav.tabs{width:68px;padding:14px 8px}
+.shell>nav.tabs>button{justify-content:center;padding:10px 0;position:relative}
+.shell>nav.tabs>button .tl{display:none}
+.shell>nav.tabs>button .ti{font-size:19px}
+.shell>nav.tabs>button em{position:absolute;top:2px;right:3px;margin:0;font-size:9px;padding:0 5px}
+.shell>nav.tabs>.side-toggle{display:none!important}
+}

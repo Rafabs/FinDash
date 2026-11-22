@@ -1,9 +1,10 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown, itemPaid } from './data.js'
+import { SHEETS, totalOf, RES, RK, tickerOf, monthOf, expenseBreakdown, itemPaid, dueStatus } from './data.js'
 import { markPng } from './markImage.js'
 import { buildProjection, loadProjectionSettings } from './projection.js'
 import { nowYM } from './period.js'
+import { VERSION } from './version.js'
 
 const money = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const PDF_COLORS = {
@@ -415,7 +416,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}, opcoes 
         const itens = r.ITENS.map((item) => {
           const parcela = item.PARCELAMENTO
           const baixadaEm = parcela?.dataPagamento ? `; baixada em ${datePt(parcela.dataPagamento)}` : ''
-          const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : item.PAGAMENTO && Number(item.VALOR) >= 0 ? (item.PAGAMENTO.pago ? ` (paga${item.PAGAMENTO.data ? ` em ${datePt(item.PAGAMENTO.data)}` : ''})` : ' (a pagar)') : ''
+          const sufixo = parcela ? ` (${parcela.numero}/${parcela.quantidade}; pago ${money(parcela.valorPago)}${baixadaEm})` : item.PAGAMENTO && Number(item.VALOR) >= 0 ? (item.PAGAMENTO.pago ? ` (paga${item.PAGAMENTO.data ? ` em ${datePt(item.PAGAMENTO.data)}` : ''})` : ` (${{ vencida: 'vencida', vence: 'vence este mês', avencer: 'a vencer' }[dueStatus(item, monthOf(r.DATA), currentMonth)] || 'a pagar'})`) : ''
           return `${item.NOME || '-'}${item.CATEGORIA ? ` (${item.CATEGORIA})` : ''}: ${money(item.VALOR)}${sufixo}`
         }).join(' · ')
         return [`${datePt(r.DATA).slice(3)}${futuro ? ' · prevista' : ''}`, r.TIPO_CONTA, itens, money(previsto), money(pago), money(pendente)]
@@ -553,7 +554,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}, opcoes 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...PDF_COLORS.muted)
-    doc.text(solo ? 'Fynn Control  ·  Relatório de despesas' : 'Fynn Control  ·  Relatório financeiro', 14, pageHeight - 6)
+    doc.text(solo ? `Fynn Control v${VERSION}  ·  Relatório de despesas` : `Fynn Control v${VERSION}  ·  Relatório financeiro`, 14, pageHeight - 6)
     doc.text(`${page} / ${pageCount}`, pageWidth - 14, pageHeight - 6, { align: 'right' })
   }
   const slug = String(opcoes.titulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)

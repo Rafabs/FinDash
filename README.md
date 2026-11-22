@@ -19,9 +19,10 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - **🎨 Personalização do layout** (botão 🎨 do topo): tema, cor de destaque, densidade, **papel de parede** (cor, gradiente, imagem sua ou **fundos prontos** como grade, pontos, linhas e xadrez) e **quais abas aparecem e em que ordem**. Fica salvo no XLSX e volta do jeito que você deixou ao importar (veja [Personalização](#-personalização))
+- **Menu lateral (sidebar)**: as seções (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas) ficam num menu à esquerda, com a contagem de itens. Clique em **FYNN CONTROL** ou na **logo** para voltar ao Dashboard. O botão **«** recolhe o menu para só ícones (**»** expande) e a escolha fica salva; em telas médias ele já abre recolhido. Pelo 🎨 **Personalizar** você escolhe quais seções aparecem e a ordem
 - **Versão para celular**: as abas viram uma barra inferior que **rola para o lado** (com nomes curtos e a aba ativa sempre à vista), tabelas viram cartões e janelas sobem de baixo da tela
 - Abas: **Dashboard**, **Projeção**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
-- Landing page com explicação, modelos para download e dados de exemplo
+- Landing page com explicação, modelos para download e **dados de exemplo completos** (veja [Dados de exemplo](#-dados-de-exemplo))
 - **Guia rápido** no primeiro acesso, explicando cada aba para quem está começando; o botão **❓** do topo abre o guia de novo (veja [Guia rápido e limpeza de dados](#-guia-rápido-e-limpeza-de-dados))
 - Dados salvos automaticamente no navegador
 - **Arquivo carregado na barra superior**: mostra o nome do `.xlsx`, a **data e hora do carregamento** e a **hora da última edição** (qualquer item, valor, nota ou lançamento alterado), com o botão **🔄 Recarregar** (veja [Arquivo carregado e recarregar](#-arquivo-carregado-e-recarregar))
@@ -69,6 +70,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Indicadores do filtro**: acima da lista, cartões no estilo do Dashboard mostram **valor total, valor pago, a pagar, valor futuro, parcelas em aberto e média por lançamento** do que está filtrado (período, grupos marcados e busca). Ao usar a lupa, também aparecem o total de todo o histórico e os totais por item. A busca encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
+- **Situação colorida em cada despesa e fatura**: **PAGA** (verde), **VENCIDA** (vermelho), **VENCE ESSE MÊS** (âmbar) e **A VENCER** (azul), com filtro por situação acima da lista (veja [Baixa de despesas](#-baixa-de-despesas))
 - **Baixa de despesas**: lançamentos novos nascem **a pagar** e só contam como **pagos** depois da baixa. Use **✓ Dar baixa hoje** ou **📅 Outra data** (no histórico da conta e no lápis ✏️ do grupo) e **↩ Desfazer baixa** se errar (veja [Baixa de despesas](#-baixa-de-despesas))
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
 - Assistente **📅 Lançar mês**: sugere as contas recorrentes dos últimos 3 meses, mostra o valor anterior como referência e permite copiar os últimos valores
@@ -116,6 +118,7 @@ Abra o endereço exibido no terminal (normalmente `http://localhost:5173`).
 | `npm run dev` | Servidor de desenvolvimento com atualização automática |
 | `npm run build` | Gera a versão final na pasta `dist/` |
 | `npm run preview` | Serve a pasta `dist/` localmente para testar como ficará publicado |
+| `npm run versao -- "texto"` | Lança uma nova versão: atualiza `src/version.js` e o histórico deste README (veja a seção **Versionamento**) |
  
 > 💡 Se o projeto estiver numa pasta sincronizada pelo OneDrive, mova-o para outro lugar (ex.: `C:\dev\`). A pasta `node_modules` tem milhares de arquivos e deixa a sincronização lenta.
  
@@ -193,7 +196,7 @@ Guarda o ícone e o logo de cada conta da aba Despesas.
  
 ### Aba `Despesas por categoria` (opcional)
  
-Relatório legível, criado na exportação quando existe alguma categoria ou baixa: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA`, `VALOR`, `STATUS` (`Paga`, `Pendente` ou `Abatimento`) e `DATA_PAGAMENTO`. Serve para consulta, filtros e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
+Relatório legível, criado na exportação quando existe alguma categoria ou baixa: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA`, `VALOR`, `STATUS` (`Paga`, `Vencida`, `Vence este mês`, `A vencer` ou `Abatimento`) e `DATA_PAGAMENTO`. Serve para consulta, filtros e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
  
 ### Aba `Preferências` (opcional)
 
@@ -407,11 +410,13 @@ Cada despesa tem uma situação de pagamento, para separar o que foi **lançado*
 
 - **Itens novos nascem "a pagar":** lançamento rápido da conta, **+ item** no lápis ✏️ e itens novos do **📅 Lançar mês**. Valores negativos (abatimentos) não têm baixa
 - **✓ Dar baixa hoje** registra o pagamento na data atual; **📅 Outra data** abre uma janela para escolher o dia (inclusive antecipado). **↩ Desfazer baixa** volta o item para "a pagar"
+- **Situação colorida:** cada despesa e cada fatura (linha) mostra um selo. **PAGA** = baixada; **VENCIDA** = sem baixa em mês anterior; **VENCE ESSE MÊS** = sem baixa no mês atual; **A VENCER** = sem baixa em mês futuro. A fatura mostra a situação mais urgente entre os itens e só fica **PAGA** quando tudo foi pago. Abatimentos (valor negativo) não têm selo. O vencimento é por **mês**, já que a aba Despesas é mensal
+- **Filtro por situação:** acima da lista, os botões **PAGA / VENCIDA / VENCE ESSE MÊS / A VENCER** mostram a quantidade e o valor de cada uma (pagas: valor total; as demais: valor ainda em aberto). Clique para ver só aquela situação; os indicadores (valor total, pago, a pagar…) acompanham o filtro
 - Os botões ficam no **histórico da conta** (com a edição liberada) e no lápis ✏️ do grupo. Na lista, o item mostra **✓ paga** ou **⏳ a pagar**
 - **Parcelas** usam os mesmos botões: **Quitar restante hoje** quando há pagamento parcial e data livre, como nos demais itens
 - **Despesas antigas** (sem baixa registrada) continuam como antes: contam como pagas quando o mês já chegou, e como a pagar nos meses futuros. Para corrigir uma delas, use **↩ Desfazer baixa**
 - Itens vindos de **📋 Colar despesas** também seguem essa regra antiga
-- Os cartões **Valor pago** e **A pagar**, o **Valor futuro** e o **PDF** (colunas *Pago* e *Pendente*, com "paga em" ou "a pagar" no item) usam a baixa
+- Os cartões **Valor pago** e **A pagar**, o **Valor futuro** e o **PDF** (colunas *Pago* e *Pendente*, com "paga em", "vencida", "vence este mês" ou "a vencer" no item) usam a baixa
 - O **📅 Lançar mês** preserva categoria, parcela e baixa dos itens já lançados
 - No XLSX, a baixa vai nas colunas ocultas `PAGAMENTO_n` e, de forma legível, em `STATUS` e `DATA_PAGAMENTO` da aba `Despesas por categoria`
 
@@ -459,6 +464,20 @@ Regras:
 
 ---
 
+## 🧪 Dados de exemplo
+
+O botão **Ver dados de exemplo** da tela inicial carrega uma carteira fictícia que usa quase todos os recursos do app. As datas são **sempre relativas a hoje** (o exemplo nunca fica "velho") e não há números aleatórios, então o resultado é o mesmo a cada vez.
+
+- **Carteira:** renda fixa (conta remunerada, Tesouro Selic e IPCA+, LCI, LCA, CDB pós e prefixado, com um CDB recente para mostrar o **IOF**), **FIIs**, **ações** (uma delas no prejuízo), **ETFs** e dois fundos de **previdência** (VGBL e PGBL) com aportes mensais
+- **Extrato (12 meses):** salário, PLR, 13º, aluguel recebido, rendimentos da conta, **proventos** de FIIs e ações (dividendos e JCP), uma categoria criada pelo usuário (*Freelance*) e uma *Venda de Patrimônio*
+- **Despesas:** meses passados, atual e futuros, com grupos dentro de grupos (*Moradia* com Aluguel, Condomínio, Energia e Internet), **categorias por item**, cartão de crédito com 4 **compras parceladas** (uma com pagamento parcial e um estorno), contas com ícone e cor
+- **Situação das despesas:** o exemplo mostra **PAGA**, **VENCIDA**, **VENCE ESSE MÊS** e **A VENCER**, além de uma despesa **paga antecipadamente**
+- **Resgates** e **Notas** de exemplo
+
+Para começar do zero, use **Limpar**; para guardar o exemplo como planilha, use **XLSX**.
+
+---
+
 ## 🧭 Guia rápido e limpeza de dados
  
 **Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
@@ -485,12 +504,14 @@ Regras:
 ├── public/                        # favicon.svg, favicon-32.png, apple-touch-icon.png
  
 ├── index.html
+├── scripts/versao.mjs             # lança nova versão (npm run versao)
 ├── vite.config.js                 # base './' para o GitHub Pages
 ├── package.json
 └── src/
     ├── main.jsx                   # ponto de entrada
     ├── App.jsx                    # estado, abas, importação/exportação, arquivo carregado, preferências
     ├── prefs.js                   # preferências de layout: carregar, aplicar, fundos prontos e leitura/escrita na aba Preferências
+    ├── version.js                 # versão do app (único lugar para editar; aparece no rodapé e no PDF)
     ├── Personalizar.jsx           # janela 🎨 Personalizar (tema, cor, densidade, papel de parede e abas)
     ├── data.js                    # colunas, regras de cálculo, categorias, import/export, modelos, dados de exemplo
     ├── period.js                  # filtro de período (mês, 3/12 meses, ano, tudo, personalizado)
@@ -552,7 +573,30 @@ Regras:
 - Dados salvos em `localStorage` têm limite de cerca de 5 MB por navegador, o que é suficiente para milhares de lançamentos.
 ---
  
+## 🏷️ Versionamento
+
+A versão do app fica em **um único arquivo**: `src/version.js`. Ela aparece no rodapé da tela (ex.: `v26.11.30`) e no rodapé dos PDFs.
+
+Para lançar uma versão, rode na raiz do projeto:
+
+```bash
+npm run versao -- "O que mudou"              # soma 1 ao último número (26.11.29 → 26.11.30)
+npm run versao -- 26.12.1 "O que mudou"      # escolhe o número da versão
+```
+
+O comando atualiza o `src/version.js` e acrescenta uma linha no topo do **Histórico de atualizações**. Depois é só `git commit` e `git push`.
+
+- **Padrão do número:** `AA.MM.N` (ano, mês e contador de lançamentos)
+- **Sem o comando:** edite `VERSION` em `src/version.js` e escreva a linha do histórico à mão
+- A versão do `package.json` (`0.1.0`) não é usada pelo app
+
+---
+
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.32` Menu lateral (sidebar) no lugar das abas; clicar em FYNN CONTROL ou na logo volta ao Dashboard; menu recolhível e barra inferior no celular
+- [X] `v26.11.31` Dados de exemplo mais completos: carteira com FIIs, ações, ETFs e previdência, proventos, grupos de despesas, parcelamentos e todas as situações (paga, vencida, vence esse mês, a vencer)
+- [X] `v26.11.30` Versionamento centralizado: a versão do app fica em src/version.js e o comando npm run versao atualiza a versão e o histórico do README
+- [X] `v26.11.29` Despesas: situação colorida (PAGA, VENCIDA, VENCE ESSE MÊS, A VENCER) em cada despesa e fatura, com filtro por situação
 - [X] `v26.11.28` Despesas: parcelas e lançamentos da conta entram na fatura já existente do mesmo mês (ex.: várias compras parceladas na mesma fatura do cartão)
 - [X] `v26.11.27` Barra superior com o nome do arquivo (.xlsx), data e hora do carregamento, hora da última edição e botão de recarregar
 - [X] `v26.11.26` Exportar PDF somente de uma conta ou categoria de despesas (ex.: Cartão de crédito, Internet)

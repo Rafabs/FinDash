@@ -238,10 +238,22 @@ export const reopenPatch = (it) => (it.PARCELAMENTO
   ? { PARCELAMENTO: { ...it.PARCELAMENTO, valorPago: 0, dataPagamento: '' } }
   : { PAGAMENTO: { pago: false } })
 const curYM = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}` }
-export const payStatus = (it, ym, cur = curYM()) => {
+// Situação de cada despesa (por mês): paga · vencida (mês passado sem baixa) · vence esse mês · a vencer (mês futuro)
+export const DUE_LABEL = { paga: 'PAGA', vencida: 'VENCIDA', vence: 'VENCE ESSE MÊS', avencer: 'A VENCER' }
+export const dueStatus = (it, ym, cur = curYM()) => {
   const v = Number(it.VALOR) || 0
-  return v < 0 ? 'Abatimento' : !v ? '' : itemPaid(it, ym, cur) >= v ? 'Paga' : 'Pendente'
+  if (!v) return ''
+  if (v < 0) return 'credito' // abatimento: sem baixa
+  if (itemPaid(it, ym, cur) >= v) return 'paga'
+  return ym < cur ? 'vencida' : ym === cur ? 'vence' : 'avencer'
 }
+// situação da fatura (linha): a mais urgente entre os itens; 'paga' só quando tudo foi pago
+export const rowDueStatus = (items, ym, cur = curYM()) => {
+  const found = new Set((items || []).map((i) => dueStatus(i, ym, cur)))
+  return ['vencida', 'vence', 'avencer', 'paga'].find((k) => found.has(k)) || ''
+}
+const DUE_XLSX = { paga: 'Paga', vencida: 'Vencida', vence: 'Vence este mês', avencer: 'A vencer', credito: 'Abatimento' }
+export const payStatus = (it, ym, cur = curYM()) => DUE_XLSX[dueStatus(it, ym, cur)] || ''
 
 function toDespesas(ws) {
   const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })
@@ -493,55 +505,139 @@ export function downloadTemplate(kind) {
   else XLSX.writeFile(wb, `modelo-${kind}.csv`, { bookType: 'csv' })
 }
 
+// Dados de exemplo: tudo relativo à data de hoje (sempre parece atual) e sem números aleatórios.
+// Cobre os recursos do app: renda fixa e variável, FIIs, ações, ETFs, previdência (PGBL/VGBL), proventos,
+// categorias do extrato, grupos dentro de grupos, categorias por item, parcelamentos, baixa e situação das despesas.
 export function demoData() {
   const now = new Date()
   const p2 = (v) => String(v).padStart(2, '0')
-  const at = (m, d) => {
-    const x = new Date(now.getFullYear(), now.getMonth() - m, m === 0 ? Math.min(d, now.getDate()) : d)
-    return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`
-  }
-  const ago = (days) => { const x = new Date(now.getTime() - days * 864e5); return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}` }
+  const fmt = (x) => `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`
+  // dia d (até 28) de "m meses atrás" (m negativo = meses futuros); no mês atual não passa de hoje
+  const at = (m, d) => fmt(new Date(now.getFullYear(), now.getMonth() - m, m === 0 ? Math.min(d, now.getDate()) : d))
+  const ago = (days) => fmt(new Date(now.getTime() - days * 864e5))
+  const ym = (m) => at(m, 1).slice(0, 7)
+  const calMonth = (m) => new Date(now.getFullYear(), now.getMonth() - m, 1).getMonth() + 1
+  const wave = (m) => 1 + ((((m + 24) * 7) % 5) / 20) // variação mensal fixa, de 1,00 a 1,20
   const hoje = ago(0)
+
+  // ---------- Carteira ----------
   const L = (o) => recalcCart({ IOF: '', ...o, ULTIMA_ATUAL: hoje })
+  const rf = (dias, qtd, prc, banco, tipo, prod, atual) => L({ DATA_APLICACAO: ago(dias), QTD_COMPRA: qtd, PRC_UNIT: prc, PAPEL: 'N/A', BANCO: banco, TIPO_PRODUTO: tipo, PRODUTO: prod, TIPO_INV: 'RF', TOTAL_ATUAL: atual })
+  const rv = (dias, qtd, custo, papel, tipo, prod, preco) => L({ DATA_APLICACAO: ago(dias), QTD_COMPRA: qtd, PRC_UNIT: preco, PAPEL: papel, VLR_APLICACAO: +(qtd * custo).toFixed(2), BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: tipo, PRODUTO: prod, TIPO_INV: 'RV' })
+  const FII = 'FUNDOS IMOBILIÁRIOS'
+  // previdência: cada aporte mensal é um lote do mesmo fundo; a cota cresce ~0,65% ao mês
+  const prev = (papel, tipo, aporte, meses, cotaHoje) => Array.from({ length: meses }, (_, i) => {
+    const k = meses - 1 - i
+    const cota = cotaHoje / 1.0065 ** k
+    return L({ DATA_APLICACAO: at(k, 10), QTD_COMPRA: +(aporte / cota).toFixed(4), PRC_UNIT: cotaHoje, PAPEL: papel, VLR_APLICACAO: aporte, BANCO: 'BANCO EXEMPLO', TIPO_PRODUTO: tipo, PRODUTO: 'PREVIDÊNCIA PRIVADA', TIPO_INV: 'RV' })
+  })
   const carteira = normalizeGroups([
-    L({ DATA_APLICACAO: ago(365), QTD_COMPRA: 1, PRC_UNIT: 8000, PAPEL: 'N/A', BANCO: 'BANCO DIGITAL', TIPO_PRODUTO: 'RDB 100% DO CDI', PRODUTO: 'CONTA REMUNERADA', TIPO_INV: 'RF', TOTAL_ATUAL: 8912.4 }),
-    L({ DATA_APLICACAO: ago(730), QTD_COMPRA: 2.5, PRC_UNIT: 14400, PAPEL: 'N/A', BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: 'TESOURO SELIC', PRODUTO: 'TESOURO SELIC 2029', TIPO_INV: 'RF', TOTAL_ATUAL: 41250.1 }),
-    L({ DATA_APLICACAO: ago(10), QTD_COMPRA: 1, PRC_UNIT: 5000, PAPEL: 'N/A', BANCO: 'BANCO DIGITAL', TIPO_PRODUTO: 'CDB 110% DO CDI', PRODUTO: 'CDB LIQUIDEZ DIÁRIA', TIPO_INV: 'RF', TOTAL_ATUAL: 5021.3 }),
-    L({ DATA_APLICACAO: ago(420), QTD_COMPRA: 100, PRC_UNIT: 9.8, PAPEL: 'MXRF11', VLR_APLICACAO: 950, BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: 'FUNDOS IMOBILIÁRIOS', PRODUTO: 'MAXI RENDA', TIPO_INV: 'RV' }),
-    L({ DATA_APLICACAO: ago(180), QTD_COMPRA: 50, PRC_UNIT: 9.8, PAPEL: 'MXRF11', VLR_APLICACAO: 505, BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: 'FUNDOS IMOBILIÁRIOS', PRODUTO: 'MAXI RENDA', TIPO_INV: 'RV' }),
-    L({ DATA_APLICACAO: ago(300), QTD_COMPRA: 10, PRC_UNIT: 158.2, PAPEL: 'KNRI11', VLR_APLICACAO: 1500, BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: 'FUNDOS IMOBILIÁRIOS', PRODUTO: 'KINEA RENDA', TIPO_INV: 'RV' }),
-    L({ DATA_APLICACAO: ago(250), QTD_COMPRA: 20, PRC_UNIT: 101.5, PAPEL: 'XPLG11', VLR_APLICACAO: 2100, BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: 'FUNDOS IMOBILIÁRIOS', PRODUTO: 'XP LOG', TIPO_INV: 'RV' }),
+    rf(540, 1, 12000, 'BANCO DIGITAL', 'RDB 100% DO CDI', 'CONTA REMUNERADA', 14180.55),
+    rf(900, 3, 14400, 'CORRETORA EXEMPLO', 'TESOURO SELIC', 'TESOURO SELIC 2029', 51964.2),
+    rf(420, 1, 25000, 'CORRETORA EXEMPLO', 'TESOURO IPCA+', 'TESOURO IPCA+ 2035', 27610.8),
+    rf(210, 1, 10000, 'BANCO EXEMPLO', 'LCI 95% DO CDI', 'LCI CARTEIRA IMOBILIÁRIA', 10870.3),
+    rf(150, 1, 8000, 'BANCO EXEMPLO', 'LCA 92% DO CDI', 'LCA AGRONEGÓCIO', 8541.12),
+    rf(75, 1, 3000, 'BANCO DIGITAL', 'CDB PRÉ 12,5% A.A.', 'CDB PREFIXADO 2027', 3071.4),
+    rf(12, 1, 5000, 'BANCO DIGITAL', 'CDB 110% DO CDI', 'CDB LIQUIDEZ DIÁRIA', 5036.9), // menos de 31 dias: IOF SIM
+    rv(420, 100, 9.8, 'MXRF11', FII, 'MAXI RENDA', 10.12), rv(180, 50, 9.9, 'MXRF11', FII, 'MAXI RENDA', 10.12),
+    rv(300, 10, 158.2, 'KNRI11', FII, 'KINEA RENDA', 161.4), rv(90, 5, 160.1, 'KNRI11', FII, 'KINEA RENDA', 161.4),
+    rv(250, 20, 101.5, 'XPLG11', FII, 'XP LOG', 99.8),
+    rv(200, 8, 158.9, 'HGLG11', FII, 'CSHG LOGÍSTICA', 156),
+    rv(160, 15, 112.5, 'VISC11', FII, 'VINCI SHOPPING CENTERS', 114.2),
+    rv(380, 200, 9.05, 'ITSA4', 'AÇÕES', 'ITAÚSA', 10.38), rv(120, 100, 9.9, 'ITSA4', 'AÇÕES', 'ITAÚSA', 10.38),
+    rv(330, 60, 27.8, 'BBAS3', 'AÇÕES', 'BANCO DO BRASIL', 25.4), // um papel no prejuízo
+    rv(270, 40, 36.5, 'WEGE3', 'AÇÕES', 'WEG', 41.2),
+    rv(200, 80, 35.2, 'PETR4', 'AÇÕES', 'PETROBRAS', 38.9),
+    rv(240, 15, 310, 'IVVB11', 'ETF', 'S&P 500', 347),
+    rv(140, 20, 118, 'BOVA11', 'ETF', 'IBOVESPA', 126.5),
+    ...prev('PREV EXEMPLO MULTIMERCADO', 'VGBL', 1000, 8, 1.064),
+    ...prev('PREV EXEMPLO RENDA FIXA', 'PGBL', 600, 5, 1.031),
   ])
+
+  // ---------- Extrato (12 meses) ----------
   const D = 'DATA DE RECEBIMENTO', V = 'VALOR DA APLICAÇÃO'
   const extrato = []
+  const ent = (m, d, valor, origem, inst, tipo, extra = {}) => extrato.push({ [D]: at(m, d), [V]: +valor.toFixed(2), ORIGEM: origem, 'INSTITUIÇÃO': inst, 'CNPJ / CPF': '', TIPO: tipo, ...extra })
   for (let m = 0; m < 12; m++) {
-    const f = 1 + ((m * 7) % 5) / 20
-    const prov = (t, q, val, d) => extrato.push({ [D]: at(m, d), [V]: +(val * f).toFixed(2), ORIGEM: `VR. RED. RENDIMENTO SOBRE ${q} PAPEL ${t}`, 'INSTITUIÇÃO': 'CORRETORA EXEMPLO', 'CNPJ / CPF': '', TIPO: `DIVIDENDOS ${q} ${t}` })
-    prov('MXRF11', 150, 15, 14); prov('KNRI11', 10, 9, 15); prov('XPLG11', 20, 15, 15)
-    extrato.push({ [D]: at(m, 28), [V]: +(7.45 * f).toFixed(2), ORIGEM: 'REND AUT ITAU', 'INSTITUIÇÃO': 'BANCO EXEMPLO', 'CNPJ / CPF': '', TIPO: 'REND AUT ITAU' })
-    extrato.push({ [D]: at(m, 5), [V]: 5200, ORIGEM: 'EMPRESA EXEMPLO LTDA', 'INSTITUIÇÃO': 'REMUNERACAO/SALARIO', 'CNPJ / CPF': '', TIPO: 'SALÁRIO' })
+    const f = wave(m), mo = calMonth(m)
+    const fii = (t, q, val, d) => ent(m, d, val * f, `VR. RED. RENDIMENTO SOBRE ${q} PAPEL ${t}`, 'CORRETORA EXEMPLO', `DIVIDENDOS ${q} ${t}`)
+    fii('MXRF11', 150, 15, 14); fii('KNRI11', 15, 12, 15); fii('XPLG11', 20, 15.6, 15); fii('VISC11', 15, 11.4, 15)
+    if (m <= 6) fii('HGLG11', 8, 8.8, 15)
+    if (m % 3 === 1) ent(m, 18, 28.5 * f, 'JCP 300 ITSA4', 'CORRETORA EXEMPLO', 'JCP 300 ITSA4')
+    if (m % 3 === 2 && m <= 11) ent(m, 18, 41.2 * f, 'DIVIDENDOS 60 BBAS3', 'CORRETORA EXEMPLO', 'DIVIDENDOS 60 BBAS3')
+    if (m % 3 === 0) ent(m, 18, 12.8 * f, 'JCP 40 WEGE3', 'CORRETORA EXEMPLO', 'JCP 40 WEGE3')
+    if (m % 3 === 1 && m <= 6) ent(m, 20, 96.4 * f, 'DIVIDENDOS 80 PETR4', 'CORRETORA EXEMPLO', 'DIVIDENDOS 80 PETR4')
+    ent(m, 28, 7.45 * f, 'REND AUT ITAU', 'BANCO EXEMPLO', 'REND AUT ITAU')
+    ent(m, 5, 5200, 'EMPRESA EXEMPLO LTDA', 'REMUNERACAO/SALARIO', 'SALÁRIO')
+    ent(m, 10, 1450, 'ALUGUEL APTO 12 - INQUILINO', 'BANCO EXEMPLO', 'ALUGUEL')
+    if (mo === 3 || mo === 9) ent(m, 22, 3800, 'PLR EMPRESA EXEMPLO', 'REMUNERACAO/SALARIO', 'PLR')
+    if (mo === 12) ent(m, 20, 2600, '13º SALARIO EMPRESA EXEMPLO', 'REMUNERACAO/SALARIO', '13º SALÁRIO')
+    if (m === 2 || m === 5 || m === 8) ent(m, 24, 1200, 'PROJETO DESIGN CLIENTE EXEMPLO', 'BANCO EXEMPLO', 'FREELANCE', { CATEGORIA: 'Freelance' }) // categoria criada pelo usuário
+  }
+  ent(7, 16, 22000, 'VENDA DE VEÍCULO', 'BANCO EXEMPLO', 'TRANSFERÊNCIA', { CATEGORIA: 'Venda de Patrimônio' }) // fica fora do saldo
+
+  // ---------- Despesas ----------
+  const PARC = [['NOTEBOOK', 10, 389.9, 2, 'Eletrônicos'], ['GELADEIRA', 12, 215, 6, 'Casa'], ['VIAGEM DE FÉRIAS', 6, 520, 1, 'Lazer'], ['SOFÁ', 5, 330, 0, 'Casa']]
+  const parcelas = (m) => PARC.flatMap(([nome, n, v, ini, cat]) => {
+    const num = ini - m + 1
+    if (num < 1 || num > n) return []
+    const pago = m >= 1 ? v : nome === 'GELADEIRA' && m === 0 ? 100 : 0 // uma parcela do mês atual com pagamento parcial
+    return [[`${nome} (${num}/${n})`, v, cat, { PARCELAMENTO: { id: `demo-${nome.toLowerCase().replace(/\W+/g, '-')}`, numero: num, quantidade: n, valorPago: pago, ...(pago ? { dataPagamento: at(m, 12) } : {}) } }]]
+  })
+  // situação: meses antigos (2+) seguem a regra antiga (pagos); mês passado e atual têm baixa; meses futuros ficam "a vencer"
+  const stat = (m, o) => {
+    if (o.PAGAMENTO) return { PAGAMENTO: o.PAGAMENTO }
+    if (o.legacy || m >= 2) return {}
+    if (m < 0) return { PAGAMENTO: { pago: false } }
+    return { PAGAMENTO: o.paga === false ? { pago: false } : { pago: true, data: at(m, o.d || 10) } }
   }
   const despesas = []
-  for (let m = 0; m < 12; m++) {
-    const f = 1 + ((m * 7) % 5) / 20
-    const mes = at(m, 1).slice(0, 7) + '-01'
-    const add = (tipo, itens) => despesas.push({ DATA: mes, TIPO_CONTA: tipo, ITENS: itens.map(([NOME, v]) => ({ NOME, VALOR: +v.toFixed(2) })) })
-    add('ALUGUEL', [['ALUGUEL', 1800]])
-    add('CONDOMÍNIO', [['COND.', 420], ['ÁGUA', 55 * f], ['GÁS', 28 * f]])
-    add('ENERGIA ELÉTRICA', [['TUSD', 38 * f], ['TE', 31 * f], ['COSIP', 9.66]])
-    add('INTERNET', [['VIVO', 119.9]])
-    add('MERCADO', [['MERCAD', 820 * f]])
-    add('CARTÃO DE CRÉDITO', [['ITAÚ', 1100 * f]])
-    add('CARTÃO DE CRÉDITO', [['NUBANK', 640 * f]])
-    add('TRANSPORTE', [['TRANSP.', 260]])
+  for (let m = 11; m >= -7; m--) {
+    const f = wave(m), mes = `${ym(m)}-01`, mo = calMonth(m), atual = m >= 0, prox = m >= -3
+    const add = (conta, itens, pai) => {
+      const its = itens.map(([NOME, v, CATEGORIA, o = {}]) => ({ NOME, VALOR: +v.toFixed(2), ...(CATEGORIA ? { CATEGORIA } : {}), ...(o.PARCELAMENTO ? { PARCELAMENTO: o.PARCELAMENTO } : stat(m, o)) }))
+      if (its.length) despesas.push({ DATA: mes, TIPO_CONTA: conta, ...(pai ? { PAI: pai } : {}), ITENS: its })
+    }
+    if (prox) {
+      add('MORADIA', [['SEGURO RESIDENCIAL', 62, 'Moradia', { d: 8 }], ...(mo <= 10 ? [['IPTU', 187.4, 'Impostos', { d: 8 }]] : [])])
+      add('ALUGUEL', [['ALUGUEL', m < 6 ? 1890 : 1800, 'Moradia', { d: 5 }]], 'MORADIA')
+      add('CONDOMÍNIO', [['COND.', 420, 'Moradia', { d: 10, paga: m !== 0 }], ...(atual ? [['ÁGUA', 55 * f, 'Contas', { d: 10, paga: m !== 0 }], ['GÁS', 28 * f, 'Contas', { d: 10, paga: m !== 0 }]] : [])], 'MORADIA')
+      if (atual) add('ENERGIA ELÉTRICA', [['TUSD', 38 * f, 'Contas', { d: 15, paga: m > 1 }], ['TE', 31 * f, 'Contas', { d: 15, paga: m > 1 }], ['COSIP', 9.66, 'Contas', { d: 15, paga: m > 1 }]], 'MORADIA')
+      add('INTERNET', [['VIVO FIBRA', 119.9, 'Assinaturas', { d: 10 }]], 'MORADIA')
+      add('SAÚDE', [['PLANO DE SAÚDE', m < 4 ? 520 : 480, 'Saúde', { d: 7, paga: m !== 1 }], ...(atual && m % 4 === 1 ? [['CONSULTA', 250, 'Saúde', { d: 18 }]] : [])])
+      add('EDUCAÇÃO', [['CURSO DE INGLÊS', 310, 'Educação', { d: 6 }]])
+    }
+    if (atual) {
+      add('MERCADO', [['SUPERMERCADO', 820 * f, 'Alimentação', { d: 20 }], ['FEIRA', 95 * f, 'Alimentação', { d: 20 }]])
+      add('TRANSPORTE', [['COMBUSTÍVEL', 260 * f, 'Transporte', { d: 14 }], ['ESTACIONAMENTO', 45, 'Transporte', { d: 14 }]])
+      add('LAZER', [['RESTAURANTES', 280 * f, 'Lazer', { d: 16 }], ...(m % 2 === 0 ? [['CINEMA', 64, 'Lazer', { d: 16 }]] : [])])
+    }
+    if (m === -1) add('TRANSPORTE', [['SEGURO AUTO (ANUAL)', 1850, 'Transporte', { PAGAMENTO: { pago: true, data: ago(2) } }]]) // pago antecipadamente
+    add('CARTÃO DE CRÉDITO', [
+      ...(atual ? [['MERCADO LIVRE', 189 * f, 'Compras Online', { d: 12, paga: m !== 0 }], ['UBER', 64 * f, 'Transporte', { d: 12, paga: m !== 0 }], ['IFOOD', 142 * f, 'Alimentação', { d: 12, paga: m !== 0 }],
+        ['NETFLIX', 55.9, 'Assinaturas', { d: 12, paga: m !== 0 }], ['SPOTIFY', 21.9, 'Assinaturas', { d: 12, paga: m !== 0 }], ['FARMÁCIA', 88 * f, 'Saúde', { d: 12, paga: m !== 0 }]] : []),
+      ...(m === 3 ? [['ESTORNO COMPRA', -89.9, 'Compras Online', { legacy: true }]] : []), // abatimento: sem baixa
+      ...parcelas(m),
+    ])
   }
+  const contasDespesas = [
+    ['MORADIA', '🏡', '#f59e0b'], ['ALUGUEL', '🏠', '#f59e0b'], ['CONDOMÍNIO', '🏢', '#fb923c'], ['ENERGIA ELÉTRICA', '💡', '#eab308'], ['INTERNET', '🌐', '#0ea5e9'],
+    ['MERCADO', '🛒', '#22c55e'], ['SAÚDE', '🩺', '#ef4444'], ['TRANSPORTE', '🚗', '#64748b'], ['EDUCAÇÃO', '🎓', '#6366f1'], ['LAZER', '🎬', '#ec4899'], ['CARTÃO DE CRÉDITO', '💳', '#8b5cf6'],
+  ].map(([name, icon, color]) => ({ name, icon, color }))
+
+  // ---------- Resgates ----------
   const resgates = []
-  const prods = [['RDB APLICAÇÃO', 74], ['TESOURO SELIC 2029', 190], ['AÇÃO FRACIONÁRIA', 3.2]]
+  const prods = [['RDB APLICAÇÃO', 74], ['TESOURO SELIC 2029', 190], ['LCI CARTEIRA IMOBILIÁRIA', 120], ['AÇÃO FRACIONÁRIA', 3.2]]
   for (let m = 0; m < 12; m++) {
     prods.forEach(([p, base], n) => {
       if ((m + n) % 2) return
       resgates.push({ DATA_RESGATE: at(m, 20 + n), PRODUTO: p, [RK]: +(base * (0.8 + ((m * 5 + n * 3) % 7) / 10)).toFixed(2) })
     })
   }
-  return { carteira, extrato: extrato.map(withCat), despesas, resgates }
+
+  // ---------- Notas ----------
+  const notas = 'Metas do ano\n- Reserva de emergência: 6 meses de despesas\n- Aportar R$ 1.000 por mês na previdência (VGBL)\n- Quitar o parcelamento do notebook\n\nLembretes\n- Condomínio vence dia 10\n- Revisar o plano de saúde em dezembro'
+  const notasHtml = '<h3>Metas do ano</h3><ul><li>Reserva de emergência: 6 meses de despesas</li><li>Aportar R$ 1.000 por mês na previdência (VGBL)</li><li>Quitar o parcelamento do notebook</li></ul><h3>Lembretes</h3><ul><li>Condomínio vence dia 10</li><li>Revisar o plano de saúde em dezembro</li></ul>'
+
+  return { carteira, extrato: extrato.map(withCat), categoriasExtrato: ['Freelance'], despesas, contasDespesas, resgates, notas, notasHtml }
 }

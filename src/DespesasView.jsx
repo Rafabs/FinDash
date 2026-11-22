@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import PeriodFilter from './PeriodFilter.jsx'
 import LancarMes from './LancarMes.jsx'
 import PasteDespesas from './PasteDespesas.jsx'
-import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath, itemPaid, payDate, payPatch, reopenPatch } from './data.js'
+import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath, itemPaid, payDate, payPatch, reopenPatch, dueStatus, rowDueStatus, DUE_LABEL } from './data.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
@@ -18,6 +18,11 @@ const pct = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximum
 const mesCurto = (k) => k.slice(5) + '/' + k.slice(2, 4)
 const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const dataCurta = (s) => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : ''
+// Selo colorido da situação: PAGA · VENCIDA · VENCE ESSE MÊS · A VENCER (abatimentos e valor zero não têm selo)
+function StatusBadge({ status }) {
+  return status && status !== 'credito' ? <span className={`st st-${status}`}>{DUE_LABEL[status]}</span> : null
+}
+
 // Janela para escolher a data da baixa (pagamento)
 function BaixaModal({ name, onClose, onConfirm }) {
   const [date, setDate] = useState(hojeISO())
@@ -42,7 +47,9 @@ function PayControls({ item, ym, current, locked, onChange }) {
   const date = payDate(item)
   const tip = locked ? 'Destrave a edição para dar baixa' : ''
   return <div className="installment-row-action">
-    <small>{open ? `Pendente${paid > 0 ? ` · ${brl(v - paid)}` : ''}` : `✓ Paga${date ? ` em ${dataCurta(date)}` : ''}`}</small>
+    <StatusBadge status={dueStatus(item, ym, current)} />
+    {open && paid > 0 && <small>{brl(v - paid)} pendente</small>}
+    {!open && date && <small>em {dataCurta(date)}</small>}
     {open ? <>
       <button type="button" className="sec sm" disabled={locked} title={tip} onClick={() => onChange(payPatch(item, hojeISO()))}>✓ {paid > 0 ? 'Quitar restante hoje' : 'Dar baixa hoje'}</button>
       <button type="button" className="sec sm" disabled={locked} title={tip || 'Dar baixa em outra data'} onClick={() => setAskDate(true)}>📅 Outra data</button>
@@ -150,6 +157,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
 
 export default function DespesasView({ rows, accounts = [], onAddAccount, onUpdateAccount, period, setPeriod, onUpdate, onDelete, onMoveItem, onSaveMonth, onAddRows, onAppendRows }) {
   const [cats, setCats] = useState([])
+  const [statusFilter, setStatusFilter] = useState('') // '' | paga | vencida | vence | avencer
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
   const [view, setView] = useState('lista')
@@ -214,7 +222,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
   const currentMonth = nowYM()
   const includeFuture = !range.to || range.to.slice(0, 7) >= currentMonth
   const base = useMemo(() => rows.map((r, i) => ({ r, i })).filter(({ r }) => inRange(r.DATA, range) || (includeFuture && monthOf(r.DATA) > currentMonth)), [rows, range, includeFuture, currentMonth])
-  const filtered = useMemo(() => {
+  const filteredAll = useMemo(() => {
     const s = q.trim().toLowerCase()
     return base
       .filter(({ r }) => !cats.length || cats.includes(r.TIPO_CONTA))
@@ -228,6 +236,20 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       .filter(({ r, items }) => items.length > 0 || (!s && r.ITENS.length === 0)) // mantém grupos vazios visíveis (alvo de arrastar)
       .sort((a, b) => b.r.DATA.localeCompare(a.r.DATA) || a.r.TIPO_CONTA.localeCompare(b.r.TIPO_CONTA) || a.i - b.i)
   }, [base, cats, q, parents])
+  // contagem e valor por situação (dentro do período, grupos e busca escolhidos)
+  const statusCounts = useMemo(() => {
+    const out = { paga: { n: 0, v: 0 }, vencida: { n: 0, v: 0 }, vence: { n: 0, v: 0 }, avencer: { n: 0, v: 0 } }
+    filteredAll.forEach(({ r, items }) => items.forEach(({ item }) => {
+      const ym = monthOf(r.DATA), s = dueStatus(item, ym, currentMonth)
+      if (!out[s]) return
+      const v = Number(item.VALOR) || 0
+      out[s].n += 1; out[s].v += s === 'paga' ? v : v - itemPaid(item, ym, currentMonth)
+    }))
+    return out
+  }, [filteredAll, currentMonth])
+  const filtered = useMemo(() => (!statusFilter ? filteredAll : filteredAll
+    .map((e) => { const items = e.items.filter(({ item }) => dueStatus(item, monthOf(e.r.DATA), currentMonth) === statusFilter); return { ...e, items, total: totalOf({ ITENS: items.map(({ item }) => item) }) } })
+    .filter((e) => e.items.length > 0)), [filteredAll, statusFilter, currentMonth])
 
   // resultado da busca: total das despesas encontradas (no período e em todo o histórico)
   const searchSummary = useMemo(() => {
@@ -448,7 +470,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       <section className="panel expense-history-panel">
         <div className="panel-head"><div><h3>Histórico</h3><small className="muted">Todos os lançamentos de {currentAccount?.name || accountPage}</small></div><span className="expense-history-count">{currentRows.length} registro{currentRows.length === 1 ? '' : 's'}</span></div>
         <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Despesas</th><th>Total</th></tr></thead><tbody>
-          {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span></td><td><div className="account-history-items">{r.ITENS.map((it, j) => {
+          {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span><div className="row-status"><StatusBadge status={rowDueStatus(r.ITENS, monthOf(r.DATA), currentMonth)} /></div></td><td><div className="account-history-items">{r.ITENS.map((it, j) => {
             return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span><PayControls item={it} ym={monthOf(r.DATA)} current={currentMonth} locked={locked} onChange={(patch) => patchItem(i, j, patch)} /></div>
           })}</div></td><td className="ro"><b>{brl(totalOf(r))}</b></td></tr>)}
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
@@ -575,6 +597,12 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         ))}
         {cats.length > 0 && <button className="chip-btn" onClick={() => setCats([])}>limpar</button>}
       </div>
+      {Object.values(statusCounts).some((x) => x.n > 0) && <div className="chips st-filter" aria-label="Filtrar por situação">
+        <button className={'chip-btn' + (!statusFilter ? ' on' : '')} onClick={() => setStatusFilter('')}>Todas</button>
+        {['paga', 'vencida', 'vence', 'avencer'].filter((k) => statusCounts[k].n > 0).map((k) => (
+          <button key={k} className={`chip-btn st-btn st-${k}` + (statusFilter === k ? ' on' : '')} title={`Mostrar só: ${DUE_LABEL[k]}`} onClick={() => setStatusFilter(statusFilter === k ? '' : k)}>{DUE_LABEL[k]}<em>{statusCounts[k].n}</em><small>{brl(statusCounts[k].v)}</small></button>
+        ))}
+      </div>}
 
       {(cardStats.n > 0 || selectionStats) && <>
       {selectionStats && <div className="sel-bar"><span>☑ <b>{selected.size.toLocaleString('pt-BR')}</b> {selected.size === 1 ? 'linha selecionada' : 'linhas selecionadas'}: os valores abaixo são só da seleção</span><button type="button" className="sec sm" onClick={() => setSelected(new Set())}>Limpar seleção</button></div>}
@@ -627,7 +655,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                             }}
                             onDragEnd={() => { setDragSource(null); setDragOver(null) }}
                           >
-                            {it.NOME || '—'}{it.CATEGORIA && <em className="chip-cat"> ({it.CATEGORIA})</em>} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{it.PAGAMENTO && Number(it.VALOR) >= 0 ? (it.PAGAMENTO.pago ? ' · ✓ paga' : ' · ⏳ a pagar') : it.PARCELAMENTO?.dataPagamento && Number(it.PARCELAMENTO.valorPago) >= Number(it.VALOR) ? ' · ✓ paga' : ''}
+                            {it.NOME || '—'}{it.CATEGORIA && <em className="chip-cat"> ({it.CATEGORIA})</em>} {Number(it.VALOR).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}<StatusBadge status={dueStatus(it, monthOf(r.DATA), currentMonth)} />
                           </span>
                         ))}
                         {!items.length && <span className="muted">Sem despesas · arraste uma aqui</span>}
@@ -653,7 +681,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                         <td className={ed ? '' : 'ro'} data-label="Despesas do grupo">{ed
                           ? <button className="items-btn" title="Editar despesas do grupo" onClick={() => setEditing(i)}>{chips}</button>
                           : <div className="items-static">{chips}</div>}</td>
-                        <td className="ro r" data-label="Total"><b>{brl(total)}</b></td>
+                        <td className="ro r" data-label="Total"><b>{brl(total)}</b><div className="row-status"><StatusBadge status={rowDueStatus(items.map(({ item }) => item), monthOf(r.DATA), currentMonth)} /></div></td>
                         <td className="acts">
                           <button className={'icon' + (ed ? ' ok' : '')} disabled={locked} title={locked ? 'Destrave a edição para editar' : ed ? 'Concluir edição' : 'Editar'} onClick={() => toggleOpen(i)}>{ed ? '✓' : '✏️'}</button>
                           <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir'} onClick={async () => { if (await confirmDialog({ title: 'Excluir lançamento', message: 'Excluir este lançamento?', detail: 'Esta ação não pode ser desfeita.', confirmLabel: 'Excluir', danger: true })) del(i) }}>🗑</button>

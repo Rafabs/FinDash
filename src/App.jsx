@@ -21,6 +21,7 @@ import { confirmDialog, alertDialog } from './dialog.js'
 import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV, itemPaid, mergeExpenseRows } from './data.js'
 import { exportPdf } from './pdf.js'
 import PdfModal from './PdfModal.jsx'
+import { VERSION } from './version.js'
 import { EMPTY_META, loadMeta, saveMeta, fmtDT, canPick, pickHandle, readHandle, saveHandle, loadHandle, clearHandle } from './fileMeta.js'
 import { scopeRows, scopeSummary } from './pdfScope.js'
 import Personalizar from './Personalizar.jsx'
@@ -157,6 +158,18 @@ export default function App() {
   const [prefs, setPrefs] = useState(loadPrefs)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [pdfOpen, setPdfOpen] = useState(false)
+  const [sideMini, setSideMini] = useState(() => { try { return localStorage.getItem('fynn-sidebar-v1') === '1' } catch { return false } }) // menu lateral recolhido (só ícones)
+  const toggleSide = () => setSideMini((v) => { try { localStorage.setItem('fynn-sidebar-v1', v ? '0' : '1') } catch {} return !v })
+  const goHome = () => { setTab('dash'); window.scrollTo({ top: 0, behavior: 'smooth' }) } // clicar na logo ou em FYNN CONTROL volta ao Dashboard
+  useEffect(() => { // altura do cabeçalho: o menu lateral fixa logo abaixo dele
+    const h = document.querySelector('header')
+    if (!h) return
+    const set = () => document.documentElement.style.setProperty('--hdr-h', `${h.offsetHeight}px`)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(h)
+    return () => ro.disconnect()
+  }, [])
   // arquivo carregado: nome, quando foi carregado e quando os dados foram editados pela última vez
   const [fileMeta, setFileMeta] = useState(loadMeta)
   const fileHandle = useRef(null) // arquivo aberto pelo seletor: permite recarregar direto do disco
@@ -262,7 +275,7 @@ export default function App() {
   return (
     <>
       <header>
-        <div className="brand"><span className="logo"><svg viewBox="0 0 64 64" width="22" height="22"><rect x="14" y="36" width="9" height="14" rx="3" fill="#fff" opacity=".65" /><rect x="27.5" y="26" width="9" height="24" rx="3" fill="#fff" opacity=".85" /><rect x="41" y="14" width="9" height="36" rx="3" fill="#fff" /></svg></span><div><h1>Fynn Control</h1><small>Carteira de investimentos</small></div></div>
+        <div className="brand" role="link" tabIndex={0} title="Ir para o Dashboard" aria-label="Fynn Control: ir para o Dashboard" onClick={goHome} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goHome() } }}><span className="logo"><svg viewBox="0 0 64 64" width="22" height="22"><rect x="14" y="36" width="9" height="14" rx="3" fill="#fff" opacity=".65" /><rect x="27.5" y="26" width="9" height="24" rx="3" fill="#fff" opacity=".85" /><rect x="41" y="14" width="9" height="36" rx="3" fill="#fff" /></svg></span><div><h1>Fynn Control</h1><small>Carteira de investimentos</small></div></div>
         {!empty && (fileMeta.name || fileMeta.editedAt) && (
           <div className="filebar" title={`Arquivo: ${fileMeta.name || 'dados do navegador'}\nCarregado: ${fmtDT(fileMeta.loadedAt)}\nÚltima edição: ${fileMeta.editedAt ? fmtDT(fileMeta.editedAt) : 'nenhuma'}${fileMeta.diskAt ? `\nArquivo no disco modificado em: ${fmtDT(fileMeta.diskAt)}` : ''}`}>
             <span className="file-name">📄 {fileMeta.name || 'Dados do navegador'}</span>
@@ -291,10 +304,12 @@ export default function App() {
         </div>
       </header>
       {empty && tab !== 'notas' ? <Landing onPick={openFile} onFile={handleFile} onDemo={() => { skipEdit.current = true; resetFile(); setData(demoData()) }} onNotes={() => setTab('notas')} /> : (<>
-      <nav className="tabs">
+      <div className={'shell' + (sideMini ? ' side-mini' : '')}>
+      <nav className="tabs" aria-label="Seções do app">
         {visibleTabs.map((k) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{TAB_LABEL[k]}</span><span className="tl tl-short">{TAB_SHORT[k] || TAB_LABEL[k]}</span>{COUNTS[k] != null && <em>{COUNTS[k]}</em>}</button>
+          <button key={k} className={tab === k ? 'on' : ''} title={TAB_LABEL[k]} aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}><span className="ti">{TAB_ICONS[k]}</span><span className="tl tl-full">{TAB_LABEL[k]}</span><span className="tl tl-short">{TAB_SHORT[k] || TAB_LABEL[k]}</span>{COUNTS[k] != null && <em>{COUNTS[k]}</em>}</button>
         ))}
+        <button type="button" className="side-toggle" title={sideMini ? 'Expandir menu' : 'Recolher menu'} aria-label={sideMini ? 'Expandir menu' : 'Recolher menu'} onClick={toggleSide}>{sideMini ? '»' : '«'}</button>
       </nav>
       <main>
         {tab === 'dash' && <Dashboard data={data} period={period} setPeriod={setPeriod} cdi={cdi} cdiStatus={cdiStatus} selic={selic} selicStatus={selicStatus} />}
@@ -329,8 +344,9 @@ export default function App() {
             <NotesEditor text={data.notas} html={data.notasHtml} onChange={({ text, html }) => setData((d) => ({ ...d, notas: text, notasHtml: html }))} />
           </section>
         )}
-      </main></>)}
-      <footer className="app-version">v26.11.28</footer>
+      </main>
+      </div></>)}
+      <footer className="app-version" title="Fynn Control">v{VERSION}</footer>
       {tour && <Tour onClose={closeTour} />}
       <DialogHost />
       {pdfOpen && <PdfModal despesas={pdfData().despesasPdf} periodLabel={labelOf(period)} onClose={() => setPdfOpen(false)} onExport={(scope) => { setPdfOpen(false); doPdf(scope) }} />}
