@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { prefsToRows, prefsFromRows } from './prefs.js'
+import { splitPaths, joinPaths, rowComprovantes } from './anexos.js'
 
 // [coluna no banco, tipo, rótulo exibido]
 // tipos: text | num | money | date | calc (texto/num calculado) | calcm (valor em R$ calculado)
@@ -273,13 +274,21 @@ function toDespesas(ws) {
     const match = String(header || '').match(/^PAGAMENTO_(\d+)$/)
     if (match) payColumns.set(Number(match[1]), column)
   })
+  const compColumns = new Map() // COMPROVANTE_n (versão anterior, um por item): vira o comprovante da linha
+  aoa[0].forEach((header, column) => {
+    const match = String(header || '').trim().match(/^COMPROVANTE[_ ]?(\d+)$/i)
+    if (match) compColumns.set(Number(match[1]), column)
+  })
   const paiCol = aoa[0].indexOf('GRUPO_PAI')
-  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...payColumns.values(), ...catColumns.values(), ...(paiCol >= 0 ? [paiCol] : []))
+  const faturaCol = aoa[0].findIndex((h) => String(h || '').trim().toUpperCase() === 'FATURA') // caminhos da fatura da linha (relativos à pasta de anexos)
+  const comprovanteCol = aoa[0].findIndex((h) => String(h || '').trim().toUpperCase() === 'COMPROVANTE') // comprovante único da linha
+  const itemColumnsEnd = Math.min(aoa[0].length, ...parcelColumns.values(), ...payColumns.values(), ...catColumns.values(), ...compColumns.values(), ...(paiCol >= 0 ? [paiCol] : []), ...(faturaCol >= 0 ? [faturaCol] : []), ...(comprovanteCol >= 0 ? [comprovanteCol] : []))
   const out = []
   aoa.slice(1).forEach((row) => {
     const data = iso(row[0]), tipo = String(row[2] ?? '').trim()
     if (!data || !tipo) return
     const itens = []
+    const comprovantesItens = []
     for (let k = 3; k < itemColumnsEnd; k += 2) {
       const v = row[k + 1]
       if (v === null || v === undefined || v === '' || isNaN(Number(v))) continue // linhas "vazias" do mês futuro são ignoradas
@@ -287,6 +296,9 @@ function toDespesas(ws) {
       const catColumn = catColumns.get((k - 3) / 2 + 1)
       const categoria = catColumn == null ? '' : String(row[catColumn] ?? '').trim()
       if (categoria) item.CATEGORIA = categoria.slice(0, 60)
+      const compColumn = compColumns.get((k - 3) / 2 + 1)
+      const comprovantes = compColumn == null ? [] : splitPaths(row[compColumn])
+      comprovantesItens.push(...comprovantes)
       const metadataColumn = parcelColumns.get((k - 3) / 2 + 1)
       const rawMetadata = metadataColumn == null ? null : row[metadataColumn]
       if (rawMetadata) {
@@ -313,7 +325,9 @@ function toDespesas(ws) {
       itens.push(item)
     }
     const pai = paiCol >= 0 ? String(row[paiCol] ?? '').trim() : ''
-    if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ...(pai ? { PAI: pai } : {}), ITENS: itens })
+    const faturas = faturaCol >= 0 ? splitPaths(row[faturaCol]) : []
+    const comprovantes = [...new Set([...(comprovanteCol >= 0 ? splitPaths(row[comprovanteCol]) : []), ...comprovantesItens])]
+    if (itens.length) out.push({ DATA: monthOf(data) + '-01', TIPO_CONTA: tipo, ...(pai ? { PAI: pai } : {}), ...(faturas.length ? { FATURAS: faturas } : {}), ...(comprovantes.length ? { COMPROVANTES: comprovantes } : {}), ITENS: itens })
   })
   return out
 }
@@ -350,6 +364,10 @@ function despSheet(rows, includeParcelMetadata = false) {
   if (withItemCat) for (let k = 1; k <= maxN; k++) head.push(`CATEGORIA_${k}`)
   const withParent = rows.some((r) => r.PAI)
   if (withParent) head.push('GRUPO_PAI')
+  const withFatura = rows.some((r) => r.FATURAS?.length)
+  if (withFatura) head.push('FATURA')
+  const withComprov = rows.some((r) => rowComprovantes(r).length)
+  if (withComprov) head.push('COMPROVANTE')
   const aoa = [head, ...rows.map((r) => [
     r.DATA, totalOf(r), r.TIPO_CONTA,
     ...Array.from({ length: maxN }, (_, k) => [r.ITENS[k]?.NOME ?? null, r.ITENS[k]?.VALOR ?? null]).flat(),
@@ -357,6 +375,8 @@ function despSheet(rows, includeParcelMetadata = false) {
     ...(withPay ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.PAGAMENTO ? JSON.stringify(r.ITENS[k].PAGAMENTO) : null) : []),
     ...(withItemCat ? Array.from({ length: maxN }, (_, k) => r.ITENS[k]?.CATEGORIA || null) : []),
     ...(withParent ? [r.PAI || null] : []),
+    ...(withFatura ? [joinPaths(r.FATURAS) || null] : []),
+    ...(withComprov ? [joinPaths(rowComprovantes(r)) || null] : []),
   ])]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   if (includeParcelMetadata) ws['!cols'] = [
@@ -365,6 +385,8 @@ function despSheet(rows, includeParcelMetadata = false) {
     ...(withPay ? Array.from({ length: maxN }, () => ({ hidden: true })) : []),
     ...(withItemCat ? Array.from({ length: maxN }, () => ({})) : []),
     ...(withParent ? [{}] : []),
+    ...(withFatura ? [{ wch: 40 }] : []),
+    ...(withComprov ? [{ wch: 40 }] : []),
   ]
   rows.forEach((r, i) => { // mantém a fórmula de soma da sua planilha
     const cells = Array.from({ length: maxN }, (_, k) => XLSX.utils.encode_col(4 + 2 * k) + (i + 2)).join('+')
@@ -450,11 +472,11 @@ export function exportXlsx(data) {
   noteSheet['!cols'] = [{ wch: 100 }, { hidden: true }]
   XLSX.utils.book_append_sheet(wb, noteSheet, 'Notas')
   // relatório legível das categorias (só leitura: a importação lê as colunas CATEGORIA_n da aba Despesas)
-  if (data.despesas?.some((r) => r.ITENS.some((i) => i.CATEGORIA || i.PAGAMENTO))) {
+  if (data.despesas?.some((r) => r.FATURAS?.length || rowComprovantes(r).length || r.ITENS.some((i) => i.CATEGORIA || i.PAGAMENTO))) {
     const lines = [...data.despesas].sort((x, y) => String(y.DATA).localeCompare(String(x.DATA)))
-      .flatMap((r) => r.ITENS.map((i) => [monthOf(r.DATA), r.TIPO_CONTA, i.NOME, i.CATEGORIA || '', Number(i.VALOR) || 0, payStatus(i, monthOf(r.DATA)), payDate(i)]))
-    const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR', 'STATUS', 'DATA_PAGAMENTO'], ...lines])
-    catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 16 }]
+      .flatMap((r) => r.ITENS.map((i) => [monthOf(r.DATA), r.TIPO_CONTA, i.NOME, i.CATEGORIA || '', Number(i.VALOR) || 0, payStatus(i, monthOf(r.DATA)), payDate(i), joinPaths(r.FATURAS), joinPaths(rowComprovantes(r))]))
+    const catSheet = XLSX.utils.aoa_to_sheet([['MÊS', 'GRUPO', 'ITEM', 'CATEGORIA', 'VALOR', 'STATUS', 'DATA_PAGAMENTO', 'FATURA', 'COMPROVANTE'], ...lines])
+    catSheet['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 40 }, { wch: 40 }]
     XLSX.utils.book_append_sheet(wb, catSheet, 'Despesas por categoria')
   }
   if (data.prefs) {

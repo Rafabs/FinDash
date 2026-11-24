@@ -3,6 +3,8 @@ import PeriodFilter from './PeriodFilter.jsx'
 import LancarMes from './LancarMes.jsx'
 import PasteDespesas from './PasteDespesas.jsx'
 import { totalOf, monthOf, round2, expenseBreakdown, groupParents, groupPath, itemPaid, payDate, payPatch, reopenPatch, dueStatus, rowDueStatus, DUE_LABEL } from './data.js'
+import { useAnexosUI, AnexosBar, AnexoBadges } from './Anexos.jsx'
+import { rowComprovantes } from './anexos.js'
 import { rangeOf, inRange, labelOf, nowYM } from './period.js'
 import { brl } from './Dashboard.jsx'
 import MoneyInput from './MoneyInput.jsx'
@@ -123,8 +125,10 @@ function summarizeExpenses(list, currentMonth) {
 
 function ItemsModal({ row, onSave, onClose, catByName }) {
   const [items, setItems] = useState(row.ITENS.map((i) => ({ ...i })))
+  const [faturas, setFaturas] = useState(row.FATURAS || [])
+  const [comprovantes, setComprovantes] = useState(() => rowComprovantes(row)) // um comprovante para todos os itens da linha
   const up = (j, p) => setItems((x) => x.map((it, k) => (k === j ? { ...it, ...p } : it)))
-  const clean = items.filter((i) => i.VALOR !== '' && !isNaN(Number(i.VALOR))).map(({ CATEGORIA, ...i }) => {
+  const clean = items.filter((i) => i.VALOR !== '' && !isNaN(Number(i.VALOR))).map(({ CATEGORIA, COMPROVANTES: _porItem, ...i }) => { // comprovante por item (versão anterior) sobe para a linha
     const categoria = String(CATEGORIA || '').trim()
     return { ...i, NOME: String(i.NOME).trim(), VALOR: round2(i.VALOR), ...(categoria ? { CATEGORIA: categoria } : {}) }
   })
@@ -132,6 +136,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
     <div className="overlay" onClick={onClose}>
       <div className="modal items-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{row.TIPO_CONTA} · {mesCurto(monthOf(row.DATA))}</h3>
+        <AnexosBar row={{ ...row, ITENS: [], FATURAS: faturas, COMPROVANTES: comprovantes }} onChange={(p) => { if ('FATURAS' in p) setFaturas(p.FATURAS); if ('COMPROVANTES' in p) setComprovantes(p.COMPROVANTES) }} />
         <div className="slot-items">
           {items.map((it, j) => (
             <div className="it" key={j}>
@@ -148,7 +153,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
         <p className="hint">Total: <b>{brl(totalOf({ ITENS: clean }))}</b></p>
         <div className="actions">
           <button className="sec" onClick={onClose}>Cancelar</button>
-          <button disabled={!clean.length} onClick={() => onSave(clean)}>Salvar</button>
+          <button disabled={!clean.length} onClick={() => onSave(clean, faturas, comprovantes)}>Salvar</button>
         </div>
       </div>
     </div>
@@ -156,6 +161,7 @@ function ItemsModal({ row, onSave, onClose, catByName }) {
 }
 
 export default function DespesasView({ rows, accounts = [], onAddAccount, onUpdateAccount, period, setPeriod, onUpdate, onDelete, onMoveItem, onSaveMonth, onAddRows, onAppendRows }) {
+  const anexosUI = useAnexosUI() // faturas e comprovantes (pasta de anexos)
   const [cats, setCats] = useState([])
   const [statusFilter, setStatusFilter] = useState('') // '' | paga | vencida | vence | avencer
   const [q, setQ] = useState('')
@@ -426,6 +432,11 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
     ;(onAppendRows || onAddRows)([{ DATA: quickMonth + '-01', TIPO_CONTA: currentAccount.name, ITENS: [{ NOME: quickItem.trim(), VALOR: round2(value), ...(value >= 0 ? { PAGAMENTO: { pago: false } } : {}), ...((quickCat.trim() || catByName.get(quickItem.trim().toLowerCase())) ? { CATEGORIA: quickCat.trim() || catByName.get(quickItem.trim().toLowerCase()) } : {}) }] }])
     setQuickItem(''); setQuickValue(''); setQuickCat('')
   }
+  // fatura e comprovante da linha; o comprovante novo substitui os que estavam por item (versão anterior)
+  const patchRow = (rowIndex, patch) => {
+    if (locked || !rows[rowIndex]) return
+    onUpdate(rowIndex, 'COMPROVANTES' in patch ? { ...patch, ITENS: rows[rowIndex].ITENS.map(({ COMPROVANTES: _porItem, ...it }) => it) } : patch)
+  }
   const patchItem = (rowIndex, itemIndex, patch) => {
     if (locked) return
     const row = rows[rowIndex]
@@ -470,7 +481,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
       <section className="panel expense-history-panel">
         <div className="panel-head"><div><h3>Histórico</h3><small className="muted">Todos os lançamentos de {currentAccount?.name || accountPage}</small></div><span className="expense-history-count">{currentRows.length} registro{currentRows.length === 1 ? '' : 's'}</span></div>
         <div className="wrap"><table className="rt"><thead><tr><th>Mês</th><th>Despesas</th><th>Total</th></tr></thead><tbody>
-          {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span><div className="row-status"><StatusBadge status={rowDueStatus(r.ITENS, monthOf(r.DATA), currentMonth)} /></div></td><td><div className="account-history-items">{r.ITENS.map((it, j) => {
+          {currentRows.map(({ r, i }) => <tr key={i}><td className="ro"><span className="expense-history-month">{monthOf(r.DATA).split('-').reverse().join('/')}</span><div className="row-status"><StatusBadge status={rowDueStatus(r.ITENS, monthOf(r.DATA), currentMonth)} /></div></td><td><div className="account-history-items"><AnexosBar row={r} locked={locked} onChange={(p) => patchRow(i, p)} />{r.ITENS.map((it, j) => {
             return <div className="account-history-item" key={j}><span className="chip na">{it.NOME || 'Despesa'} · {brl(Number(it.VALOR) || 0)}</span><PayControls item={it} ym={monthOf(r.DATA)} current={currentMonth} locked={locked} onChange={(patch) => patchItem(i, j, patch)} /></div>
           })}</div></td><td className="ro"><b>{brl(totalOf(r))}</b></td></tr>)}
           {!currentRows.length && <tr><td colSpan="3" className="empty">Ainda não há lançamentos. Adicione o primeiro acima.</td></tr>}
@@ -581,6 +592,12 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
         <button className={'sec lock' + (locked ? '' : ' open')} onClick={toggleLock} title={locked ? 'Clique para liberar a edição' : 'Clique para travar a edição'}>{locked ? '🔒 Edição travada' : '🔓 Edição liberada'}</button>
         <button className="sec" disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setPasting('')}>📋 Colar despesas</button>
         <button disabled={locked} title={locked ? 'Destrave a edição para adicionar despesas' : ''} onClick={() => setLancar(nextYM)}>📅 Lançar mês</button>
+        {anexosUI && (() => {
+          const st = anexosUI.state
+          const dot = (slot) => (st[slot].connected ? 'on' : st[slot].needsPermission ? 'perm' : slot === 'comprovante' && st.fatura.connected ? 'inherit' : 'off')
+          const txt = (slot, nome) => `${nome}: ${st[slot].connected ? 'conectada' : st[slot].needsPermission ? 'falta permissão' : slot === 'comprovante' && st.fatura.connected ? 'usa a pasta das faturas' : 'não definida'}`
+          return <button className="sec" title={`${txt('fatura', 'Faturas')} · ${txt('comprovante', 'Comprovantes')}`} onClick={anexosUI.openFolder}>📎 Anexos<span className={`anexo-dot ${dot('fatura')}`} /><span className={`anexo-dot ${dot('comprovante')}`} /></button>
+        })()}
       </div>
       {searchSummary && <div className="search-summary">
         <span>🔎 “{q.trim()}”</span>
@@ -681,7 +698,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
                         <td className={ed ? '' : 'ro'} data-label="Despesas do grupo">{ed
                           ? <button className="items-btn" title="Editar despesas do grupo" onClick={() => setEditing(i)}>{chips}</button>
                           : <div className="items-static">{chips}</div>}</td>
-                        <td className="ro r" data-label="Total"><b>{brl(total)}</b><div className="row-status"><StatusBadge status={rowDueStatus(items.map(({ item }) => item), monthOf(r.DATA), currentMonth)} /></div></td>
+                        <td className="ro r" data-label="Total"><b>{brl(total)}</b><div className="row-status"><StatusBadge status={rowDueStatus(items.map(({ item }) => item), monthOf(r.DATA), currentMonth)} /></div><AnexoBadges row={r} /></td>
                         <td className="acts">
                           <button className={'icon' + (ed ? ' ok' : '')} disabled={locked} title={locked ? 'Destrave a edição para editar' : ed ? 'Concluir edição' : 'Editar'} onClick={() => toggleOpen(i)}>{ed ? '✓' : '✏️'}</button>
                           <button className="icon danger" disabled={locked} title={locked ? 'Destrave a edição para excluir' : 'Excluir'} onClick={async () => { if (await confirmDialog({ title: 'Excluir lançamento', message: 'Excluir este lançamento?', detail: 'Esta ação não pode ser desfeita.', confirmLabel: 'Excluir', danger: true })) del(i) }}>🗑</button>
@@ -725,7 +742,7 @@ export default function DespesasView({ rows, accounts = [], onAddAccount, onUpda
 
       {pasting !== null && <PasteDespesas initial={pasting} rows={rows} onClose={() => setPasting(null)} onSave={(novas) => { onAddRows(novas); setPasting(null) }} />}
       {lancar && <LancarMes rows={rows} initialYM={lancar} onClose={() => setLancar(null)} onSave={(ym, novas) => { onSaveMonth(ym, novas); setLancar(null) }} />}
-      {editing != null && <ItemsModal row={rows[editing]} catByName={catByName} onClose={() => setEditing(null)} onSave={(itens) => { onUpdate(editing, { ITENS: itens }); setEditing(null) }} />}
+      {editing != null && <ItemsModal row={rows[editing]} catByName={catByName} onClose={() => setEditing(null)} onSave={(itens, faturas, comprovantes) => { onUpdate(editing, { ITENS: itens, FATURAS: faturas, COMPROVANTES: comprovantes }); setEditing(null) }} />}
     </>
   )
 }

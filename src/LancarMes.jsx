@@ -25,7 +25,8 @@ function build(rows, ym, nid) {
 
   const slots = rows.filter((r) => monthOf(r.DATA) === ym).map((r) => {
     const p = tmpl[keyOf(r)]?.shift()
-    return { id: nid(), TIPO_CONTA: r.TIPO_CONTA, ITENS: r.ITENS.map((i) => { const { NOME, VALOR, ...meta } = i; return { NOME, VALOR, prev: prevItem(p, i.NOME), meta, old: true } }) }
+    const { DATA: _d, TIPO_CONTA: _t, ITENS: _i, ...rowMeta } = r // PAI, fatura…
+    return { id: nid(), TIPO_CONTA: r.TIPO_CONTA, rowMeta, ITENS: r.ITENS.map((i) => { const { NOME, VALOR, ...meta } = i; return { NOME, VALOR, prev: prevItem(p, i.NOME), meta, old: true } }) }
   })
   Object.values(tmpl).flat().forEach((p) =>
     slots.push({ id: nid(), TIPO_CONTA: p.TIPO_CONTA, ITENS: p.ITENS.map((i) => ({ NOME: i.NOME, VALOR: '', prev: i.VALOR })) }))
@@ -55,7 +56,7 @@ export default function LancarMes({ rows, initialYM, onSave, onClose }) {
   const save = () => {
     const out = slots
       .map((s) => ({
-        DATA: ym + '-01', TIPO_CONTA: s.TIPO_CONTA.trim(),
+        ...(s.rowMeta || {}), DATA: ym + '-01', TIPO_CONTA: s.TIPO_CONTA.trim(),
         ITENS: s.ITENS.filter((i) => i.VALOR !== '' && !isNaN(Number(i.VALOR))).map((i) => {
           const base = { ...(i.meta || {}), NOME: String(i.NOME).trim(), VALOR: round2(i.VALOR) } // mantém categoria, parcela e baixa dos itens já lançados
           return !i.old && !base.PARCELAMENTO && !base.PAGAMENTO && base.VALOR >= 0 ? { ...base, PAGAMENTO: { pago: false } } : base // item novo nasce "a pagar"

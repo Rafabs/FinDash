@@ -70,6 +70,7 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - **Categorias por item (subitens)**: classifique cada despesa, por exemplo *Amazon (Compras Online)*, *Nissan (Manutenção Veículo)*, *Shell (Abastecimento)*. A categoria é sugerida automaticamente quando a descrição já foi usada antes, aparece ao lado do item e, no detalhe do grupo, o app mostra o **subtotal por categoria** (veja a seção *Categorias por item*)
 - **Indicadores do filtro**: acima da lista, cartões no estilo do Dashboard mostram **valor total, valor pago, a pagar, valor futuro, parcelas em aberto e média por lançamento** do que está filtrado (período, grupos marcados e busca). Ao usar a lupa, também aparecem o total de todo o histórico e os totais por item. A busca encontra pela categoria do item e pelo nome do grupo
 - **Contas com ícone e cor**: cada conta tem um **ícone genérico** (65 opções, como casa, carro, internet, cartão) sobre uma **cor de fundo** que você escolhe, ou uma imagem sua (PNG, JPG, WebP ou SVG). Sem escolha, o app sugere o ícone pelo nome da conta (veja a seção *Ícones das contas*)
+- **Faturas e comprovantes**: anexe PDFs e imagens: **uma fatura e um comprovante para cada conta e mês** (valem para todos os itens da linha, como as várias compras do cartão), e abra-os dentro do app. Os arquivos ficam numa **pasta no seu computador** e o XLSX guarda só o caminho (veja [Faturas e comprovantes](#-faturas-e-comprovantes-anexos))
 - **Situação colorida em cada despesa e fatura**: **PAGA** (verde), **VENCIDA** (vermelho), **VENCE ESSE MÊS** (âmbar) e **A VENCER** (azul), com filtro por situação acima da lista (veja [Baixa de despesas](#-baixa-de-despesas))
 - **Baixa de despesas**: lançamentos novos nascem **a pagar** e só contam como **pagos** depois da baixa. Use **✓ Dar baixa hoje** ou **📅 Outra data** (no histórico da conta e no lápis ✏️ do grupo) e **↩ Desfazer baixa** se errar (veja [Baixa de despesas](#-baixa-de-despesas))
 - Lista, **matriz mensal** (grupo × mês) e filtros, com o total do que foi filtrado e o percentual de cada categoria. A lista se ajusta à largura da tela, sem barra de rolagem horizontal
@@ -179,7 +180,10 @@ Cada linha é **um mês + um tipo de conta**, com quantos itens forem necessári
 | `PARCELAMENTO_1`, `PARCELAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com os dados das parcelas de cada item (não edite) |
 | `PAGAMENTO_1`, `PAGAMENTO_2`, … | Colunas ocultas, escritas pelo app na exportação completa, com a **baixa** de cada item (pago e data). Não edite. Itens sem essa informação seguem a regra antiga: pagos quando o mês já chegou |
 | `CATEGORIA_1`, `CATEGORIA_2`, … | Categoria do item correspondente (`COTA_1` ↔ `CATEGORIA_1`). Opcional; as colunas só aparecem quando existe alguma categoria |
+| `FATURA` | Caminhos da fatura da linha (conta e mês), relativos à pasta das faturas; vários separados por `\|`. Opcional |
+| `COMPROVANTE` | Caminhos do comprovante da linha, relativos à pasta dos comprovantes. Um só vale para todos os itens. Opcional. Arquivos antigos com `COMPROVANTE_1`, `COMPROVANTE_2`… (um por item) continuam sendo lidos e viram o comprovante da linha |
 | `GRUPO_PAI` | Opcional. Nome do grupo em que este grupo está "dentro" (ex.: `ALUGUEL` para a conta `CONDOMÍNIO`) |
+| `FATURA` | Caminhos da fatura desta linha (conta e mês), relativos à pasta das faturas; vários separados por `\|`. Opcional |
  
 A mesma conta pode aparecer em mais de uma linha no mesmo mês (por exemplo, dois cartões). Linhas sem nenhum valor são ignoradas.
  
@@ -196,7 +200,7 @@ Guarda o ícone e o logo de cada conta da aba Despesas.
  
 ### Aba `Despesas por categoria` (opcional)
  
-Relatório legível, criado na exportação quando existe alguma categoria ou baixa: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA`, `VALOR`, `STATUS` (`Paga`, `Vencida`, `Vence este mês`, `A vencer` ou `Abatimento`) e `DATA_PAGAMENTO`. Serve para consulta, filtros e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
+Relatório legível, criado na exportação quando existe alguma categoria ou baixa: uma linha por item, com `MÊS`, `GRUPO`, `ITEM`, `CATEGORIA`, `VALOR`, `STATUS` (`Paga`, `Vencida`, `Vence este mês`, `A vencer` ou `Abatimento`), `DATA_PAGAMENTO`, `FATURA` e `COMPROVANTE` (caminhos dos anexos). Serve para consulta, filtros e tabelas dinâmicas. Ao importar, o app usa essa aba para **preencher a categoria de itens que ainda estão sem categoria** (casando por mês, grupo, item e valor). Para **trocar** uma categoria que já existe, edite as colunas `CATEGORIA_n` da aba `Despesas`.
  
 ### Aba `Preferências` (opcional)
 
@@ -208,6 +212,7 @@ Guarda a personalização do layout (veja [Personalização](#-personalização)
 | `theme` | `light` ou `dark` |
 | `accent` | Cor de destaque em hexadecimal (vazio = cor padrão do tema) |
 | `density` | `normal` ou `compact` |
+| `anexos.pasta`, `anexos.pasta.comprovante` | Nomes da pasta das faturas e da pasta dos comprovantes (só uma dica para reconectar; o navegador não guarda o caminho completo) |
 | `tabs.order`, `tabs.hidden` | Ordem das abas e abas ocultas, separadas por vírgula |
 | `wallpaper.type`, `wallpaper.dim` | `none`, `color`, `gradient`, `pattern` ou `image`, e o contraste (0 a 0,9) |
 | `wallpaper.value.0`, `.1`, … | Cor, gradiente, nome do fundo pronto ou a imagem (data URL), em blocos de 30 000 caracteres por causa do limite da célula do Excel |
@@ -441,6 +446,45 @@ Ao importar uma planilha, a barra superior mostra um cartão com:
 
 ---
 
+## 📎 Faturas e comprovantes (anexos)
+
+**Estratégia:** os arquivos **não vão para o XLSX nem para a internet**. Eles ficam em **pastas do seu computador** e o XLSX guarda apenas o **caminho relativo** à pasta (ex.: `2026-11/cartao-de-credito - fatura.pdf`). Há **duas pastas**: a das **faturas (boletos)** e a dos **comprovantes**. A dos comprovantes é **opcional**: sem ela, os comprovantes usam a pasta das faturas (ou seja, dá para usar **uma pasta só**). O XLSX continua pequeno e, para usar em outro PC, basta levar as pastas junto com ele (OneDrive, Drive, pen drive) e conectá-las de novo.
+
+**Como usar**
+
+1. Na aba **Despesas**, clique em **📎 Anexos** e escolha a **pasta das faturas** e, se os comprovantes ficam em outro lugar, a **pasta dos comprovantes** (a janela mostra um cartão para cada tipo, com o nome da pasta, quantos PDFs/imagens ela tem e **Ver arquivos** para conferir; no botão **📎 Anexos** há duas bolinhas, uma para as faturas e outra para os comprovantes: verde = conectada, amarela = falta permissão, vazada = usa a pasta das faturas)
+2. Para anexar: abra o lápis ✏️ de uma linha e use **＋ Anexar** em **📄 Fatura** e em **🧾 Comprovante**, lado a lado, no topo da janela. É **um de cada por conta e mês**: vale para todos os itens da linha (por exemplo, todas as compras do cartão no mês). Para trocar, remova com **✕** e anexe outro. Também dá para anexar no **histórico da conta** (com a edição liberada). Na janela de anexar, **📂 Procurar no computador** abre o explorador de arquivos **já dentro da pasta** (Chrome, Edge e Opera; no Firefox e Safari escolha o arquivo e o app o localiza na pasta conectada). Abaixo há a lista dos PDFs e imagens da pasta, com busca, os mais parecidos com o mês e o nome em primeiro lugar e o botão **↻ Atualizar lista**. Também dá para digitar o caminho à mão
+3. Para ver: na lista, a linha mostra **📄 Fatura** e **🧾 Comprovante**, um ao lado do outro. Clique para abrir o visualizador (PDF e imagens), com **↗ Nova aba** e **⬇ Baixar**. **Esc** fecha. Nas **imagens (JPG, PNG…)** há **zoom**: roda do mouse, botões **− / +**, **duplo clique** (ou pinça no celular) e, ampliada, é só **arrastar** para mover; **Ajustar** (ou a tecla `0`) volta ao tamanho da tela. Nos PDFs, use o zoom do próprio visualizador
+
+**Organização sugerida**
+
+- **Uma pasta só:** use uma pasta raiz e, dentro dela, **uma subpasta por mês**. A fatura (boleto) e o comprovante de cada conta ficam juntos e o nome do arquivo diz qual é qual. Basta não escolher a pasta dos comprovantes
+- **Duas pastas:** uma para os boletos e outra para os comprovantes, cada uma com a organização que você já usa. Escolha as duas em **📎 Anexos**. O seletor de cada campo lista só os arquivos da pasta daquele tipo
+
+Em qualquer caso, evite renomear ou mover os arquivos depois de anexar, porque o caminho salvo deixa de existir.
+
+```
+Anexos/
+└── 2026-11/
+    ├── cartao-de-credito - fatura.pdf
+    ├── cartao-de-credito - comprovante.pdf
+    ├── aluguel - fatura.pdf
+    └── aluguel - comprovante.pdf
+```
+
+**Regras**
+
+- A lista só mostra **PDF, PNG, JPG, JFIF, WEBP, GIF, BMP, SVG e AVIF**. Se ela vier vazia, a janela diz quantos arquivos leu e quais tipos encontrou (ex.: `.docx (3)`). Pastas que começam com ponto são ignoradas. O arquivo escolhido precisa estar **dentro da pasta conectada**; fora dela o app avisa
+- Aceita **PDF, PNG, JPG, WEBP, GIF, BMP e SVG**. O app reconhece o **tipo real pelo conteúdo**, então um PDF com nome `.png` abre como PDF (com um aviso). Renomear a extensão **não converte** o arquivo. O app **só lê**: não copia, move nem apaga arquivos. **✕** remove o anexo da despesa e o arquivo continua na pasta
+- Se o arquivo não estiver na pasta do tipo, o app procura na outra pasta (por isso anexos antigos continuam abrindo ao separar as pastas)
+- Maiúsculas e minúsculas são ignoradas, e vale também o caminho com o nome da pasta na frente ou um caminho completo do Windows que contenha o nome da pasta
+- **Chrome, Edge e Opera** lembram a pasta; ao abrir de novo o navegador pede a permissão (**🔓 Reconectar**). **Firefox e Safari** não guardam a pasta: escolha-a de novo a cada vez que abrir o app
+- Se o navegador retirar a permissão no meio do uso, a janela mostra **🔓 Reconectar** em vez de uma lista vazia
+- Arquivo não encontrado? O visualizador mostra o caminho esperado; confira a pasta em **📎 Anexos**
+- No XLSX: colunas `FATURA` e `COMPROVANTE` da aba `Despesas` (separe vários caminhos com `|`) e, para consulta, as mesmas colunas na aba `Despesas por categoria`. Também dá para preencher os caminhos direto no Excel
+
+---
+
 ## 📄 Exportar PDF de uma conta ou categoria
 
 O botão **PDF** do topo abre a janela **Exportar PDF**, com duas opções:
@@ -521,6 +565,8 @@ Para começar do zero, use **Limpar**; para guardar o exemplo como planilha, use
     ├── pdf.js                     # relatório em PDF (resumo, gráficos e tabelas; completo ou só de uma conta/categoria)
     ├── PdfModal.jsx               # janela Exportar PDF (relatório completo ou uma conta/categoria de despesas)
     ├── fileMeta.js                # arquivo carregado: nome, horários de carga/edição e recarga do disco
+    ├── anexos.js                  # pastas de anexos (faturas e comprovantes): caminhos relativos, leitura das pastas e arquivos
+    ├── Anexos.jsx                 # visualizador, escolha do arquivo, janela das pastas e campos de anexo
     ├── pdfScope.js                # filtra as despesas por conta (com os grupos de dentro) ou por categoria para o PDF
     ├── useMedia.js                # detecta tela de celular
     ├── Landing.jsx                # tela inicial (sem dados)
@@ -593,6 +639,10 @@ O comando atualiza o `src/version.js` e acrescenta uma linha no topo do **Histó
 ---
 
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.38` Anexos: nova janela de escolha das pastas (um cartão para faturas e outro para comprovantes, com conferência dos arquivos) e zoom nas imagens JPG e PNG
+- [X] `v26.11.37` Anexar: botão para procurar o arquivo no explorador já dentro da pasta, lista com diagnóstico (tipos ignorados), atualizar lista e aviso de permissão perdida
+- [X] `v26.11.36` Anexos: pasta própria para os comprovantes (opcional), separada da pasta das faturas; o app procura na outra pasta se o arquivo não estiver na do tipo
+- [X] `v26.11.35` Visualizador de anexos mais robusto: reconhece o tipo real do arquivo (PDF renomeado para .png abre como PDF), layout fixo, aviso de extensão errada e detalhes do erro
 - [X] `v26.11.32` Menu lateral (sidebar) no lugar das abas; clicar em FYNN CONTROL ou na logo volta ao Dashboard; menu recolhível e barra inferior no celular
 - [X] `v26.11.31` Dados de exemplo mais completos: carteira com FIIs, ações, ETFs e previdência, proventos, grupos de despesas, parcelamentos e todas as situações (paga, vencida, vence esse mês, a vencer)
 - [X] `v26.11.30` Versionamento centralizado: a versão do app fica em src/version.js e o comando npm run versao atualiza a versão e o histórico do README

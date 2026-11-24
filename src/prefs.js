@@ -19,7 +19,7 @@ export const PATTERNS = [
 const PATTERN_CSS = Object.fromEntries(PATTERNS.map((x) => [x.id, x.css]))
 
 // accent '' = cor padrão do tema
-export const DEFAULTS = { version: 1, theme: 'light', accent: '', density: 'normal', wallpaper: { type: 'none', value: '', dim: 0.5 }, tabs: { order: TABS.map((t) => t[0]), hidden: [] } }
+export const DEFAULTS = { version: 1, theme: 'light', accent: '', density: 'normal', anexosPasta: '', anexosPastaComprovante: '', wallpaper: { type: 'none', value: '', dim: 0.5 }, tabs: { order: TABS.map((t) => t[0]), hidden: [] } }
 
 const sysTheme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 const migrate = (p) => p // ganchos para versões futuras do schema
@@ -82,7 +82,7 @@ const okWp = {
 
 export const prefsToRows = (p) => {
   const w = p.wallpaper
-  const rows = [['CHAVE', 'VALOR'], ['version', p.version], ['theme', p.theme], ['accent', p.accent], ['density', p.density],
+  const rows = [['CHAVE', 'VALOR'], ['version', p.version], ['theme', p.theme], ['accent', p.accent], ['density', p.density], ['anexos.pasta', p.anexosPasta || ''], ['anexos.pasta.comprovante', p.anexosPastaComprovante || ''],
     ['tabs.order', p.tabs.order.join(',')], ['tabs.hidden', p.tabs.hidden.join(',')], ['wallpaper.type', w.type], ['wallpaper.dim', w.dim]]
   for (let i = 0, n = 0; i < w.value.length; i += CHUNK, n++) rows.push([`wallpaper.value.${n}`, w.value.slice(i, i + CHUNK)])
   return rows
@@ -103,6 +103,8 @@ export const prefsFromRows = (rows) => {
     theme: m.theme === 'dark' ? 'dark' : 'light',
     accent: /^#[0-9a-f]{6}$/i.test(m.accent) ? m.accent : '',
     density: m.density === 'compact' ? 'compact' : 'normal',
+    anexosPasta: String(m['anexos.pasta'] ?? '').trim().slice(0, 120),
+    anexosPastaComprovante: String(m['anexos.pasta.comprovante'] ?? '').trim().slice(0, 120),
     wallpaper: { type: valid ? type : 'none', value: valid ? value : '', dim: Number.isFinite(dim) ? Math.min(0.9, Math.max(0, dim)) : 0.5 },
     tabs: { order: split(m['tabs.order']), hidden: split(m['tabs.hidden']) },
   }))

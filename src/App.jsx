@@ -21,6 +21,7 @@ import { confirmDialog, alertDialog } from './dialog.js'
 import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart, groupable, syncPapel, normalizeGroups, categorize, today, demoData, moveExpenseItem, isPrevidencia, withAvgCost, isRV, itemPaid, mergeExpenseRows } from './data.js'
 import { exportPdf } from './pdf.js'
 import PdfModal from './PdfModal.jsx'
+import { AnexosProvider } from './Anexos.jsx'
 import { VERSION } from './version.js'
 import { EMPTY_META, loadMeta, saveMeta, fmtDT, canPick, pickHandle, readHandle, saveHandle, loadHandle, clearHandle } from './fileMeta.js'
 import { scopeRows, scopeSummary } from './pdfScope.js'
@@ -331,7 +332,7 @@ export default function App() {
           <ExtratoView resgates={data.resgates} rows={data.extrato} categories={data.categoriasExtrato || []} onAddCategory={addExtratoCategory} onManageCategories={() => setCatManager(true)} period={period} setPeriod={setPeriod} onEdit={edit('extrato')} onDelete={del('extrato')} onAdd={addExtrato} onPaste={() => setPaste('')} />
         </>)}
         {tab === 'despesas' && (
-          <DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} onAppendRows={appendDesp} />
+          <AnexosProvider hints={{ fatura: prefs.anexosPasta, comprovante: prefs.anexosPastaComprovante }} onFolder={(slot, name) => setPrefs((p) => ({ ...p, [slot === 'comprovante' ? 'anexosPastaComprovante' : 'anexosPasta']: name }))}><DespesasView rows={data.despesas} accounts={data.contasDespesas || []} onAddAccount={addExpenseAccount} onUpdateAccount={updateExpenseAccount} period={period} setPeriod={setPeriod} onUpdate={updDesp} onDelete={delDesp} onMoveItem={moveDespItem} onSaveMonth={saveMonth} onAddRows={addDesp} onAppendRows={appendDesp} /></AnexosProvider>
         )}
         {tab === 'resgates' && (
           <ResgatesView rows={data.resgates} period={period} setPeriod={setPeriod} onEdit={edit('resgates')} onDelete={del('resgates')} onAdd={addResgate} />

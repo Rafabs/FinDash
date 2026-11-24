@@ -48,3 +48,8 @@ const withStore = async (mode, fn) => {
 export const saveHandle = (h) => withStore('readwrite', (s) => s.put(h, 'last'))
 export const clearHandle = () => withStore('readwrite', (s) => s.delete('last'))
 export const loadHandle = () => withStore('readonly', (s) => s.get('last'))
+
+// alças extras (ex.: pasta de anexos), cada uma na sua chave
+export const putHandle = (key, h) => withStore('readwrite', (s) => s.put(h, key))
+export const getHandleByKey = (key) => withStore('readonly', (s) => s.get(key))
+export const delHandle = (key) => withStore('readwrite', (s) => s.delete(key))
