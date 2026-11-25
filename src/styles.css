@@ -847,3 +847,6 @@ html[data-density=compact] main{font-size:13px}
 .folder-files ul{margin:6px 0 0;padding:0;list-style:none;max-height:150px;overflow:auto;display:grid;gap:2px;word-break:break-all}
 .anexo-how{margin:8px 0;font-size:13px}.anexo-how summary{cursor:pointer;font-weight:700}
 @media(max-width:700px){.folder-grid{grid-template-columns:1fr}.anexo-zoom-bar{right:8px;bottom:8px}}
+.anexo-used-toggle{display:flex;align-items:center;gap:8px;margin:6px 0 0;color:var(--mut);font-size:12px;cursor:pointer}
+.anexo-item.used{opacity:.7}.anexo-item em.used{color:#d97706}
+.anexo-dup-actions{display:flex;gap:8px;margin-top:8px}

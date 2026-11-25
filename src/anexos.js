@@ -21,6 +21,21 @@ export const joinPaths = (list) => (list || []).map(normPath).filter(Boolean).jo
 // comprovantes de uma linha (conta + mês): um só para todos os itens. Aceita também os comprovantes por item da versão anterior
 export const rowComprovantes = (r) => [...new Set([...(r?.COMPROVANTES || []), ...(r?.ITENS || []).flatMap((i) => i.COMPROVANTES || [])])]
 
+// identifica a linha (conta + mês) de uma despesa
+export const rowKey = (r) => `${String(r?.DATA || '').slice(0, 7)}|${String(r?.TIPO_CONTA || '').trim().toLowerCase()}`
+// arquivos já anexados: Map caminho(minúsculo) -> [{ key, label }] das linhas que o usam, separado por tipo (fatura / comprovante)
+export function buildUsed(rows) {
+  const out = { fatura: new Map(), comprovante: new Map() }
+  const add = (slot, p, r) => {
+    const k = normPath(p).toLowerCase()
+    if (!k) return
+    if (!out[slot].has(k)) out[slot].set(k, [])
+    out[slot].get(k).push({ key: rowKey(r), label: `${r.TIPO_CONTA} · ${String(r.DATA).slice(0, 7)}` })
+  }
+  ;(rows || []).forEach((r) => { (r.FATURAS || []).forEach((p) => add('fatura', p, r)); rowComprovantes(r).forEach((p) => add('comprovante', p, r)) })
+  return out
+}
+
 // ---------- estado das pastas (fatura e comprovante) ----------
 const SLOTS = ['fatura', 'comprovante']
 const KEYS = { fatura: 'anexos-root', comprovante: 'anexos-root-comprovante' }

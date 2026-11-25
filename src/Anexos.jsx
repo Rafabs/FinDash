@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribe, getSnapshot, sourceSlot, initAnexos, canDir, canPickFile, pickFolder, pickFileInFolder, findByName, reconnect, loadFromInput, forgetFolder, listFiles, openUrl, baseName, rowComprovantes } from './anexos.js'
+import { subscribe, getSnapshot, sourceSlot, initAnexos, canDir, canPickFile, pickFolder, pickFileInFolder, findByName, reconnect, loadFromInput, forgetFolder, listFiles, openUrl, baseName, normPath, rowComprovantes, rowKey, buildUsed } from './anexos.js'
 
 // Faturas e comprovantes: janela de visualização, escolha do arquivo e pastas de anexos.
 // Há duas pastas: a das FATURAS (boletos) e a dos COMPROVANTES (opcional; sem ela usa a das faturas).
@@ -9,8 +9,9 @@ export const useAnexosUI = () => useContext(Ctx)
 const useFolder = () => useSyncExternalStore(subscribe, getSnapshot)
 const SLOT_NAME = { fatura: 'das faturas', comprovante: 'dos comprovantes' }
 
-export function AnexosProvider({ hints = {}, onFolder, children }) {
+export function AnexosProvider({ rows, hints = {}, onFolder, children }) {
   const state = useFolder()
+  const used = useMemo(() => buildUsed(rows), [rows]) // arquivos que já estão anexados a alguma fatura ou comprovante
   const [viewer, setViewer] = useState(null) // { items: [{ path, label, slot }], index }
   const [picker, setPicker] = useState(null) // { title, hints, slot, resolve }
   const [folder, setFolder] = useState(false)
@@ -28,7 +29,7 @@ export function AnexosProvider({ hints = {}, onFolder, children }) {
     <Ctx.Provider value={api}>
       {children}
       {viewer && <AnexoViewer items={viewer.items} start={viewer.index} onClose={() => setViewer(null)} onSetup={() => { setViewer(null); setFolder(true) }} />}
-      {picker && <AnexoPicker title={picker.title} hints={picker.hints} slot={picker.slot} onPick={closePicker} onClose={() => closePicker(null)} onSetup={() => setFolder(true)} />}
+      {picker && <AnexoPicker title={picker.title} hints={picker.hints} slot={picker.slot} selfKey={picker.selfKey} used={used} onPick={closePicker} onClose={() => closePicker(null)} onSetup={() => setFolder(true)} />}
       {folder && <FolderModal hints={hints} onFolder={onFolder} onClose={() => setFolder(false)} />}
     </Ctx.Provider>
   )
@@ -173,7 +174,7 @@ function AnexoViewer({ items, start, onClose, onSetup }) {
 }
 
 // ---------- escolher o arquivo dentro da pasta do tipo ----------
-function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSetup }) {
+function AnexoPicker({ title, hints = [], slot = 'fatura', selfKey, used, onPick, onClose, onSetup }) {
   const state = useFolder()
   const src = sourceSlot(state, slot) // pasta do tipo; sem ela, a outra
   const [info, setInfo] = useState(null) // { files, total, ignored, truncated }
@@ -181,6 +182,8 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
   const [q, setQ] = useState('')
   const [manual, setManual] = useState('')
   const [n, setN] = useState(0) // "Atualizar"
+  const [showUsed, setShowUsed] = useState(false) // mostrar também o que já está anexado em outras faturas
+  const [dup, setDup] = useState(null) // arquivo escolhido que já está anexado em outra linha: pede confirmação
   const input = useRef(null)
   useEffect(() => {
     let alive = true
@@ -190,14 +193,24 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
     return () => { alive = false }
   }, [src, slot, n, state.fatura.connected, state.comprovante.connected, state.fatura.name, state.comprovante.name])
   const files = info?.files
+  // com uma pasta só (comprovantes sem pasta própria), fatura e comprovante saem da mesma pasta: um arquivo usado como um não serve como o outro
+  const sameFolder = !!sourceSlot(state, 'fatura') && sourceSlot(state, 'fatura') === sourceSlot(state, 'comprovante')
+  const usedBy = (p) => {
+    const k = normPath(p).toLowerCase()
+    const out = []
+    for (const sl of sameFolder ? ['fatura', 'comprovante'] : [slot]) (used?.[sl]?.get(k) || []).forEach((u) => { if (u.key !== selfKey) out.push(u.label) })
+    return [...new Set(out)]
+  }
+  const hiddenCount = useMemo(() => (files || []).filter((p) => usedBy(p).length).length, [files, used, sameFolder, selfKey, slot]) // eslint-disable-line react-hooks/exhaustive-deps
+  const choose = (p) => { const by = usedBy(p); if (by.length) setDup({ path: p, by }); else onPick(p) }
   const hintKey = hints.join('|')
   const ranked = useMemo(() => {
     const toks = hintKey.split('|').map((h) => h.trim().toLowerCase()).filter((h) => h.length > 1)
     const needle = q.trim().toLowerCase()
-    return (files || []).filter((p) => !needle || p.toLowerCase().includes(needle))
+    return (files || []).filter((p) => (!needle || p.toLowerCase().includes(needle)) && (showUsed || !usedBy(p).length))
       .map((p) => ({ p, s: toks.reduce((a, t) => a + (p.toLowerCase().includes(t) ? 1 : 0), 0) }))
       .sort((a, b) => b.s - a.s || a.p.localeCompare(b.p, 'pt-BR'))
-  }, [files, q, hintKey])
+  }, [files, q, hintKey, showUsed, used, sameFolder, selfKey, slot]) // eslint-disable-line react-hooks/exhaustive-deps
   const needPerm = !src && (state.fatura.needsPermission || state.comprovante.needsPermission)
   const reconnectAny = () => reconnect(state[slot].needsPermission ? slot : state.fatura.needsPermission ? 'fatura' : 'comprovante')
   const handleMode = !!src && state[src].mode === 'pasta'
@@ -207,7 +220,7 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
     if (!(canPickFile() && handleMode)) { input.current?.click(); return }
     try {
       const r = await pickFileInFolder(slot)
-      if (r.path) onPick(r.path)
+      if (r.path) choose(r.path)
       else setErr(`O arquivo “${r.name}” está fora das pastas conectadas. Escolha um arquivo dentro de “${state[src].name}” ou conecte a pasta certa em 📎 Anexos.`)
     } catch (e) { if (e?.name !== 'AbortError') setErr('Não foi possível abrir o explorador de arquivos.') }
   }
@@ -216,7 +229,7 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
     e.target.value = ''
     if (!f) return
     const p = findByName(f, slot)
-    if (p) onPick(p)
+    if (p) choose(p)
     else setErr(`O arquivo “${f.name}” não está na pasta conectada${src ? ` (“${state[src].name}”)` : ''}. Conecte a pasta onde ele está.`)
   }
   const ignoredTxt = info ? Object.entries(info.ignored || {}).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([e, c]) => `.${e} (${c})`).join(', ') : ''
@@ -234,8 +247,14 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
               <input ref={input} type="file" hidden accept="application/pdf,image/*" onChange={onFile} />
             </div>
             <input className="cell" placeholder="Buscar na lista pelo nome ou pasta…" value={q} onChange={(e) => setQ(e.target.value)} />
+            {hiddenCount > 0 && (
+              <label className="anexo-used-toggle">
+                <input type="checkbox" checked={showUsed} onChange={(e) => setShowUsed(e.target.checked)} />
+                {showUsed ? `Mostrando os ${hiddenCount} já anexados em outras faturas` : `${hiddenCount} arquivo${hiddenCount === 1 ? ' já anexado' : 's já anexados'} em outras faturas ${hiddenCount === 1 ? 'oculto' : 'ocultos'}. Mostrar`}
+              </label>
+            )}
             <div className="anexo-list">
-              {ranked.slice(0, 200).map(({ p, s }) => <button type="button" key={p} className="anexo-item" onClick={() => onPick(p)}><span>{p}</span>{s > 0 && <em>sugerido</em>}</button>)}
+              {ranked.slice(0, 200).map(({ p, s }) => { const by = usedBy(p); return <button type="button" key={p} className={`anexo-item${by.length ? ' used' : ''}`} onClick={() => choose(p)}><span>{p}</span>{by.length ? <em className="used" title={by.join(', ')}>já anexado</em> : s > 0 && <em>sugerido</em>}</button> })}
               {info && !ranked.length && (
                 <p className="muted">{info.total > 0 && !files.length
                   ? `Foram lidos ${info.total} arquivo(s), mas nenhum PDF ou imagem. Tipos encontrados: ${ignoredTxt || '—'}.`
@@ -248,6 +267,12 @@ function AnexoPicker({ title, hints = [], slot = 'fatura', onPick, onClose, onSe
           <div className="anexo-note">
             <p>{needPerm ? 'O navegador pede a permissão de leitura da pasta de anexos de novo.' : `Conecte a pasta ${SLOT_NAME[slot]} para escolher o arquivo.`}</p>
             <button type="button" onClick={needPerm ? reconnectAny : onSetup}>{needPerm ? '🔓 Reconectar pasta' : '📁 Conectar pasta'}</button>
+          </div>
+        )}
+        {dup && (
+          <div className="anexo-warn">
+            <b>Este arquivo já está anexado em: {dup.by.join('; ')}.</b> Usar o mesmo arquivo em duas faturas pode contar o pagamento duas vezes.
+            <span className="anexo-dup-actions"><button type="button" className="sec sm" onClick={() => onPick(dup.path)}>Anexar mesmo assim</button><button type="button" className="sec sm" onClick={() => setDup(null)}>Escolher outro</button></span>
           </div>
         )}
         {err && <p className="anexo-warn">{err} {err.includes('Reconectar') && <button type="button" className="sec sm" onClick={reconnectAny}>🔓 Reconectar</button>}</p>}
@@ -344,12 +369,12 @@ function FolderModal({ hints, onFolder, onClose }) {
 }
 
 // ---------- campo de anexos (fatura ou comprovante de uma linha) ----------
-export function AnexosField({ label, icon = '📎', slot = 'fatura', value, onChange, hints = [], locked = false, single = false }) {
+export function AnexosField({ label, icon = '📎', slot = 'fatura', selfKey, value, onChange, hints = [], locked = false, single = false }) {
   const ui = useAnexosUI()
   const list = Array.isArray(value) ? value : []
   if (!ui || (locked && !list.length)) return null
   const add = async () => {
-    const p = await ui.pick({ title: `Anexar ${label.toLowerCase()}`, hints, slot })
+    const p = await ui.pick({ title: `Anexar ${label.toLowerCase()}`, hints, slot, selfKey })
     if (p && !list.includes(p)) onChange([...list, p])
   }
   return (
@@ -373,8 +398,8 @@ export function AnexosBar({ row, onChange, locked = false }) {
   if (locked && !fat.length && !comp.length) return null
   return (
     <div className="anexos-bar">
-      <AnexosField single slot="fatura" label="Fatura" icon="📄" value={fat} onChange={(v) => onChange({ FATURAS: v })} hints={[...base, 'fatura', 'boleto']} locked={locked} />
-      <AnexosField single slot="comprovante" label="Comprovante" icon="🧾" value={comp} onChange={(v) => onChange({ COMPROVANTES: v })} hints={[...base, 'comprovante']} locked={locked} />
+      <AnexosField single slot="fatura" selfKey={rowKey(row)} label="Fatura" icon="📄" value={fat} onChange={(v) => onChange({ FATURAS: v })} hints={[...base, 'fatura', 'boleto']} locked={locked} />
+      <AnexosField single slot="comprovante" selfKey={rowKey(row)} label="Comprovante" icon="🧾" value={comp} onChange={(v) => onChange({ COMPROVANTES: v })} hints={[...base, 'comprovante']} locked={locked} />
     </div>
   )
 }
