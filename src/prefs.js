@@ -1,5 +1,5 @@
 export const PREFS_KEY = 'fynn-prefs-v1'
-export const TABS = [['dash', 'Dashboard'], ['projecao', 'Projeção'], ['renda', 'Renda por papel'], ['carteira', 'Carteira'], ['extrato', 'Extrato'], ['despesas', 'Despesas'], ['resgates', 'Resgates'], ['notas', 'Notas']]
+export const TABS = [['dash', 'Dashboard'], ['projecao', 'Projeção'], ['renda', 'Renda por papel'], ['recomendacoes', 'Recomendações'], ['carteira', 'Carteira'], ['extrato', 'Extrato'], ['despesas', 'Despesas'], ['resgates', 'Resgates'], ['notas', 'Notas']]
 export const TAB_LABEL = Object.fromEntries(TABS)
 export const ACCENTS = ['#00a99d', '#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
 export const GRADIENTS = ['linear-gradient(135deg,#4f46e5,#06b6d4)', 'linear-gradient(135deg,#f59e0b,#ef4444)', 'linear-gradient(135deg,#10b981,#065f46)', 'linear-gradient(135deg,#0f172a,#334155)']
@@ -19,7 +19,7 @@ export const PATTERNS = [
 const PATTERN_CSS = Object.fromEntries(PATTERNS.map((x) => [x.id, x.css]))
 
 // accent '' = cor padrão do tema
-export const DEFAULTS = { version: 1, theme: 'light', accent: '', density: 'normal', anexosPasta: '', anexosPastaComprovante: '', wallpaper: { type: 'none', value: '', dim: 0.5 }, tabs: { order: TABS.map((t) => t[0]), hidden: [] } }
+export const DEFAULTS = { version: 1, theme: 'light', accent: '', density: 'normal', anexosPasta: '', anexosPastaComprovante: '', recoPerfil: 'moderado', recoDiscricionarias: null, recoOcultas: [], wallpaper: { type: 'none', value: '', dim: 0.5 }, tabs: { order: TABS.map((t) => t[0]), hidden: [] } }
 
 const sysTheme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 const migrate = (p) => p // ganchos para versões futuras do schema
@@ -74,6 +74,7 @@ export const readImage = (file, max = 1600) => new Promise((ok, no) => {
 // ---------- XLSX (aba "Preferências") ----------
 const CHUNK = 30000 // limite da célula do Excel: 32767
 const split = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean)
+const NENHUMA = '(nenhuma)' // lista de supérfluos escolhida e vazia (diferente de "automático")
 const okWp = {
   image: /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/,
   color: /^#[0-9a-f]{3,8}$/i,
@@ -83,6 +84,7 @@ const okWp = {
 export const prefsToRows = (p) => {
   const w = p.wallpaper
   const rows = [['CHAVE', 'VALOR'], ['version', p.version], ['theme', p.theme], ['accent', p.accent], ['density', p.density], ['anexos.pasta', p.anexosPasta || ''], ['anexos.pasta.comprovante', p.anexosPastaComprovante || ''],
+    ['reco.perfil', p.recoPerfil], ['reco.discricionarias', Array.isArray(p.recoDiscricionarias) ? (p.recoDiscricionarias.join('|') || NENHUMA) : ''], ['reco.ocultas', (p.recoOcultas || []).join(',')],
     ['tabs.order', p.tabs.order.join(',')], ['tabs.hidden', p.tabs.hidden.join(',')], ['wallpaper.type', w.type], ['wallpaper.dim', w.dim]]
   for (let i = 0, n = 0; i < w.value.length; i += CHUNK, n++) rows.push([`wallpaper.value.${n}`, w.value.slice(i, i + CHUNK)])
   return rows
@@ -105,6 +107,9 @@ export const prefsFromRows = (rows) => {
     density: m.density === 'compact' ? 'compact' : 'normal',
     anexosPasta: String(m['anexos.pasta'] ?? '').trim().slice(0, 120),
     anexosPastaComprovante: String(m['anexos.pasta.comprovante'] ?? '').trim().slice(0, 120),
+    recoPerfil: ['conservador', 'moderado', 'arrojado'].includes(m['reco.perfil']) ? m['reco.perfil'] : 'moderado',
+    recoDiscricionarias: (() => { const t = String(m['reco.discricionarias'] ?? '').trim(); return !t ? null : t === NENHUMA ? [] : t.split('|').map((x) => x.trim().slice(0, 60)).filter(Boolean).slice(0, 60) })(),
+    recoOcultas: String(m['reco.ocultas'] ?? '').split(',').map((x) => x.trim()).filter((x) => /^[\w:.\-áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]{1,80}$/.test(x)).slice(0, 200),
     wallpaper: { type: valid ? type : 'none', value: valid ? value : '', dim: Number.isFinite(dim) ? Math.min(0.9, Math.max(0, dim)) : 0.5 },
     tabs: { order: split(m['tabs.order']), hidden: split(m['tabs.hidden']) },
   }))

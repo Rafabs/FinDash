@@ -22,6 +22,8 @@ import { CATS, SHEETS, importFile, recalcCart, exportCsv, exportXlsx, lockedCart
 import { exportPdf } from './pdf.js'
 import PdfModal from './PdfModal.jsx'
 import { AnexosProvider } from './Anexos.jsx'
+import Recomendacoes from './Recomendacoes.jsx'
+import { analyze, PERFIS } from './recommend.js'
 import { VERSION } from './version.js'
 import { EMPTY_META, loadMeta, saveMeta, fmtDT, canPick, pickHandle, readHandle, saveHandle, loadHandle, clearHandle } from './fileMeta.js'
 import { scopeRows, scopeSummary } from './pdfScope.js'
@@ -30,8 +32,8 @@ import { loadPrefs, applyPrefs, TAB_LABEL } from './prefs.js'
 import { CDI_CACHE_KEY, fetchLatestCdi, readCachedCdi, fetchLatestSelic, readCachedSelic, SELIC_CACHE_KEY } from './market.js'
 
 // rótulos curtos da barra de abas no celular
-const TAB_SHORT = { renda: 'Renda' }
-const TAB_ICONS = { dash: '📊', projecao: '🔮', renda: '💹', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
+const TAB_SHORT = { renda: 'Renda', recomendacoes: 'Dicas' }
+const TAB_ICONS = { dash: '📊', projecao: '🔮', renda: '💹', recomendacoes: '💡', carteira: '💼', extrato: '🧾', despesas: '💸', resgates: '🏁', notas: '📝' }
 const KEY = 'fynn-control-v1'
 const load = () => {
   try {
@@ -119,7 +121,7 @@ export default function App() {
       indicadoresResumo.push(['Despesas futuras · pago', brl(pago)])
       indicadoresResumo.push(['Despesas futuras · pendente', brl(Math.max(0, previsto - pago))])
     }
-    exportPdf({ ...data, carteira: carteiraView, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP, projectionData: { carteira: data.carteira, extrato: data.extrato, despesas: data.despesas, resgates: data.resgates } }, indicadoresResumo, label, { cdi, selic })
+    exportPdf({ ...data, carteira: carteiraView, extrato: extP, despesas: despesasPdf, despesasFuturas: despFuturas, resgates: resP, projectionData: { carteira: data.carteira, extrato: data.extrato, despesas: data.despesas, resgates: data.resgates } }, indicadoresResumo, label, { cdi, selic, recomendacoes: { perfilLabel: PERFIS[analysis.perfil]?.label, metrics: analysis.metrics, plano: analysis.plano, contexto: analysis.contexto, recs: analysis.recs.filter((r) => !(prefs.recoOcultas || []).includes(r.id)) } })
   }
   const updDesp = (i, patch) => setData((d) => ({ ...d, despesas: d.despesas.map((r, j) => (j === i ? { ...r, ...patch } : r)) }))
   const delDesp = (i) => setData((d) => ({ ...d, despesas: d.despesas.filter((_, j) => j !== i) }))
@@ -217,7 +219,10 @@ export default function App() {
   const hasFinancialData = data.carteira.length || data.extrato.length || data.despesas?.length || data.resgates?.length
   const visibleTabs = prefs.tabs.order.filter((id) => !prefs.tabs.hidden.includes(id))
   useEffect(() => { if (!empty && !visibleTabs.includes(tab)) setTab('dash') }, [visibleTabs.join(), empty])
-  const COUNTS = { carteira: data.carteira.length, extrato: data.extrato.length, despesas: data.despesas.length, resgates: data.resgates.length }
+  // recomendações calculadas com os dados de hoje; o número no menu é o de recomendações de prioridade alta ainda não ocultas
+  const analysis = useMemo(() => analyze({ data, cdi, selic, settings: { perfil: prefs.recoPerfil, discricionarias: prefs.recoDiscricionarias } }), [data, cdi, selic, prefs.recoPerfil, prefs.recoDiscricionarias])
+  const recoAlta = analysis.recs.filter((r) => r.prioridade === 'alta' && !(prefs.recoOcultas || []).includes(r.id)).length
+  const COUNTS = { ...(recoAlta ? { recomendacoes: recoAlta } : {}), carteira: data.carteira.length, extrato: data.extrato.length, despesas: data.despesas.length, resgates: data.resgates.length }
   const handleFile = async (f, handle = null) => {
     if (!f) return
     try {
@@ -316,6 +321,7 @@ export default function App() {
         {tab === 'dash' && <Dashboard data={data} period={period} setPeriod={setPeriod} cdi={cdi} cdiStatus={cdiStatus} selic={selic} selicStatus={selicStatus} />}
         {tab === 'projecao' && <Projecao data={data} cdi={cdi} />}
         {tab === 'renda' && <RendaPorPapel data={data} />}
+        {tab === 'recomendacoes' && <Recomendacoes analysis={analysis} prefs={prefs} onPrefs={setPrefs} onGo={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }} cdi={cdi} />}
         {tab === 'carteira' && (
           <>
             <CartHero rows={data.carteira} />

@@ -21,7 +21,7 @@ export default function PdfModal({ despesas, periodLabel, onClose, onExport }) {
 
         <label className="pdf-opt">
           <input type="radio" name="pdf-mode" checked={mode === 'full'} onChange={() => setMode('full')} />
-          <span><b>Relatório completo</b><small>Carteira, extrato, despesas, resgates, gráficos e projeção</small></span>
+          <span><b>Relatório completo</b><small>Carteira, extrato, despesas, resgates, gráficos, recomendações e projeção</small></span>
         </label>
         <label className={`pdf-opt${hasScopes ? '' : ' off'}`}>
           <input type="radio" name="pdf-mode" disabled={!hasScopes} checked={mode === 'one'} onChange={() => setMode('one')} />

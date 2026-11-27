@@ -544,7 +544,8 @@ export function demoData() {
 
   // ---------- Carteira ----------
   const L = (o) => recalcCart({ IOF: '', ...o, ULTIMA_ATUAL: hoje })
-  const rf = (dias, qtd, prc, banco, tipo, prod, atual) => L({ DATA_APLICACAO: ago(dias), QTD_COMPRA: qtd, PRC_UNIT: prc, PAPEL: 'N/A', BANCO: banco, TIPO_PRODUTO: tipo, PRODUTO: prod, TIPO_INV: 'RF', TOTAL_ATUAL: atual })
+  // renda fixa: o valor de hoje vem de uma taxa anual (juros compostos), para o exemplo ficar coerente com o tempo aplicado
+  const rf = (dias, qtd, prc, banco, tipo, prod, taxa) => L({ DATA_APLICACAO: ago(dias), QTD_COMPRA: qtd, PRC_UNIT: prc, PAPEL: 'N/A', BANCO: banco, TIPO_PRODUTO: tipo, PRODUTO: prod, TIPO_INV: 'RF', TOTAL_ATUAL: +(qtd * prc * (1 + taxa) ** (dias / 365)).toFixed(2) })
   const rv = (dias, qtd, custo, papel, tipo, prod, preco) => L({ DATA_APLICACAO: ago(dias), QTD_COMPRA: qtd, PRC_UNIT: preco, PAPEL: papel, VLR_APLICACAO: +(qtd * custo).toFixed(2), BANCO: 'CORRETORA EXEMPLO', TIPO_PRODUTO: tipo, PRODUTO: prod, TIPO_INV: 'RV' })
   const FII = 'FUNDOS IMOBILIÁRIOS'
   // previdência: cada aporte mensal é um lote do mesmo fundo; a cota cresce ~0,65% ao mês
@@ -554,13 +555,13 @@ export function demoData() {
     return L({ DATA_APLICACAO: at(k, 10), QTD_COMPRA: +(aporte / cota).toFixed(4), PRC_UNIT: cotaHoje, PAPEL: papel, VLR_APLICACAO: aporte, BANCO: 'BANCO EXEMPLO', TIPO_PRODUTO: tipo, PRODUTO: 'PREVIDÊNCIA PRIVADA', TIPO_INV: 'RV' })
   })
   const carteira = normalizeGroups([
-    rf(540, 1, 12000, 'BANCO DIGITAL', 'RDB 100% DO CDI', 'CONTA REMUNERADA', 14180.55),
-    rf(900, 3, 14400, 'CORRETORA EXEMPLO', 'TESOURO SELIC', 'TESOURO SELIC 2029', 51964.2),
-    rf(420, 1, 25000, 'CORRETORA EXEMPLO', 'TESOURO IPCA+', 'TESOURO IPCA+ 2035', 27610.8),
-    rf(210, 1, 10000, 'BANCO EXEMPLO', 'LCI 95% DO CDI', 'LCI CARTEIRA IMOBILIÁRIA', 10870.3),
-    rf(150, 1, 8000, 'BANCO EXEMPLO', 'LCA 92% DO CDI', 'LCA AGRONEGÓCIO', 8541.12),
-    rf(75, 1, 3000, 'BANCO DIGITAL', 'CDB PRÉ 12,5% A.A.', 'CDB PREFIXADO 2027', 3071.4),
-    rf(12, 1, 5000, 'BANCO DIGITAL', 'CDB 110% DO CDI', 'CDB LIQUIDEZ DIÁRIA', 5036.9), // menos de 31 dias: IOF SIM
+    rf(540, 1, 12000, 'BANCO DIGITAL', 'RDB 100% DO CDI', 'CONTA REMUNERADA', 0.14),
+    rf(900, 3, 14400, 'CORRETORA EXEMPLO', 'TESOURO SELIC', 'TESOURO SELIC 2029', 0.145),
+    rf(420, 1, 25000, 'CORRETORA EXEMPLO', 'TESOURO IPCA+', 'TESOURO IPCA+ 2035', 0.095),
+    rf(210, 1, 10000, 'BANCO EXEMPLO', 'LCI 95% DO CDI', 'LCI CARTEIRA IMOBILIÁRIA', 0.132),
+    rf(150, 1, 8000, 'BANCO EXEMPLO', 'LCA 92% DO CDI', 'LCA AGRONEGÓCIO', 0.128),
+    rf(75, 1, 3000, 'BANCO DIGITAL', 'CDB PRÉ 12,5% A.A.', 'CDB PREFIXADO 2027', 0.136),
+    rf(12, 1, 5000, 'BANCO DIGITAL', 'CDB 110% DO CDI', 'CDB LIQUIDEZ DIÁRIA', 0.155), // menos de 31 dias: IOF SIM
     rv(420, 100, 9.8, 'MXRF11', FII, 'MAXI RENDA', 10.12), rv(180, 50, 9.9, 'MXRF11', FII, 'MAXI RENDA', 10.12),
     rv(300, 10, 158.2, 'KNRI11', FII, 'KINEA RENDA', 161.4), rv(90, 5, 160.1, 'KNRI11', FII, 'KINEA RENDA', 161.4),
     rv(250, 20, 101.5, 'XPLG11', FII, 'XP LOG', 99.8),

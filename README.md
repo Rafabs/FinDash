@@ -19,7 +19,8 @@ Você importa a sua planilha (`.xlsx` ou `.csv`), edita os dados direto na tela,
 - Linhas do Extrato, Despesas e Resgates ficam travadas e só editam pelo **lápis ✏️**
 - Tema **claro e escuro** (segue o sistema e lembra a sua escolha)
 - **🎨 Personalização do layout** (botão 🎨 do topo): tema, cor de destaque, densidade, **papel de parede** (cor, gradiente, imagem sua ou **fundos prontos** como grade, pontos, linhas e xadrez) e **quais abas aparecem e em que ordem**. Fica salvo no XLSX e volta do jeito que você deixou ao importar (veja [Personalização](#-personalização))
-- **Menu lateral (sidebar)**: as seções (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas) ficam num menu à esquerda, com a contagem de itens. Clique em **FYNN CONTROL** ou na **logo** para voltar ao Dashboard. O botão **«** recolhe o menu para só ícones (**»** expande) e a escolha fica salva; em telas médias ele já abre recolhido. Pelo 🎨 **Personalizar** você escolhe quais seções aparecem e a ordem
+- **💡 Recomendações**: nova aba que lê os seus dados e os juros de hoje (Selic e CDI) e sugere onde **reduzir gastos**, **quanto guardar na reserva**, **onde alocar** e quais **riscos** corrigir, com o motivo em números (veja [Recomendações](#-recomendações))
+- **Menu lateral (sidebar)**: as seções (Dashboard, Projeção, Renda por papel, Recomendações, Carteira, Extrato, Despesas, Resgates e Notas) ficam num menu à esquerda, com a contagem de itens. Clique em **FYNN CONTROL** ou na **logo** para voltar ao Dashboard. O botão **«** recolhe o menu para só ícones (**»** expande) e a escolha fica salva; em telas médias ele já abre recolhido. Pelo 🎨 **Personalizar** você escolhe quais seções aparecem e a ordem
 - **Versão para celular**: as abas viram uma barra inferior que **rola para o lado** (com nomes curtos e a aba ativa sempre à vista), tabelas viram cartões e janelas sobem de baixo da tela
 - Abas: **Dashboard**, **Projeção**, **Renda por papel**, **Carteira**, **Extrato**, **Despesas**, **Resgates** e **Notas**
 - Landing page com explicação, modelos para download e **dados de exemplo completos** (veja [Dados de exemplo](#-dados-de-exemplo))
@@ -212,6 +213,9 @@ Guarda a personalização do layout (veja [Personalização](#-personalização)
 | `theme` | `light` ou `dark` |
 | `accent` | Cor de destaque em hexadecimal (vazio = cor padrão do tema) |
 | `density` | `normal` ou `compact` |
+| `reco.perfil` | Perfil da aba Recomendações: `conservador`, `moderado` ou `arrojado` |
+| `reco.discricionarias` | Categorias que você considera gastos supérfluos, separadas por `\|` (vazio = automático; `(nenhuma)` = nenhuma) |
+| `reco.ocultas` | Recomendações que você ocultou, separadas por vírgula |
 | `anexos.pasta`, `anexos.pasta.comprovante` | Nomes da pasta das faturas e da pasta dos comprovantes (só uma dica para reconectar; o navegador não guarda o caminho completo) |
 | `tabs.order`, `tabs.hidden` | Ordem das abas e abas ocultas, separadas por vírgula |
 | `wallpaper.type`, `wallpaper.dim` | `none`, `color`, `gradient`, `pattern` ou `image`, e o contraste (0 a 0,9) |
@@ -392,6 +396,28 @@ Os desenhos dos ícones vêm do projeto [Lucide](https://lucide.dev) (licença I
  
 ---
  
+## 💡 Recomendações
+
+A aba **Recomendações** analisa os seus dados e mostra, em cartões por prioridade (**Alta**, **Média**, **Baixa**), o que vale fazer agora. Tudo é calculado **no navegador**, com regras simples e explicáveis: cada cartão mostra o motivo em números (**Ver detalhes**) e, quando faz sentido, o botão para ir à aba certa. O número ao lado de **Recomendações** no menu é a quantidade de recomendações de prioridade alta ainda não ocultas.
+
+**No topo:** o seu **perfil** (Conservador, Moderado ou Arrojado, que define a meta de reserva de emergência e de renda variável), os indicadores (**sobra média por mês**, **reserva em meses**, **gastos supérfluos**, **renda variável na carteira**) e o **cenário de juros** com a Selic e o CDI de hoje.
+
+| Grupo | O que a aba avalia |
+|---|---|
+| **Gastos** | Despesas **vencidas** e as que vencem no mês; **déficit** ou taxa de poupança baixa (meta de 20% da renda); **assinaturas** e cobranças fixas pequenas; categoria que **subiu** no último mês; peso dos **gastos supérfluos**; itens **fora da curva**; cobranças **duplicadas**; **parcelas** que comprometem a renda e quando elas terminam |
+| **Reserva e alocação** | **Reserva de emergência** (liquidez diária ÷ despesa mensal, contra a meta do perfil) e excesso parado; **renda variável** acima ou abaixo do alvo; renda fixa **abaixo do CDI** (isentas de IR comparadas já descontando 15%); aplicações no prazo do **IOF** |
+| **Riscos** | **Concentração** em um papel ou produto; valores acima da garantia do **FGC** (R$ 250 mil por CPF por instituição); posições de renda variável com queda de 10% ou mais |
+| **Organização** | Falta de entradas no Extrato; despesas **sem categoria**; carteira **sem atualização** há mais de 30 dias |
+| **Insights** | Proventos em relação às despesas; parcelas que liberam dinheiro; PGBL e imposto de renda |
+
+- **Para onde vai a sua sobra:** ordem sugerida para a sobra mensal (regularizar vencidas, completar a reserva, depois equilibrar a carteira segundo o perfil)
+- **Simulador:** escolha quanto cortar dos gastos supérfluos, por quantos meses e a que % do CDI aplicar, e veja quanto isso vira (valores brutos, antes do IR). Em **O que conta como supérfluo?** você marca as categorias; a escolha vale também para os cartões
+- **No PDF:** o relatório completo inclui uma página de **Recomendações** logo depois dos gráficos, com o perfil, os indicadores, o cenário de juros, o plano da sobra e as recomendações ativas (as que você ocultou ficam de fora). O PDF de uma conta ou categoria não leva recomendações
+- **Ocultar:** esconde uma recomendação (e **Mostrar ocultas** a traz de volta). Perfil, categorias supérfluas e ocultas ficam no XLSX (aba `Preferências`)
+- **Limites:** a análise usa só o que você cadastrou. Não considera idade, objetivos, impostos nem o mercado em detalhe e **não é recomendação de investimento personalizada**. As regras estão em `src/recommend.js`
+
+---
+
 ## 🌈 Personalização
 
 O botão **🎨** do topo abre a janela **Personalizar**. Tudo tem **pré-visualização ao vivo**; só vale depois de **Salvar** (**Cancelar** desfaz) e **Restaurar padrão** volta ao original.
@@ -490,7 +516,7 @@ Anexos/
 
 O botão **PDF** do topo abre a janela **Exportar PDF**, com duas opções:
 
-- **Relatório completo:** carteira, extrato, despesas, resgates, gráficos e projeção (como antes)
+- **Relatório completo:** resumo, gráficos, **recomendações**, carteira, extrato, despesas, resgates e projeção
 - **Somente uma conta ou categoria de despesas:** escolha na lista uma **conta / grupo** (ex.: *Cartão de crédito*, *Internet*, *Aluguel*) ou uma **categoria dos itens** (ex.: *Compras Online*). A janela mostra na hora o número de lançamentos, o previsto, o pago e o a pagar do que será exportado
 
 O PDF de uma conta ou categoria traz:
@@ -525,7 +551,7 @@ Para começar do zero, use **Limpar**; para guardar o exemplo como planilha, use
 
 ## 🧭 Guia rápido e limpeza de dados
  
-**Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
+**Guia rápido.** No primeiro acesso, uma janela com 12 passos explica a barra superior e cada aba (Dashboard, Projeção, Renda por papel, Recomendações, Carteira, Extrato, Despesas, Resgates e Notas). Navegue com **Próximo/Anterior**, com as setas do teclado ou pelas bolinhas; `Esc` ou **Pular guia** fecha. O texto está em `src/Tour.jsx`.
  
 - Ao fechar, o app grava `fynn-tour-v1` no `localStorage` e não mostra o guia sozinho de novo
 - O botão **❓** do topo reabre o guia quando quiser
@@ -566,6 +592,8 @@ Para começar do zero, use **Limpar**; para guardar o exemplo como planilha, use
     ├── pdf.js                     # relatório em PDF (resumo, gráficos e tabelas; completo ou só de uma conta/categoria)
     ├── PdfModal.jsx               # janela Exportar PDF (relatório completo ou uma conta/categoria de despesas)
     ├── fileMeta.js                # arquivo carregado: nome, horários de carga/edição e recarga do disco
+    ├── recommend.js               # motor das recomendações: regras de gastos, reserva, alocação e riscos, plano da sobra e simulador
+    ├── Recomendacoes.jsx          # aba Recomendações (cartões, filtros, plano da sobra e simulador)
     ├── anexos.js                  # pastas de anexos (faturas e comprovantes): caminhos relativos, leitura das pastas e arquivos
     ├── Anexos.jsx                 # visualizador, escolha do arquivo, janela das pastas e campos de anexo
     ├── pdfScope.js                # filtra as despesas por conta (com os grupos de dentro) ou por categoria para o PDF
@@ -610,7 +638,7 @@ Para começar do zero, use **Limpar**; para guardar o exemplo como planilha, use
 - O botão **Limpar** apaga os dados salvos e volta para a tela inicial.
 - A **personalização do layout** também vai no XLSX (aba `Preferências`) e é restaurada ao importar.
 - **CSV** exporta a aba atual. **XLSX** exporta as abas de dados, `Notas` e `Preferências` (com a baixa das despesas) no mesmo formato de entrada, então pode ser reimportado.
-- **PDF** pode ser completo ou só de uma conta/categoria de despesas (janela ao clicar em **PDF**). O completo traz o resumo, os gráficos e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
+- **PDF** pode ser completo ou só de uma conta/categoria de despesas (janela ao clicar em **PDF**). O completo traz o resumo, os gráficos, as **Recomendações** (página logo depois dos gráficos) e as tabelas, com a **Projeção na última página** e **linha de totais** no fim de cada uma (Carteira, Extrato, Despesas, composição por grupo e Resgates). Na lista de despesas há o **Total geral** (previsto, pago e pendente) e, havendo meses futuros, a linha **Até o mês atual**. Extrato, despesas e resgates saem apenas com o **período filtrado**, para o relatório não ficar enorme.
 ---
  
 ## ⚠️ Observações
@@ -640,6 +668,8 @@ O comando atualiza o `src/version.js` e acrescenta uma linha no topo do **Histó
 ---
 
 ## 🗺️ Histórico de atualizações
+- [X] `v26.11.41` PDF: o relatório completo agora inclui as Recomendações (perfil, indicadores, cenário de juros, plano da sobra e recomendações ativas)
+- [X] `v26.11.40` Nova aba Recomendações: reduzir gastos, reserva de emergência, alocação, riscos, plano da sobra mensal e simulador, com base nos seus dados e nos juros de hoje
 - [X] `v26.11.39` Anexos: arquivos já anexados a outra fatura ou comprovante somem da lista de sugestões (com opção de mostrar e aviso de repetição)
 - [X] `v26.11.38` Anexos: nova janela de escolha das pastas (um cartão para faturas e outro para comprovantes, com conferência dos arquivos) e zoom nas imagens JPG e PNG
 - [X] `v26.11.37` Anexar: botão para procurar o arquivo no explorador já dentro da pasta, lista com diagnóstico (tipos ignorados), atualizar lista e aviso de permissão perdida

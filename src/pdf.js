@@ -250,6 +250,90 @@ function fitColumns(doc, head, body, foot, avail, sizes = [7, 6.4, 5.8, 5.2]) {
   return { fontSize, widths }
 }
 
+// ---------- Recomendações (página própria no relatório completo) ----------
+// O PDF usa a fonte padrão (Latin-1): tira emojis e troca símbolos que ela não tem
+const limpa = (s) => String(s ?? '').replace(/≈/g, '~').replace(/→/g, '->').replace(/[^\u0020-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\n]/g, '').replace(/ {2,}/g, ' ').trim()
+const PRIO_PDF = { alta: ['ALTA', [220, 38, 38]], media: ['MÉDIA', [217, 119, 6]], baixa: ['BAIXA', [59, 130, 246]] }
+function addRecomendacoes(doc, reco) {
+  const { recs = [], plano = [], metrics: M = {}, contexto, perfilLabel = 'Moderado' } = reco
+  if (!recs.length && !plano.length) return
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight()
+  const pc = (v, d = 0) => `${((Number(v) || 0) * 100).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })}%`
+  doc.addPage()
+  sectionHeading(doc, 'Recomendações', 'O que fazer com o seu dinheiro', `Perfil ${perfilLabel.toLowerCase()} · ${recs.length} recomendaç${recs.length === 1 ? 'ão ativa' : 'ões ativas'} · calculadas com os dados do app`)
+  // indicadores
+  const cards = [
+    ['Sobra média por mês', money(M.sobra), M.taxa != null ? `${pc(M.taxa, 1)} da renda` : 'sem entradas no Extrato', (M.sobra || 0) < 0 ? 'neg' : 'pos'],
+    ['Reserva de emergência', M.reservaMeses != null ? `${M.reservaMeses.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} meses` : '—', `alvo: ${M.reservaMesesAlvo ?? '—'} meses`, (M.reservaMeses ?? 99) < 3 ? 'neg' : ''],
+    ['Gastos supérfluos', money(M.disc), M.discPct != null ? `${pc(M.discPct)} da renda por mês` : 'por mês', ''],
+    ['Renda variável na carteira', pc(M.rvPct), `renda fixa ${pc(M.rfPct)}`, ''],
+  ]
+  const gap = 5, cw = (W - 28 - gap * 3) / 4, cy = 34, ch = 22
+  cards.forEach(([label, value, sub, tone], i) => {
+    const x = 14 + i * (cw + gap)
+    doc.setFillColor(255, 255, 255); doc.setDrawColor(...PDF_COLORS.line); doc.roundedRect(x, cy, cw, ch, 2.5, 2.5, 'FD')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...PDF_COLORS.muted); doc.text(limpa(label), x + 4, cy + 6.5)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(...(tone === 'pos' ? [5, 150, 105] : tone === 'neg' ? [220, 38, 38] : PDF_COLORS.ink)); doc.text(limpa(value), x + 4, cy + 14.5)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...PDF_COLORS.muted); doc.text(limpa(sub), x + 4, cy + 19.5)
+  })
+  let y = cy + ch + 6
+  // cenário de juros
+  if (contexto) {
+    const taxas = [contexto.selic ? `Selic ${contexto.selic.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% a.a.` : '', contexto.cdi ? `CDI ${contexto.cdi.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% a.a.` : ''].filter(Boolean).join('  ·  ')
+    const linhas = doc.splitTextToSize(limpa(`Cenário de juros (${taxas}): ${contexto.leitura}`), W - 28)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_COLORS.ink)
+    doc.text(linhas, 14, y)
+    y += linhas.length * 3.8 + 3
+  }
+  // para onde vai a sobra
+  if (plano.length) {
+    autoTable(doc, {
+      ...tableStyles, startY: y,
+      head: [['Para onde vai a sua sobra', 'Detalhe', 'Valor']],
+      body: plano.map((p, i) => [`${i + 1}. ${limpa(p.titulo)}`, limpa(p.detalhe), p.valor > 0 ? `${money(p.valor)}${p.unico ? '' : '/mês'}` : '']),
+      columnStyles: { 0: { cellWidth: 62, fontStyle: 'bold' }, 2: { cellWidth: 36, halign: 'right', fontStyle: 'bold' } },
+      styles: { ...tableStyles.styles, fontSize: 7.5, cellPadding: 2.4 },
+      didParseCell: (h) => { if (h.section === 'head' && h.column.index === 2) h.cell.styles.halign = 'right' },
+    })
+    y = doc.lastAutoTable.finalY + 6
+  }
+  // recomendações: cada uma é uma pequena tabela (título + explicação e números), que nunca se divide entre páginas
+  if (recs.length) {
+    if (y > H - 50) { doc.addPage(); y = 16 }
+    const colStyles = { 0: { cellWidth: 24 }, 2: { cellWidth: 52 } }
+    const pad = { top: 3.2, right: 3.5, bottom: 1.2, left: 3.5 }
+    autoTable(doc, { ...tableStyles, startY: y, head: [['Prioridade', 'Recomendação', 'Impacto']], body: [], columnStyles: colStyles, didParseCell: (h) => { if (h.section === 'head' && h.column.index === 2) h.cell.styles.halign = 'right' } })
+    y = doc.lastAutoTable.finalY
+    recs.forEach((r) => {
+      const [pl, cor] = PRIO_PDF[r.prioridade] || PRIO_PDF.baixa
+      const det = [limpa(r.resumo), ...(r.evidencias || []).slice(0, r.prioridade === 'alta' ? 6 : 4).map((e) => `- ${limpa(e)}`)].join('\n')
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5)
+      const linhas = det.split('\n').reduce((t, l) => t + doc.splitTextToSize(l, W - 28 - 7).length, 0)
+      const altura = 8.6 + 4.6 + linhas * 3.1 + 2 // título + explicação (estimativa)
+      if (y + altura > H - 16) { doc.addPage(); y = 16 }
+      const fill = [244, 246, 248]
+      autoTable(doc, {
+        ...tableStyles, startY: y, showHead: 'never', rowPageBreak: 'avoid', alternateRowStyles: {}, columnStyles: colStyles,
+        body: [
+          [
+            { content: pl, styles: { textColor: cor, fontStyle: 'bold', fontSize: 7.5, fillColor: fill, cellPadding: pad } },
+            { content: limpa(r.titulo), styles: { fontStyle: 'bold', fontSize: 8.5, fillColor: fill, cellPadding: pad } },
+            { content: r.impacto ? limpa(r.impacto.label) : '', styles: { halign: 'right', fontStyle: 'bold', textColor: PDF_COLORS.brand, fontSize: 7.5, fillColor: fill, cellPadding: pad } },
+          ],
+          [{ content: det, colSpan: 3, styles: { textColor: [55, 65, 81], fontSize: 7.5, cellPadding: { top: 1, right: 3.5, bottom: 3.6, left: 3.5 } } }],
+        ],
+      })
+      y = doc.lastAutoTable.finalY
+    })
+    const ny = doc.lastAutoTable.finalY + 5
+    if (ny < H - 14) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...PDF_COLORS.muted)
+      const nota = doc.splitTextToSize('Recomendações automáticas, calculadas só com os dados cadastrados no app. Não consideram idade, objetivos, impostos nem o mercado em detalhe e não substituem a orientação de um profissional. Rentabilidade passada não garante resultado futuro.', W - 28)
+      doc.text(nota, 14, ny)
+    }
+  }
+}
+
 function addCharts(doc, data, periodo, marks) {
   const carteira = data.carteira || [], ext = data.extrato || [], dsp = data.despesas || [], res = data.resgates || []
   const valor = 'VALOR DA APLICAÇÃO'
@@ -365,6 +449,7 @@ export async function exportPdf(data, resumo, periodo, indicadores = {}, opcoes 
   }
   if (solo) addDespesasCharts(doc, data, periodo, opcoes.titulo || 'Despesas', marks)
   else addCharts(doc, data, periodo, marks)
+  if (!solo && indicadores.recomendacoes) addRecomendacoes(doc, indicadores.recomendacoes) // recomendações logo depois dos gráficos
   for (const k of solo ? [] : ['carteira', 'extrato']) {
     const cols = SHEETS[k].cols.map(([c]) => c)
     const labels = SHEETS[k].cols.map(([c, , l]) => l ?? c)

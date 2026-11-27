@@ -850,3 +850,39 @@ html[data-density=compact] main{font-size:13px}
 .anexo-used-toggle{display:flex;align-items:center;gap:8px;margin:6px 0 0;color:var(--mut);font-size:12px;cursor:pointer}
 .anexo-item.used{opacity:.7}.anexo-item em.used{color:#d97706}
 .anexo-dup-actions{display:flex;gap:8px;margin-top:8px}
+
+/* Recomendações */
+.reco-intro{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px;margin:0 0 14px}
+.reco-intro h2{margin:2px 0 4px}.reco-intro p{margin:0;max-width:64ch;color:var(--mut)}.reco-intro .renda-period small{display:block;max-width:270px;margin-top:4px}
+.reco-kpis{margin-bottom:12px}.reco-kpis .kpi small.muted{display:block;margin-top:2px}
+.reco-cenario{display:grid;gap:8px;margin-bottom:12px;border-left:5px solid var(--ac)}
+.reco-cenario.alto{border-left-color:#d97706}.reco-cenario.medio{border-left-color:#3b82f6}.reco-cenario.baixo{border-left-color:var(--pos)}
+.reco-cenario-nums{display:flex;flex-wrap:wrap;gap:22px}.reco-cenario-nums span{display:grid;gap:1px}.reco-cenario-nums small{color:var(--mut);font-size:11px}.reco-cenario-nums b{font-size:17px}
+.reco-cenario p{margin:0;font-size:13.5px}
+.reco-plano{margin-bottom:12px}.reco-plano h3{margin:0 0 2px}
+.reco-plano ol{display:grid;gap:8px;margin:10px 0 0;padding:0;list-style:none}
+.reco-plano li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px}
+.reco-plano li div{display:grid;gap:2px}.reco-plano li span{color:var(--mut);font-size:13px}.reco-plano li em{font-style:normal;font-weight:800;white-space:nowrap}
+.reco-filtros{margin:6px 0 12px}
+.reco-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));align-items:start;gap:12px}
+.reco-card{display:grid;gap:8px;padding:14px;border:1px solid var(--bd);border-left-width:5px;border-radius:14px;background:var(--card)}
+.reco-card.alta{border-left-color:var(--neg)}.reco-card.media{border-left-color:#d97706}.reco-card.baixa{border-left-color:#3b82f6}.reco-card.oculta{opacity:.55}
+.reco-card header{display:flex;align-items:flex-start;gap:10px}.reco-ic{font-size:22px}.reco-tit{flex:1;min-width:0}.reco-tit h3{margin:0;font-size:15px;line-height:1.25}
+.reco-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.reco-prio,.reco-tipo{padding:1px 8px;border:1px solid var(--bd);border-radius:999px;color:var(--mut);font-size:10.5px;font-weight:800;letter-spacing:.03em}
+.reco-prio.alta{color:var(--neg);border-color:color-mix(in srgb,var(--neg) 40%,transparent);background:color-mix(in srgb,var(--neg) 12%,transparent)}
+.reco-prio.media{color:#d97706;border-color:color-mix(in srgb,#d97706 40%,transparent);background:color-mix(in srgb,#d97706 12%,transparent)}
+.reco-prio.baixa{color:#3b82f6;border-color:color-mix(in srgb,#3b82f6 40%,transparent);background:color-mix(in srgb,#3b82f6 12%,transparent)}
+.reco-impacto{flex:none;max-width:42%;color:var(--ac);font-size:12px;font-weight:800;text-align:right}
+.reco-card p{margin:0;font-size:13.5px;line-height:1.5}
+.reco-card details{font-size:12.5px}.reco-card summary{cursor:pointer;color:var(--ac);font-weight:700}
+.reco-card ul{display:grid;gap:3px;margin:6px 0 0;padding-left:18px}
+.reco-card footer{display:flex;flex-wrap:wrap;gap:8px}
+.reco-sim{margin:14px 0}.reco-sim h3{margin:0 0 2px}
+.reco-sim-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:12px 0}.reco-sim-grid label{display:grid;gap:6px;font-size:13px}
+.reco-sim-out{display:flex;flex-wrap:wrap;gap:12px}.reco-sim-out span{display:grid;flex:1 1 180px;gap:2px;padding:12px;border:1px solid var(--bd);border-radius:12px}
+.reco-sim-out small{color:var(--mut);font-size:11.5px}.reco-sim-out b{font-size:20px}
+.reco-disc{margin-top:12px;font-size:13px}.reco-disc summary{cursor:pointer;font-weight:700}
+.reco-disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;margin:8px 0}.reco-disc-grid label{display:flex;align-items:center;gap:6px}
+.reco-aviso{margin:14px 0 4px;font-size:12px}.reco-nada,.reco-vazio{padding:18px}
+@media(max-width:700px){.reco-impacto{max-width:none;text-align:left}.reco-card header{flex-wrap:wrap}}
